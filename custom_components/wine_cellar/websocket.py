@@ -14,11 +14,15 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import (
     CONF_AI_FALLBACK_ALWAYS,
+    CONF_DISMISSED_ARRANGEMENTS,
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
+    CONF_SERVER_BACKUP_KEEP,
     DEFAULT_METADATA_CURRENCY,
     DEFAULT_METADATA_LANGUAGE,
+    DEFAULT_SERVER_BACKUP_KEEP,
     DOMAIN,
+    SERVER_BACKUP_KEEP_CHOICES,
     SUPPORTED_METADATA_CURRENCIES,
     SUPPORTED_METADATA_LANGUAGES,
 )
@@ -52,6 +56,19 @@ def _get_metadata_currency(hass: HomeAssistant) -> str:
     """Return the user's chosen currency for Vivino/AI price data."""
     storage = hass.data[DOMAIN]["storage"]
     return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
+
+
+def _select_wines(storage: Any, wine_ids: list[str] | None) -> list[dict[str, Any]]:
+    """All wines, or just the requested ids, keeping the stored order.
+
+    Unknown ids are ignored rather than treated as an error: the frontend's
+    list can be a moment stale, and refreshing the wines that do exist beats
+    refusing the whole batch.
+    """
+    if not wine_ids:
+        return list(storage.wines)
+    wanted = set(wine_ids)
+    return [w for w in storage.wines if w.get("id") in wanted]
 
 
 def _build_ai_updates(wine: dict[str, Any], result: dict[str, Any], currency: str = "USD") -> dict[str, Any]:
@@ -279,6 +296,9 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_backup)
     websocket_api.async_register_command(hass, ws_restore_backup)
     websocket_api.async_register_command(hass, ws_import_wines)
+    websocket_api.async_register_command(hass, ws_reorder_zone)
+    websocket_api.async_register_command(hass, ws_server_backup_delete)
+    websocket_api.async_register_command(hass, ws_get_storage_info)
     websocket_api.async_register_command(hass, ws_server_backup_save)
     websocket_api.async_register_command(hass, ws_server_backup_list)
     websocket_api.async_register_command(hass, ws_server_backup_restore)
@@ -306,6 +326,29 @@ def ws_get_cabinets(
     """Return all cabinets."""
     storage = hass.data[DOMAIN]["storage"]
     connection.send_result(msg["id"], {"cabinets": storage.cabinets})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "wine_cellar/reorder_zone",
+        vol.Required("cabinet_id"): str,
+        vol.Required("zone"): str,
+        vol.Required("wine_ids"): [str],
+    }
+)
+@websocket_api.async_response
+async def ws_reorder_zone(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Renumber a bin's slots in one pass, instead of a move per bottle."""
+    storage = hass.data[DOMAIN]["storage"]
+    count = storage.reorder_zone(msg["cabinet_id"], msg["zone"], msg["wine_ids"])
+    if count:
+        await storage.async_save()
+        hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(msg["id"], {"reordered": count})
 
 
 @websocket_api.websocket_command(
@@ -607,6 +650,13 @@ def ws_get_capabilities(
             "ai_fallback_always": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_AI_FALLBACK_ALWAYS, False)
             ),
+            "server_backup_keep": _get_backup_keep(hass),
+            "server_backup_keep_choices": SERVER_BACKUP_KEEP_CHOICES,
+            "dismissed_arrangements": list(
+                hass.data[DOMAIN]["storage"].settings.get(
+                    CONF_DISMISSED_ARRANGEMENTS, []
+                )
+            ),
         },
     )
 
@@ -634,6 +684,27 @@ async def ws_update_settings(
     if currency is not None and currency not in SUPPORTED_METADATA_CURRENCIES:
         connection.send_result(msg["id"], {"error": f"Unsupported currency: {currency}"})
         return
+    keep = updates.get(CONF_SERVER_BACKUP_KEEP)
+    if keep is not None:
+        try:
+            updates[CONF_SERVER_BACKUP_KEEP] = max(0, int(keep))
+        except (TypeError, ValueError):
+            connection.send_result(
+                msg["id"], {"error": f"Invalid backup retention: {keep}"}
+            )
+            return
+    dismissed = updates.get(CONF_DISMISSED_ARRANGEMENTS)
+    if dismissed is not None:
+        if not isinstance(dismissed, list) or not all(
+            isinstance(item, str) for item in dismissed
+        ):
+            connection.send_result(
+                msg["id"], {"error": "Dismissed arrangements must be a list of ids"}
+            )
+            return
+        # Deduplicate and cap: this list only ever grows, and a finding id the
+        # cellar can no longer produce would otherwise sit there forever.
+        updates[CONF_DISMISSED_ARRANGEMENTS] = list(dict.fromkeys(dismissed))[-500:]
     settings = storage.update_settings(updates)
     await storage.async_save()
     connection.send_result(msg["id"], {"settings": settings})
@@ -744,7 +815,13 @@ async def ws_refresh_wine(
         # No usable Vivino match (no results, or the best match looks
         # unrelated). Don't silently fall back to AI — flag it so the
         # frontend can ask the user first (unless they've opted into
-        # always-use-AI).
+        # always-use-AI). The attempt is still recorded — as a *check*, not
+        # an update — so the wine stops being reported as never looked up
+        # while still showing that Vivino had nothing for it.
+        storage.update_wine(
+            msg["wine_id"], {"vivino_checked_at": datetime.now(timezone.utc).isoformat()}
+        )
+        await storage.async_save()
         connection.send_result(msg["id"], {
             "error": f"No confident Vivino match for '{query}'.",
             "no_vivino_match": True,
@@ -818,28 +895,33 @@ async def ws_refresh_wine(
         if val and not wine.get(key):
             updates[key] = val
 
-    if updates:
-        updates["vivino_updated_at"] = datetime.now(timezone.utc).isoformat()
-        if lookup.get("vivino_id"):
-            updates["vivino_id"] = lookup["vivino_id"]
-        if ai_price_used:
-            updates["ai_updated_at"] = updates["vivino_updated_at"]
-        updated_wine = storage.update_wine(msg["wine_id"], updates)
-        await storage.async_save()
-        hass.bus.async_fire(f"{DOMAIN}_updated")
-        connection.send_result(msg["id"], {
-            "wine": updated_wine,
-            "updated_fields": list(updates.keys()),
-            "vivino_image_url": vivino_image_url,
-            "price_needs_ai": price_needs_ai,
-        })
-    else:
-        connection.send_result(msg["id"], {
-            "wine": wine,
-            "updated_fields": [],
-            "vivino_image_url": vivino_image_url,
-            "price_needs_ai": price_needs_ai,
-        })
+    # The field list reported to the frontend is the real changes only; the
+    # bookkeeping keys added below would otherwise show up as "1 field
+    # updated" on a lookup that changed nothing.
+    changed_fields = list(updates.keys())
+    now = datetime.now(timezone.utc).isoformat()
+
+    # checked_at records every completed lookup; updated_at only moves when
+    # the wine actually gained something. Comparing the two is what tells a
+    # fruitless retry apart from a fruitful one.
+    updates["vivino_checked_at"] = now
+    if changed_fields:
+        updates["vivino_updated_at"] = now
+    if lookup.get("vivino_id"):
+        updates["vivino_id"] = lookup["vivino_id"]
+    if ai_price_used:
+        updates["ai_updated_at"] = now
+        updates["ai_checked_at"] = now
+
+    updated_wine = storage.update_wine(msg["wine_id"], updates)
+    await storage.async_save()
+    hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(msg["id"], {
+        "wine": updated_wine,
+        "updated_fields": changed_fields,
+        "vivino_image_url": vivino_image_url,
+        "price_needs_ai": price_needs_ai,
+    })
 
 
 @websocket_api.websocket_command(
@@ -879,18 +961,23 @@ async def ws_analyze_single_wine(
     updates = _build_ai_updates(wine, result, currency)
 
     _LOGGER.debug("Final updates for wine %s: %s", msg["wine_id"], list(updates.keys()))
+    # Same split as the Vivino path: the check is always recorded, the update
+    # only when the AI actually added something.
+    now = datetime.now(timezone.utc).isoformat()
     if updates:
-        updates["ai_updated_at"] = datetime.now(timezone.utc).isoformat()
-        updated_wine = storage.update_wine(msg["wine_id"], updates)
-        await storage.async_save()
-        hass.bus.async_fire(f"{DOMAIN}_updated")
-        connection.send_result(msg["id"], {"wine": updated_wine, "analysis": result})
-    else:
-        connection.send_result(msg["id"], {"wine": wine, "analysis": result})
+        updates["ai_updated_at"] = now
+    updates["ai_checked_at"] = now
+    updated_wine = storage.update_wine(msg["wine_id"], updates)
+    await storage.async_save()
+    hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(msg["id"], {"wine": updated_wine, "analysis": result})
 
 
 @websocket_api.websocket_command(
-    {vol.Required("type"): "wine_cellar/batch_analyze_wines"}
+    {
+        vol.Required("type"): "wine_cellar/batch_analyze_wines",
+        vol.Optional("wine_ids"): [str],
+    }
 )
 @websocket_api.async_response
 async def ws_batch_analyze_wines(
@@ -898,7 +985,7 @@ async def ws_batch_analyze_wines(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Batch AI analysis: run full analyze_single_wine on every wine."""
+    """Batch AI analysis: run analyze_single_wine on every wine, or a subset."""
     gemini = hass.data[DOMAIN].get("gemini")
     if not gemini:
         connection.send_result(
@@ -908,7 +995,7 @@ async def ws_batch_analyze_wines(
         return
 
     storage = hass.data[DOMAIN]["storage"]
-    wines = storage.wines
+    wines = _select_wines(storage, msg.get("wine_ids"))
     if not wines:
         connection.send_result(msg["id"], {"error": "No wines to analyze."})
         return
@@ -916,6 +1003,7 @@ async def ws_batch_analyze_wines(
     language = _get_metadata_language(hass)
     currency = _get_metadata_currency(hass)
     updated = 0
+    unchanged = 0
     errors = 0
     total = len(wines)
 
@@ -931,11 +1019,20 @@ async def ws_batch_analyze_wines(
                 continue
 
             updates = _build_ai_updates(wine, result, currency)
+            had_changes = bool(updates)
 
-            if updates:
-                updates["ai_updated_at"] = datetime.now(timezone.utc).isoformat()
-                storage.update_wine(wine["id"], updates)
+            # The check is always recorded; the update timestamp only moves
+            # when the AI actually added something. A checked_at newer than
+            # updated_at is exactly "this retry found nothing new".
+            now = datetime.now(timezone.utc).isoformat()
+            if had_changes:
+                updates["ai_updated_at"] = now
+            updates["ai_checked_at"] = now
+            storage.update_wine(wine["id"], updates)
+            if had_changes:
                 updated += 1
+            else:
+                unchanged += 1
 
             # Small delay between API calls to avoid rate limits
             await asyncio.sleep(0.5)
@@ -946,13 +1043,13 @@ async def ws_batch_analyze_wines(
             )
             errors += 1
 
-    if updated:
+    if updated or unchanged:
         await storage.async_save()
         hass.bus.async_fire(f"{DOMAIN}_updated")
 
     connection.send_result(
         msg["id"],
-        {"updated": updated, "total": total, "errors": errors},
+        {"updated": updated, "unchanged": unchanged, "total": total, "errors": errors},
     )
 
 
@@ -961,6 +1058,7 @@ async def ws_batch_analyze_wines(
         vol.Required("type"): "wine_cellar/batch_refresh_vivino",
         vol.Optional("photo_mode", default="keep"): vol.In(["keep", "replace"]),
         vol.Optional("ai_fallback", default="skip"): vol.In(["skip", "use"]),
+        vol.Optional("wine_ids"): [str],
     }
 )
 @websocket_api.async_response
@@ -969,7 +1067,7 @@ async def ws_batch_refresh_vivino(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Batch Vivino refresh: look up every wine on Vivino and update data."""
+    """Batch Vivino refresh: look up every wine on Vivino, or a subset."""
     vivino = hass.data[DOMAIN].get("vivino")
     if not vivino:
         connection.send_result(
@@ -979,7 +1077,7 @@ async def ws_batch_refresh_vivino(
         return
 
     storage = hass.data[DOMAIN]["storage"]
-    wines = storage.wines
+    wines = _select_wines(storage, msg.get("wine_ids"))
     if not wines:
         connection.send_result(msg["id"], {"error": "No wines to refresh."})
         return
@@ -989,6 +1087,7 @@ async def ws_batch_refresh_vivino(
     language = _get_metadata_language(hass)
     currency = _get_metadata_currency(hass)
     updated = 0
+    unchanged = 0
     errors = 0
     photos_updated = 0
     photos_kept = 0
@@ -1035,21 +1134,38 @@ async def ws_batch_refresh_vivino(
                 # No usable Vivino match. Only fall back to AI if the user
                 # opted into it upfront for this batch run — never silently.
                 mismatched += 1
+                gained_data = False
                 gemini = hass.data[DOMAIN].get("gemini") if ai_fallback_mode == "use" else None
                 if gemini:
                     try:
                         ai_result = await gemini.analyze_single_wine(wine, language, currency)
                         if "error" not in ai_result:
                             ai_updates = _build_ai_updates(wine, ai_result, currency)
-                            if ai_updates:
-                                ai_updates["ai_updated_at"] = datetime.now(timezone.utc).isoformat()
-                                storage.update_wine(wine["id"], ai_updates)
+                            had_ai_changes = bool(ai_updates)
+                            ai_now = datetime.now(timezone.utc).isoformat()
+                            if had_ai_changes:
+                                ai_updates["ai_updated_at"] = ai_now
+                            ai_updates["ai_checked_at"] = ai_now
+                            storage.update_wine(wine["id"], ai_updates)
+                            if had_ai_changes:
                                 updated += 1
                                 ai_fallback_used += 1
+                                gained_data = True
                     except Exception as err:
                         _LOGGER.debug(
                             "Batch: AI fallback failed for wine %s: %s", wine.get("id"), err
                         )
+                # Record the Vivino check even though it found nothing, or the
+                # wine is reported as never looked up forever. It stays a
+                # check, not an update — nothing was learned. Counted as
+                # unchanged only when the AI fallback didn't rescue it either,
+                # so no wine lands in both totals.
+                storage.update_wine(
+                    wine["id"],
+                    {"vivino_checked_at": datetime.now(timezone.utc).isoformat()},
+                )
+                if not gained_data:
+                    unchanged += 1
                 await asyncio.sleep(1.0)
                 continue
 
@@ -1112,14 +1228,21 @@ async def ws_batch_refresh_vivino(
                 if val and not wine.get(key):
                     updates[key] = val
 
-            if updates:
-                updates["vivino_updated_at"] = datetime.now(timezone.utc).isoformat()
-                if lookup.get("vivino_id"):
-                    updates["vivino_id"] = lookup["vivino_id"]
-                if ai_price_used:
-                    updates["ai_updated_at"] = updates["vivino_updated_at"]
-                storage.update_wine(wine["id"], updates)
+            had_changes = bool(updates)
+            now = datetime.now(timezone.utc).isoformat()
+            updates["vivino_checked_at"] = now
+            if had_changes:
+                updates["vivino_updated_at"] = now
+            if lookup.get("vivino_id"):
+                updates["vivino_id"] = lookup["vivino_id"]
+            if ai_price_used:
+                updates["ai_updated_at"] = now
+                updates["ai_checked_at"] = now
+            storage.update_wine(wine["id"], updates)
+            if had_changes:
                 updated += 1
+            else:
+                unchanged += 1
 
             # Small delay to avoid rate limits
             await asyncio.sleep(1.0)
@@ -1130,7 +1253,7 @@ async def ws_batch_refresh_vivino(
             )
             errors += 1
 
-    if updated:
+    if updated or unchanged:
         await storage.async_save()
         hass.bus.async_fire(f"{DOMAIN}_updated")
 
@@ -1138,6 +1261,7 @@ async def ws_batch_refresh_vivino(
         msg["id"],
         {
             "updated": updated,
+            "unchanged": unchanged,
             "total": total,
             "errors": errors,
             "photos_updated": photos_updated,
@@ -1492,6 +1616,7 @@ async def ws_restore_backup(
     {
         vol.Required("type"): "wine_cellar/import_wines",
         vol.Required("wines"): list,
+        vol.Optional("mode", default="add"): vol.In(["add", "update"]),
     }
 )
 @websocket_api.async_response
@@ -1500,14 +1625,25 @@ async def ws_import_wines(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Batch import wines (each gets a new UUID)."""
+    """Batch import wines: add as new, or update existing ones by id."""
     storage = hass.data[DOMAIN]["storage"]
-    count = storage.import_wines(msg["wines"])
+    counts = storage.import_wines(msg["wines"], msg.get("mode", "add"))
     await storage.async_save()
     hass.bus.async_fire(f"{DOMAIN}_updated")
 
-    _LOGGER.info("Imported %d wines", count)
-    connection.send_result(msg["id"], {"imported": count})
+    _LOGGER.info(
+        "CSV import (%s): %d added, %d updated, %d locations skipped",
+        msg.get("mode", "add"), counts["added"], counts["updated"],
+        counts["location_skipped"],
+    )
+    connection.send_result(
+        msg["id"],
+        {
+            "imported": counts["added"],
+            "updated": counts["updated"],
+            "location_skipped": counts["location_skipped"],
+        },
+    )
 
 
 # ── Cloud Sync (save/load backup file) ─────────────────────────────
@@ -1517,11 +1653,24 @@ import json
 from pathlib import Path
 
 
+def _get_backup_keep(hass: HomeAssistant) -> int:
+    """How many server backups to retain (0 = keep everything)."""
+    raw = hass.data[DOMAIN]["storage"].settings.get(
+        CONF_SERVER_BACKUP_KEEP, DEFAULT_SERVER_BACKUP_KEEP
+    )
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return DEFAULT_SERVER_BACKUP_KEEP
+
+
 def _get_server_backup_dir(hass: HomeAssistant) -> Path:
-    """Return the server backup directory in HA config directory."""
-    d = Path(hass.config.config_dir) / "wine_cellar_backups"
-    d.mkdir(exist_ok=True)
-    return d
+    """Return the server backup directory path (no filesystem access).
+
+    Creating it is left to the executor jobs below: mkdir() blocks, and every
+    caller here runs on the event loop.
+    """
+    return Path(hass.config.config_dir) / "wine_cellar_backups"
 
 
 @websocket_api.websocket_command({vol.Required("type"): "wine_cellar/server_backup_save"})
@@ -1542,11 +1691,27 @@ async def ws_server_backup_save(
     backup_dir = _get_server_backup_dir(hass)
     backup_path = backup_dir / filename
 
+    keep = _get_backup_keep(hass)
+
+    def _write() -> int:
+        backup_dir.mkdir(exist_ok=True)
+        backup_path.write_text(json.dumps(backup, indent=2), "utf-8")
+        if keep <= 0:
+            return 0
+        # Newest first, so everything past the retention count is the tail.
+        existing = sorted(backup_dir.glob("wine_cellar_*.json"), reverse=True)
+        pruned = 0
+        for old_file in existing[keep:]:
+            try:
+                old_file.unlink()
+                pruned += 1
+            except OSError as err:
+                _LOGGER.warning("Could not prune old backup %s: %s", old_file, err)
+        return pruned
+
     try:
-        await hass.async_add_executor_job(
-            backup_path.write_text, json.dumps(backup, indent=2), "utf-8"
-        )
-        _LOGGER.info("Server backup saved to %s", backup_path)
+        pruned = await hass.async_add_executor_job(_write)
+        _LOGGER.info("Server backup saved to %s (pruned %d old)", backup_path, pruned)
         connection.send_result(msg["id"], {
             "success": True,
             "filename": filename,
@@ -1554,6 +1719,7 @@ async def ws_server_backup_save(
             "cabinets": len(backup.get("cabinets", [])),
             "buy_list": len(backup.get("buy_list", [])),
             "timestamp": backup["timestamp"],
+            "pruned": pruned,
         })
     except Exception as err:
         _LOGGER.error("Failed to save server backup: %s", err)
@@ -1571,9 +1737,11 @@ async def ws_server_backup_list(
     backup_dir = _get_server_backup_dir(hass)
 
     def _list_backups() -> list[dict]:
+        if not backup_dir.is_dir():
+            return []
         files = sorted(backup_dir.glob("wine_cellar_*.json"), reverse=True)
         result = []
-        for f in files[:20]:  # limit to 20 most recent
+        for f in files:
             try:
                 data = json.loads(f.read_text("utf-8"))
                 result.append({
@@ -1590,9 +1758,53 @@ async def ws_server_backup_list(
 
     try:
         backups = await hass.async_add_executor_job(_list_backups)
-        connection.send_result(msg["id"], {"backups": backups})
+        connection.send_result(msg["id"], {
+            "backups": backups,
+            "keep": _get_backup_keep(hass),
+            "keep_choices": SERVER_BACKUP_KEEP_CHOICES,
+        })
     except Exception as err:
         _LOGGER.error("Failed to list server backups: %s", err)
+        connection.send_result(msg["id"], {"error": str(err)})
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "wine_cellar/server_backup_delete",
+    vol.Required("filename"): str,
+})
+@websocket_api.async_response
+async def ws_server_backup_delete(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Delete a single server backup file."""
+    backup_dir = _get_server_backup_dir(hass)
+    backup_path = backup_dir / msg["filename"]
+
+    # Same guard as restore: never let a crafted name escape the directory.
+    if backup_path.resolve().parent != backup_dir.resolve():
+        connection.send_result(msg["id"], {"error": "Invalid filename."})
+        return
+    if not backup_path.name.startswith("wine_cellar_") or backup_path.suffix != ".json":
+        connection.send_result(msg["id"], {"error": "Not a cellar backup file."})
+        return
+
+    def _delete() -> bool:
+        if not backup_path.exists():
+            return False
+        backup_path.unlink()
+        return True
+
+    try:
+        deleted = await hass.async_add_executor_job(_delete)
+        if not deleted:
+            connection.send_result(msg["id"], {"error": f"Backup not found: {msg['filename']}"})
+            return
+        _LOGGER.info("Server backup deleted: %s", backup_path)
+        connection.send_result(msg["id"], {"success": True, "filename": msg["filename"]})
+    except Exception as err:
+        _LOGGER.error("Failed to delete server backup: %s", err)
         connection.send_result(msg["id"], {"error": str(err)})
 
 
@@ -1651,3 +1863,37 @@ async def ws_server_backup_restore(
     except Exception as err:
         _LOGGER.error("Failed to restore server backup: %s", err)
         connection.send_result(msg["id"], {"error": str(err)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "wine_cellar/get_storage_info"})
+@callback
+def ws_get_storage_info(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Report the serialized size of each stored section.
+
+    Home Assistant keeps this store in memory and rewrites the whole file on
+    every save, so an unbounded history makes *every* wine edit slower, not
+    just the history view. Surfacing the numbers lets the user decide when a
+    purge is worth it instead of imposing an arbitrary cap.
+    """
+    storage = hass.data[DOMAIN]["storage"]
+
+    def _size(value: Any) -> int:
+        return len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
+
+    history = storage.wine_history
+    wines = storage.wines
+    cache = storage.barcode_cache
+
+    connection.send_result(msg["id"], {
+        "total_bytes": _size(storage.raw_data),
+        "wines_bytes": _size(wines),
+        "wines_count": len(wines),
+        "history_bytes": _size(history),
+        "history_count": len(history),
+        "barcode_cache_bytes": _size(cache),
+        "barcode_cache_count": len(cache),
+    })

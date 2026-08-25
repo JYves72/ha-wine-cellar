@@ -85,7 +85,17 @@ SUPPORTED_METADATA_CURRENCIES = ["USD", "EUR", "GBP", "CHF"]
 # applying automatically. "always" skips asking and just uses AI every time.
 CONF_AI_FALLBACK_ALWAYS = "ai_fallback_always"
 
+# How many timestamped server backups to keep on disk. Older ones are pruned
+# after each new save; 0 keeps every backup forever.
+# Arrangement findings the user has waved off for good. Kept as a list of
+# stable finding ids so a dismissed suggestion never comes back on re-analysis.
+CONF_DISMISSED_ARRANGEMENTS = "dismissed_arrangements"
+
+CONF_SERVER_BACKUP_KEEP = "server_backup_keep"
+DEFAULT_SERVER_BACKUP_KEEP = 10
+SERVER_BACKUP_KEEP_CHOICES = [0, 5, 10, 20, 50]
+
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20260818d"
+FRONTEND_VERSION = "20260822o"
