@@ -2220,18 +2220,21 @@ let CabinetGrid = class CabinetGrid extends i {
             composed: true,
         }));
     }
+    // Uniform bottle sizing: use the targetCellPx passed from the parent so
+    // that all cabinets render bottles at the same diameter. Large cabinets
+    // naturally shrink to fit the card width (max-width: 100%); small
+    // cabinets are held to their computed width so they don't stretch their
+    // bottles to fill space.
+    _targetGridWidth() {
+        const CELL_GAP_PX = 2; // matches .row's gap: 2px
+        const GRID_PAD_PX = 12; // matches .grid-inner's padding: 6px x2
+        return this.cabinet.cols * this.targetCellPx + Math.max(0, this.cabinet.cols - 1) * CELL_GAP_PX + GRID_PAD_PX;
+    }
     render() {
         const { rows, cols } = this.cabinet;
         const storageRows = this._getStorageRowSet();
         const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
-        // Uniform bottle sizing: use the targetCellPx passed from the parent so
-        // that all cabinets render bottles at the same diameter. Large cabinets
-        // naturally shrink to fit the card width (max-width: 100%); small
-        // cabinets are held to their computed width so they don't stretch their
-        // bottles to fill space.
-        const CELL_GAP_PX = 2; // matches .row's gap: 2px
-        const GRID_PAD_PX = 12; // matches .grid-inner's padding: 6px x2
-        const targetGridWidth = cols * this.targetCellPx + Math.max(0, cols - 1) * CELL_GAP_PX + GRID_PAD_PX;
+        const targetGridWidth = this._targetGridWidth();
         return b `
       <div class="cabinet">
         <div
@@ -2282,6 +2285,16 @@ CabinetGrid.styles = [
     i$3 `
       :host {
         display: block;
+        /* cabinet-grid is itself the grid item inside .cabinets-row's CSS
+           grid. Grid items default to min-width: auto, which floors their
+           shrink at their content's intrinsic size — .grid-inner's explicit
+           width: Npx (for uniform bottle sizing) counted as that intrinsic
+           size, so the host refused to shrink below it: overflowing off the
+           edge on desktop instead of wrapping to a new row, and staying
+           wider than the screen on mobile so part of the grid was
+           unreachable. min-width: 0 here lets the host shrink normally;
+           .grid-inner's own max-width: 100% then does the actual fitting. */
+        min-width: 0;
       }
 
       .cabinet {
@@ -2312,7 +2325,15 @@ CabinetGrid.styles = [
 
       .grid-inner {
         background: linear-gradient(180deg, #1a1a3a 0%, #0d0d2b 100%);
-        border-radius: 8px;
+        /* Nested rounded corners only stay fully inside their parent's
+           curve when inner-radius <= outer-radius - padding. .cabinet is
+           12px radius / 8px padding here (10px / 6px at the phone
+           breakpoint), so 4px is the safe radius at every breakpoint —
+           the old 8px was double that, so this corner's own curve poked
+           past .cabinet's gold corner. Easy to miss at the smaller
+           pre-uniform-sizing bottle diameter; obvious at 84px, where the
+           corner bottle fills right up to the edge. */
+        border-radius: 4px;
         padding: 6px;
         position: relative;
         overflow: hidden;
@@ -11818,8 +11839,11 @@ const REFRESH_MIN_INTERVAL_MS = 3000;
 // Every cabinet-grid renders bottles at this diameter regardless of its own
 // column count, so a narrow 3-col cabinet doesn't stretch its bottles larger
 // than a wide one. Large cabinets still shrink to fit the card on narrow
-// screens (max-width: 100% in cabinet-grid.ts).
-const TARGET_CELL_PX = 56;
+// screens (max-width: 100% in cabinet-grid.ts) — that shrink-to-fit is what
+// still protects phones/narrow windows, so this is just the preferred size
+// when there's room. 150% of the original 56px, since PC/Mac browser
+// windows are usually plenty wide for it.
+const TARGET_CELL_PX = 84;
 let WineCellarCard = class WineCellarCard extends i {
     constructor() {
         super(...arguments);
@@ -14577,10 +14601,11 @@ WineCellarCard.styles = [
         }
       }
 
-      /* Tablet: 2 cabinets side by side */
+      /* Tablet: 2 cabinets side by side when they fit, wrapping to 1 when
+         they don't. */
       @media (min-width: 600px) and (max-width: 1023px) {
         .cabinets-row {
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
           gap: 12px;
         }
       }
