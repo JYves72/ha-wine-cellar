@@ -26,6 +26,7 @@ from .const import (
     DOMAIN,
     FRONTEND_VERSION,
 )
+from . import photos
 from .vivino import VivinoClient
 from .websocket import async_register_websocket_commands
 from .wine_storage import WineCellarStorage
@@ -66,6 +67,12 @@ def _register_static_path(hass: HomeAssistant) -> None:
     versioned_url = f"/wine_cellar/wine-cellar-card-{FRONTEND_VERSION}.js"
     legacy_url = "/wine_cellar/wine-cellar-card.js"
 
+    # Bottle photos are served from disk rather than carried inside every wine
+    # record. Cache headers are on here, unlike the card bundle: a photo file
+    # is immutable, since replacing a photo writes a new name.
+    photo_path = str(photos.photo_dir(hass))
+    Path(photo_path).mkdir(parents=True, exist_ok=True)
+
     try:
         # Modern HA (2024.7+)
         from homeassistant.components.http import StaticPathConfig
@@ -74,6 +81,7 @@ def _register_static_path(hass: HomeAssistant) -> None:
                 [
                     StaticPathConfig(versioned_url, frontend_path, False),
                     StaticPathConfig(legacy_url, frontend_path, False),
+                    StaticPathConfig(photos.PHOTO_URL_PREFIX, photo_path, True),
                 ]
             )
         )
@@ -82,6 +90,7 @@ def _register_static_path(hass: HomeAssistant) -> None:
             # Legacy HA
             hass.http.register_static_path(versioned_url, frontend_path, cache_headers=False)
             hass.http.register_static_path(legacy_url, frontend_path, cache_headers=False)
+            hass.http.register_static_path(photos.PHOTO_URL_PREFIX, photo_path, cache_headers=True)
         except Exception:
             _LOGGER.warning("Could not register frontend static path")
 
@@ -220,6 +229,52 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize storage
     storage = WineCellarStorage(hass)
     await storage.async_load()
+
+    # Two one-off repairs on the way in, both from older versions, both
+    # touching the stored records — so they share a single save.
+    dirty = False
+
+    # Bottles left pointing at a slot their rack no longer has count towards
+    # the cellar total while being undrawable on the rack. Put them back
+    # under Unassigned, and say which, rather than rearranging in silence.
+    displaced = storage.reconcile_placements()
+    if displaced:
+        dirty = True
+        lines = "\n".join(f"- {item['name']} — {item['reason']}" for item in displaced[:20])
+        more = f"\n…and {len(displaced) - 20} more." if len(displaced) > 20 else ""
+        _LOGGER.warning("Moved %d bottle(s) to Unassigned: their slot no longer exists", len(displaced))
+        persistent_notification.async_create(
+            hass,
+            f"{len(displaced)} bottle(s) were in racks that have since been resized or "
+            f"had bins removed, so their recorded slot no longer exists. Nothing was "
+            f"deleted — they are now under **Unassigned**, ready to be put back:\n\n"
+            f"{lines}{more}",
+            title="Cork Dork: bottles moved to Unassigned",
+            notification_id=f"{DOMAIN}_displaced_bottles",
+        )
+
+    # Photos used to be stored inline in each wine record, which meant every
+    # page load carried them. Move any that are still inline out to disk once,
+    # then drop files nothing refers to any more.
+    moved = await photos.externalise_all(hass, storage.wines)
+    moved += await photos.externalise_all(hass, storage.wine_history)
+    if moved:
+        dirty = True
+        _LOGGER.info("Moved photos for %d bottle(s) out of the wine records", moved)
+
+    if dirty:
+        await storage.async_save()
+
+    # Pruning deletes every photo file nothing refers to. If the store did not
+    # actually load — missing on a first run, or unreadable — the cellar looks
+    # empty, and pruning against it would delete every photo the user has. The
+    # photos are now separate files that could otherwise have survived a
+    # damaged store, so this stays behind the one check that tells the two
+    # apart.
+    if storage.loaded_from_disk:
+        await photos.prune(hass, storage.wines, storage.wine_history)
+    else:
+        _LOGGER.debug("Skipping photo prune: nothing was loaded from storage")
 
     # Initialize Vivino client
     vivino = VivinoClient(hass)

@@ -18,6 +18,8 @@ from .const import (
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
     CONF_SERVER_BACKUP_KEEP,
+    CONF_WINE_HISTORY,
+    CONF_WINES,
     DEFAULT_METADATA_CURRENCY,
     DEFAULT_METADATA_LANGUAGE,
     DEFAULT_SERVER_BACKUP_KEEP,
@@ -26,6 +28,7 @@ from .const import (
     SUPPORTED_METADATA_CURRENCIES,
     SUPPORTED_METADATA_LANGUAGES,
 )
+from . import photos
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -134,6 +137,48 @@ def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]
     return overlap >= 0.15
 
 
+# Racks are described by plain numbers that the storage layer writes wherever
+# it is told. A negative or absurd row count is not a shape any cellar has, and
+# once written it makes every position calculation nonsense, so it is refused
+# at the edge rather than repaired later.
+_CABINET_LIMITS = {"rows": (1, 50), "cols": (1, 50), "depth": (1, 20)}
+
+
+def _cabinet_shape_error(fields: dict[str, Any]) -> str | None:
+    """Say what is wrong with a cabinet's dimensions, or None if nothing is."""
+    for key, (low, high) in _CABINET_LIMITS.items():
+        if key not in fields or fields[key] is None:
+            continue
+        value = fields[key]
+        if isinstance(value, bool) or not isinstance(value, int):
+            return f"{key} must be a whole number"
+        if not low <= value <= high:
+            return f"{key} must be between {low} and {high}"
+
+    rows = fields.get("storage_rows")
+    if rows is not None:
+        if not isinstance(rows, list):
+            return "storage_rows must be a list"
+        for entry in rows:
+            if not isinstance(entry, dict):
+                return "each storage row must be an object"
+            row = entry.get("row")
+            if isinstance(row, bool) or not isinstance(row, int) or row < 0:
+                return "each storage row needs a row index of 0 or more"
+            capacity = entry.get("capacity")
+            if capacity is not None and (
+                isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 0
+            ):
+                return "a storage row's capacity cannot be negative"
+            boxes = entry.get("boxes")
+            if boxes is not None:
+                if not isinstance(boxes, list) or any(
+                    isinstance(b, bool) or not isinstance(b, int) or b < 0 for b in boxes
+                ):
+                    return "box sizes must be whole numbers of 0 or more"
+    return None
+
+
 async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
     """Background task: enrich a newly added wine with Vivino data."""
     try:
@@ -176,8 +221,11 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
             if val and not wine.get(key):
                 updates[key] = val
 
-        # Vivino price as retail_price
-        if lookup.get("price"):
+        # Vivino price as retail_price, but only into an empty field. Every
+        # other field here fills gaps rather than overwriting; this one used to
+        # replace whatever was there, including an AI estimate the user had
+        # already seen on screen.
+        if lookup.get("price") and not wine.get("retail_price"):
             updates["retail_price"] = lookup["price"]
             updates["retail_price_currency"] = currency
 
@@ -366,6 +414,9 @@ async def ws_add_wine(
     """Add a new wine, then auto-enrich with Vivino data."""
     storage = hass.data[DOMAIN]["storage"]
     wine = storage.add_wine(msg["wine"])
+    # A photo arrives inline from the camera; it goes to disk immediately so it
+    # never becomes part of what every later page load has to carry.
+    await photos.store_wine_photos(hass, wine)
     await storage.async_save()
     hass.bus.async_fire(f"{DOMAIN}_updated")
     connection.send_result(msg["id"], {"wine": wine})
@@ -414,6 +465,7 @@ async def ws_update_wine(
     updates = msg["updates"]
     wine = storage.update_wine(msg["wine_id"], updates)
     if wine:
+        await photos.store_wine_photos(hass, wine)
         # Propagate user_rating/tasting_notes to duplicates (same name+winery+vintage)
         rating_fields = {"user_rating", "tasting_notes"} & set(updates.keys())
         if rating_fields:
@@ -541,6 +593,10 @@ async def ws_update_cabinet(
 ) -> None:
     """Update a cabinet."""
     storage = hass.data[DOMAIN]["storage"]
+    problem = _cabinet_shape_error(msg["updates"])
+    if problem:
+        connection.send_result(msg["id"], {"error": problem})
+        return
     cabinet = storage.update_cabinet(msg["cabinet_id"], msg["updates"])
     if cabinet:
         await storage.async_save()
@@ -562,6 +618,10 @@ async def ws_add_cabinet(
 ) -> None:
     """Add a new cabinet."""
     storage = hass.data[DOMAIN]["storage"]
+    problem = _cabinet_shape_error(msg["cabinet"])
+    if problem:
+        connection.send_result(msg["id"], {"error": problem})
+        return
     cabinet = storage.add_cabinet(msg["cabinet"])
     await storage.async_save()
     hass.bus.async_fire(f"{DOMAIN}_updated")
@@ -1558,8 +1618,8 @@ async def ws_restore_wine(
 
 
 @websocket_api.websocket_command({vol.Required("type"): "wine_cellar/get_backup"})
-@callback
-def ws_get_backup(
+@websocket_api.async_response
+async def ws_get_backup(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
@@ -1567,6 +1627,13 @@ def ws_get_backup(
     """Return a full backup of all cellar data."""
     storage = hass.data[DOMAIN]["storage"]
     backup = storage.get_backup_data()
+    # Photos live on disk now, but a backup has to stand on its own: read them
+    # back inline so restoring onto a fresh install does not depend on files
+    # this backup never carried. Paid once per backup, not once per page load.
+    backup[CONF_WINES] = await photos.inline_for_backup(hass, backup[CONF_WINES])
+    backup[CONF_WINE_HISTORY] = await photos.inline_for_backup(
+        hass, backup[CONF_WINE_HISTORY]
+    )
     backup["version"] = "1.0"
     backup["timestamp"] = datetime.now(timezone.utc).isoformat()
     connection.send_result(msg["id"], backup)
@@ -1602,6 +1669,11 @@ async def ws_restore_backup(
         return
 
     counts = storage.restore_data(wines, cabinets, buy_list, wine_history, settings)
+    # A backup carries its photos inline; put them back on disk, and drop any
+    # file the restored cellar no longer refers to.
+    await photos.externalise_all(hass, storage.wines)
+    await photos.externalise_all(hass, storage.wine_history)
+    await photos.prune(hass, storage.wines, storage.wine_history)
     await storage.async_save()
     hass.bus.async_fire(f"{DOMAIN}_updated")
 

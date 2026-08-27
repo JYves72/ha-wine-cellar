@@ -3382,7 +3382,19 @@ let WineDetailDialog = class WineDetailDialog extends i {
     _updateEditField(field, value) {
         this._editData = { ...this._editData, [field]: value };
     }
+    // Applying a result to whatever is on screen now is only correct if it is
+    // still the same bottle. A Vivino refresh takes a second or two — long
+    // enough to close the dialog and open another wine — and the old result
+    // would then overwrite the new bottle wholesale, id included, silently
+    // showing the previous wine under the new one's name.
+    _applyIfStillShowing(wineId, patch) {
+        if (!this.wine || this.wine.id !== wineId)
+            return false;
+        this.wine = { ...this.wine, ...patch };
+        return true;
+    }
     async _saveFields() {
+        const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
         this._saving = true;
@@ -3407,7 +3419,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     item_id: this.wine.id,
                     updates,
                 });
-                this.wine = { ...this.wine, ...updates };
+                if (!this._applyIfStillShowing(wineId, updates))
+                    return;
                 this._editingFields = false;
                 this._editData = {};
                 this.dispatchEvent(new CustomEvent("buy-list-updated", { bubbles: true, composed: true }));
@@ -3418,7 +3431,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     wine_id: this.wine.id,
                     updates,
                 });
-                this.wine = { ...this.wine, ...updates };
+                if (!this._applyIfStillShowing(wineId, updates))
+                    return;
                 this._editingFields = false;
                 this._editData = {};
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
@@ -3494,6 +3508,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._tastingNotes = { ...this._tastingNotes, [field]: value };
     }
     async _saveRating() {
+        const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
         this._saving = true;
@@ -3516,7 +3531,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     updates,
                 });
             }
-            this.wine = { ...this.wine, ...updates };
+            if (!this._applyIfStillShowing(wineId, updates))
+                return;
             this._editing = false;
             this.dispatchEvent(new CustomEvent(this.mode === "buylist" ? "buy-list-updated" : "wine-updated", { bubbles: true, composed: true }));
         }
@@ -3526,6 +3542,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._saving = false;
     }
     async _refreshFromVivino() {
+        const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
         this._refreshing = true;
@@ -3552,7 +3569,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 alert(resp.error);
             }
             else if (resp.wine) {
-                this.wine = { ...this.wine, ...resp.wine };
+                if (!this._applyIfStillShowing(wineId, resp.wine))
+                    return;
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
                 if (resp.vivino_image_url) {
                     this._pendingVivinoImage = resp.vivino_image_url;
@@ -3582,6 +3600,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._aiFallbackReason = null;
     }
     async _updatePhoto(image_url, field = "image_url") {
+        const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
         this._photoBusy = true;
@@ -3593,7 +3612,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
             else {
                 await this.hass.callWS({ type: "wine_cellar/update_wine", wine_id: this.wine.id, updates });
             }
-            this.wine = { ...this.wine, [field]: image_url };
+            if (!this._applyIfStillShowing(wineId, { [field]: image_url }))
+                return;
             this.dispatchEvent(new CustomEvent(this.mode === "buylist" ? "buy-list-updated" : "wine-updated", { bubbles: true, composed: true }));
         }
         catch (err) {
@@ -3643,6 +3663,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         }
     }
     async _analyzeWithAI() {
+        const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
         this._analyzing = true;
@@ -3655,7 +3676,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 alert(resp.error);
             }
             else if (resp.wine) {
-                this.wine = { ...this.wine, ...resp.wine };
+                if (!this._applyIfStillShowing(wineId, resp.wine))
+                    return;
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
             }
         }
@@ -5089,10 +5111,12 @@ let AddWineDialog = class AddWineDialog extends i {
         this._frontImageRaw = "";
         this._showBackPrompt = false;
         this._searchResults = [];
-        this._vivinoEnriching = false;
-        // Bumped per enrichment so a late reply from a previous bottle cannot land
-        // in the current one.
-        this._enrichToken = 0;
+        // Bumped every time the dialog opens. Label recognition waits up to 45
+        // seconds on the AI, which is long enough to cancel, close, and start
+        // adding a different bottle — and the late reply would then overwrite that
+        // bottle's form with the previous one's reading and jump to the details
+        // step. Every async handler here checks the session it started in.
+        this._session = 0;
     }
     get _steps() {
         return this.buyListMode
@@ -5110,14 +5134,12 @@ let AddWineDialog = class AddWineDialog extends i {
                 this._loading = false;
                 this._quantity = 1;
                 this._addProgress = 0;
+                this._session++;
                 this._labelLoading = false;
                 this._searchResults = [];
                 this._captureStage = "front";
                 this._frontImageRaw = "";
                 this._showBackPrompt = false;
-                // Any enrichment still in flight belongs to the previous bottle.
-                this._enrichToken++;
-                this._vivinoEnriching = false;
                 this._wineData = {
                     name: "",
                     winery: "",
@@ -5164,6 +5186,7 @@ let AddWineDialog = class AddWineDialog extends i {
     async _lookupBarcode() {
         if (!this._barcode.trim())
             return;
+        const session = this._session;
         this._loading = true;
         this._error = "";
         try {
@@ -5171,6 +5194,8 @@ let AddWineDialog = class AddWineDialog extends i {
                 type: "wine_cellar/lookup_barcode",
                 barcode: this._barcode.trim(),
             });
+            if (session !== this._session)
+                return;
             if (result.result) {
                 this._lookupResult = result.result;
                 this._wineData = {
@@ -5200,6 +5225,8 @@ let AddWineDialog = class AddWineDialog extends i {
             }
         }
         catch (err) {
+            if (session !== this._session)
+                return;
             this._wineData = { ...this._wineData, barcode: this._barcode.trim() };
             this._onBarcodeLookupFailed("Barcode lookup failed.");
         }
@@ -5222,6 +5249,7 @@ let AddWineDialog = class AddWineDialog extends i {
         }
     }
     async _searchWine() {
+        const session = this._session;
         const input = this.shadowRoot?.querySelector(".search-input");
         if (!input?.value.trim())
             return;
@@ -5233,6 +5261,8 @@ let AddWineDialog = class AddWineDialog extends i {
                 type: "wine_cellar/search_wine",
                 query: input.value.trim(),
             });
+            if (session !== this._session)
+                return;
             if (result.results && result.results.length > 0) {
                 this._searchResults = result.results;
             }
@@ -5283,6 +5313,7 @@ let AddWineDialog = class AddWineDialog extends i {
         }
     }
     async _finishLabelScan(backImageRaw) {
+        const session = this._session;
         this._showBackPrompt = false;
         this._labelLoading = true;
         this._error = "";
@@ -5292,6 +5323,10 @@ let AddWineDialog = class AddWineDialog extends i {
                 image: this._frontImageRaw,
                 ...(backImageRaw ? { back_image: backImageRaw } : {}),
             });
+            // The slowest wait in the app. If the dialog was reopened meanwhile,
+            // this reading belongs to a bottle the user has moved on from.
+            if (session !== this._session)
+                return;
             if (result.result) {
                 // Resize captured photos to thumbnails for storage
                 const thumbUrl = await resizeImageForStorage(this._frontImageRaw);
@@ -5323,8 +5358,6 @@ let AddWineDialog = class AddWineDialog extends i {
                 this._step = "details";
                 this._captureStage = "front";
                 this._frontImageRaw = "";
-                // Deliberately not awaited: the form is already usable.
-                void this._enrichFromVivino(++this._enrichToken);
             }
             else {
                 // Show specific error from backend if available
@@ -5334,80 +5367,13 @@ let AddWineDialog = class AddWineDialog extends i {
             }
         }
         catch (err) {
+            if (session !== this._session)
+                return;
             const msg = err?.message || String(err);
             console.error("Wine Cellar: label recognition error:", msg);
             this._error = `Label recognition error: ${msg}`;
         }
         this._labelLoading = false;
-    }
-    // The label path is AI-only: the model reads what is printed on the bottle,
-    // but Vivino's rating, review count and id exist nowhere in that reading —
-    // so a wine added by photo used to arrive with none of them, and without a
-    // vivino_id it could never be refreshed the cheap way afterwards. Since a
-    // barcode that finds no match also falls through to the label, that covered
-    // every bottle whose barcode is not in a grocery database.
-    //
-    // It runs behind the details step rather than in front of it. Waiting on a
-    // second lookup before showing anything would spend the user's time on data
-    // they are not reading yet.
-    async _enrichFromVivino(token) {
-        const d = this._wineData;
-        const query = [d.winery, d.name, d.vintage].filter(Boolean).join(" ").trim();
-        if (!query)
-            return;
-        this._vivinoEnriching = true;
-        try {
-            const res = await this.hass.callWS({ type: "wine_cellar/search_wine", query });
-            const top = res?.results?.[0];
-            // Bail if the user has moved on, scanned something else, or closed up:
-            // writing into _wineData then would be writing into a different bottle.
-            if (!top || token !== this._enrichToken)
-                return;
-            if (!this._looksLikeSameWine(top))
-                return;
-            const cur = this._wineData;
-            const keepExisting = (mine, theirs) => mine !== undefined && mine !== null && mine !== "" ? mine : theirs || mine;
-            this._wineData = {
-                ...cur,
-                // Only Vivino can supply these, so they are always taken.
-                rating: top.rating ?? cur.rating,
-                ratings_count: top.ratings_count ?? cur.ratings_count,
-                vivino_id: top.vivino_id ?? cur.vivino_id,
-                vivino_updated_at: new Date().toISOString(),
-                vivino_checked_at: new Date().toISOString(),
-                // These the AI may already have read off the bottle, and it was
-                // looking at the actual bottle — fill the gaps, do not overwrite.
-                region: keepExisting(cur.region, top.region),
-                country: keepExisting(cur.country, top.country),
-                grape_variety: keepExisting(cur.grape_variety, top.grape_variety),
-                alcohol: keepExisting(cur.alcohol, top.alcohol),
-                description: keepExisting(cur.description, top.description),
-                food_pairings: keepExisting(cur.food_pairings, top.food_pairings),
-            };
-            // name, winery, vintage and image_url are deliberately left alone: the
-            // photo is the user's own, and Vivino's nearest match is not necessarily
-            // spelled the way the label is.
-        }
-        catch (err) {
-            // Enrichment is a bonus. Failing it must not turn into an error the
-            // user has to dismiss on a wine that was recognised perfectly well.
-            console.warn("Wine Cellar: Vivino enrichment failed", err);
-        }
-        finally {
-            if (token === this._enrichToken)
-                this._vivinoEnriching = false;
-        }
-    }
-    // Vivino answers every query with something. Attaching a stranger's rating
-    // to this bottle would be worse than having no rating at all.
-    _looksLikeSameWine(candidate) {
-        const d = this._wineData;
-        const winery = normalizeText(d.winery).trim();
-        const theirWinery = normalizeText(candidate.winery).trim();
-        if (winery && theirWinery && winery === theirWinery)
-            return true;
-        const name = cuveeKey(d.name);
-        return !!name && name === cuveeKey(candidate.name);
     }
     _goToStep(step) {
         this._step = step;
@@ -5748,9 +5714,6 @@ let AddWineDialog = class AddWineDialog extends i {
     _renderDetailsStep() {
         return b `
       <div class="dialog-body">
-        ${this._vivinoEnriching
-            ? b `<div class="vivino-enriching">🍇 Checking Vivino for a rating…</div>`
-            : A}
         <div class="form-group">
           <label>Wine Name *</label>
           <input
@@ -6399,12 +6362,6 @@ AddWineDialog.styles = [
         margin-top: 12px;
       }
 
-      .vivino-enriching {
-        font-size: 0.78em;
-        color: var(--wc-text-secondary);
-        margin-bottom: 10px;
-      }
-
       .suggest-strip {
         display: flex;
         flex-direction: column;
@@ -6816,9 +6773,6 @@ __decorate([
 __decorate([
     r()
 ], AddWineDialog.prototype, "_searchResults", void 0);
-__decorate([
-    r()
-], AddWineDialog.prototype, "_vivinoEnriching", void 0);
 AddWineDialog = __decorate([
     t("add-wine-dialog")
 ], AddWineDialog);
@@ -7041,7 +6995,8 @@ WineSearchBar = __decorate([
     t("wine-search-bar")
 ], WineSearchBar);
 
-let RackSettingsDialog = class RackSettingsDialog extends i {
+var RackSettingsDialog_1;
+let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends i {
     constructor() {
         super(...arguments);
         this.open = false;
@@ -7071,11 +7026,51 @@ let RackSettingsDialog = class RackSettingsDialog extends i {
     _winesInCabinet(cabinetId) {
         return this.wines.filter((w) => w.cabinet_id === cabinetId).length;
     }
-    _winesOutOfBounds(cabinetId, newRows, newCols) {
-        return this.wines.filter((w) => w.cabinet_id === cabinetId &&
-            w.row != null &&
-            w.col != null &&
-            (w.row >= newRows || w.col >= newCols)).length;
+    // Storage rows that survive the pending row count — a bin on a row that no
+    // longer exists is gone, whatever the editor still holds.
+    _survivingStorageRows() {
+        const newRows = this._editCabinet.rows || 1;
+        return this._editStorageRows.filter((sr) => sr.row < newRows);
+    }
+    static _capacityOf(sr) {
+        return sr.type === "box"
+            ? (sr.boxes || []).reduce((sum, b) => sum + b, 0)
+            : sr.capacity || 0;
+    }
+    // Every bottle the pending edit would leave without a slot that exists.
+    //
+    // The warning and the save both read this, so what the user is promised
+    // and what actually happens cannot drift apart. It used to consider only
+    // rows and columns, which meant three ways of losing a bottle's position
+    // went unwarned and unhandled: making a rack shallower, shrinking a bin
+    // past its contents, and deleting a bin outright. None of them ever
+    // deleted a bottle — they left it pointing at a slot the rack no longer
+    // had, counted in the total and drawn nowhere.
+    _displacedWines() {
+        const cabinetId = this._editCabinet.id;
+        if (!cabinetId)
+            return [];
+        const newRows = this._editCabinet.rows || 1;
+        const newCols = this._editCabinet.cols || 8;
+        const newDepth = this._editCabinet.depth || 1;
+        const rows = this._survivingStorageRows();
+        return this.wines.filter((w) => {
+            if (w.cabinet_id !== cabinetId)
+                return false;
+            if (w.zone) {
+                const sr = rows.find((s) => `storage-${s.row}` === w.zone);
+                if (!sr)
+                    return true;
+                return (w.depth || 0) >= RackSettingsDialog_1._capacityOf(sr);
+            }
+            if (w.row == null || w.col == null)
+                return false;
+            if (w.row >= newRows || w.col >= newCols)
+                return true;
+            if ((w.depth || 0) >= newDepth)
+                return true;
+            return rows.some((sr) => sr.row === w.row);
+        });
     }
     _startAdd() {
         this._mode = "add";
@@ -7239,7 +7234,10 @@ let RackSettingsDialog = class RackSettingsDialog extends i {
             const newRows = this._editCabinet.rows || 1;
             const newCols = this._editCabinet.cols || 8;
             // Filter out storage rows beyond the new row count
-            const validStorageRows = this._editStorageRows.filter((sr) => sr.row < newRows);
+            const validStorageRows = this._survivingStorageRows();
+            // Worked out before the rack changes shape: afterwards the old slot
+            // is unrecoverable, and this is the same list the warning showed.
+            const displaced = this._displacedWines();
             await this.hass.callWS({
                 type: "wine_cellar/update_cabinet",
                 cabinet_id: cabinetId,
@@ -7254,16 +7252,11 @@ let RackSettingsDialog = class RackSettingsDialog extends i {
                     orientation: "vertical",
                 },
             });
-            // Unassign wines that are out of bounds or on rows that became storage
-            const outOfBounds = this.wines.filter((w) => w.cabinet_id === cabinetId &&
-                w.row != null &&
-                w.col != null &&
-                (w.row >= newRows || w.col >= newCols || validStorageRows.some((sr) => sr.row === w.row)));
-            for (const wine of outOfBounds) {
+            for (const wine of displaced) {
                 await this.hass.callWS({
                     type: "wine_cellar/update_wine",
                     wine_id: wine.id,
-                    updates: { cabinet_id: "", row: null, col: null, zone: "" },
+                    updates: { cabinet_id: "", row: null, col: null, zone: "", depth: 0 },
                 });
             }
             this._notifyUpdate();
@@ -7401,18 +7394,8 @@ let RackSettingsDialog = class RackSettingsDialog extends i {
         const numRows = this._editCabinet.rows || 1;
         const numCols = this._editCabinet.cols || 8;
         const numDepth = this._editCabinet.depth || 1;
-        // Calculate out-of-bounds warning for edits
-        let oobCount = 0;
-        if (isEdit && this._editCabinet.id) {
-            const orig = this.cabinets.find((c) => c.id === this._editCabinet.id);
-            if (orig) {
-                const newRows = this._editCabinet.rows || orig.rows;
-                const newCols = this._editCabinet.cols || orig.cols;
-                if (newRows < orig.rows || newCols < orig.cols) {
-                    oobCount = this._winesOutOfBounds(this._editCabinet.id, newRows, newCols);
-                }
-            }
-        }
+        // Which bottles this edit would displace, whichever way it shrinks.
+        const displaced = isEdit ? this._displacedWines() : [];
         return b `
       <div class="dialog-body">
         <div class="form-group">
@@ -7546,10 +7529,20 @@ let RackSettingsDialog = class RackSettingsDialog extends i {
           <!-- Use the Rows stepper above to add/remove rows -->
         </div>
 
-        ${oobCount > 0
+        ${displaced.length > 0
             ? b `
               <div class="warning-msg">
-                Shrinking will unassign ${oobCount} wine${oobCount > 1 ? "s" : ""} that are outside the new grid bounds.
+                This leaves ${displaced.length}
+                bottle${displaced.length > 1 ? "s" : ""} without a slot.
+                ${displaced.length > 1 ? "They" : "It"} will be moved to
+                <strong>Unassigned</strong> — nothing is deleted, and you can put
+                ${displaced.length > 1 ? "them" : "it"} back anywhere.
+                <div class="warning-list">
+                  ${displaced.slice(0, 6).map((w) => b `<div>${w.name || "Unnamed wine"}</div>`)}
+                  ${displaced.length > 6
+                ? b `<div>…and ${displaced.length - 6} more</div>`
+                : A}
+                </div>
               </div>
             `
             : A}
@@ -7715,6 +7708,13 @@ RackSettingsDialog.styles = [
         font-size: 0.85em;
         color: #e65100;
         margin-top: 12px;
+      }
+
+      .warning-list {
+        margin-top: 6px;
+        padding-left: 10px;
+        font-size: 0.95em;
+        opacity: 0.85;
       }
 
       .delete-info {
@@ -8075,7 +8075,7 @@ __decorate([
 __decorate([
     r()
 ], RackSettingsDialog.prototype, "_error", void 0);
-RackSettingsDialog = __decorate([
+RackSettingsDialog = RackSettingsDialog_1 = __decorate([
     t("rack-settings-dialog")
 ], RackSettingsDialog);
 
@@ -8426,8 +8426,8 @@ let WineListDialog = class WineListDialog extends i {
                   ${wine.bottle_size && wine.bottle_size !== "750ml"
                 ? b `<div class="wl-detail-row"><span class="wl-detail-label">Size:</span>${wine.bottle_size}</div>`
                 : A}
-                  ${wine.vivino_ratings_count
-                ? b `<div class="wl-detail-row"><span class="wl-detail-label">Vivino:</span>${wine.vivino_rating?.toFixed(1)} (${wine.vivino_ratings_count.toLocaleString()} ratings)</div>`
+                  ${wine.vivino_rating
+                ? b `<div class="wl-detail-row"><span class="wl-detail-label">Vivino:</span>${wine.vivino_rating.toFixed(1)}${wine.vivino_ratings_count ? ` (${wine.vivino_ratings_count.toLocaleString()} ratings)` : ""}</div>`
                 : A}
                 </div>
               `
@@ -11707,6 +11707,10 @@ VivinoAiSettingsDialog = __decorate([
     t("vivino-ai-settings-dialog")
 ], VivinoAiSettingsDialog);
 
+// How long an incoming change waits before the card re-fetches, and the floor
+// on how often it may do so at all.
+const REFRESH_DEBOUNCE_MS = 400;
+const REFRESH_MIN_INTERVAL_MS = 3000;
 let WineCellarCard = class WineCellarCard extends i {
     constructor() {
         super(...arguments);
@@ -11740,6 +11744,13 @@ let WineCellarCard = class WineCellarCard extends i {
         this._showVivinoAiSettings = false;
         this._showWineList = false;
         this._showInventory = false;
+        this._findingsCache = null;
+        this._unsubscribe = null;
+        this._subscribing = false;
+        this._connectionGeneration = 0;
+        this._refreshTimer = 0;
+        this._lastRefresh = 0;
+        this._toastTimer = 0;
         this._showArrangement = false;
         this._dismissedArrangements = [];
         this._buyList = [];
@@ -11787,9 +11798,78 @@ let WineCellarCard = class WineCellarCard extends i {
     connectedCallback() {
         super.connectedCallback();
         this._loadData();
+        this._subscribeToUpdates();
     }
-    updated(changedProps) {
-        if (changedProps.has("hass") && this.hass) ;
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        // Invalidates any subscription still being set up.
+        this._connectionGeneration++;
+        this._unsubscribe?.();
+        this._unsubscribe = null;
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = 0;
+        }
+        if (this._toastTimer) {
+            clearTimeout(this._toastTimer);
+            this._toastTimer = 0;
+        }
+    }
+    // The backend announces every change it makes on the event bus, and nobody
+    // was listening. Work it does on its own — the Vivino lookup fired after a
+    // wine is added, most visibly — landed in storage and stayed invisible
+    // until the user happened to do something that reloaded the card. That is
+    // why an added bottle could look like Vivino had never been consulted.
+    async _subscribeToUpdates() {
+        if (!this.hass?.connection || this._unsubscribe || this._subscribing) {
+            if (!this.hass)
+                setTimeout(() => this._subscribeToUpdates(), 500);
+            return;
+        }
+        this._subscribing = true;
+        const generation = this._connectionGeneration;
+        try {
+            const unsubscribe = await this.hass.connection.subscribeEvents(() => this._scheduleRefresh(), "wine_cellar_updated");
+            // Home Assistant detaches and reattaches a dashboard view when the user
+            // switches tabs, which can happen while this is still in flight. Storing
+            // the handle now would leave a subscription nothing can ever cancel,
+            // reloading a card that is no longer on screen — once per tab switch.
+            //
+            // Keyed on a counter the detach bumps rather than on isConnected, so it
+            // holds however the element was taken down.
+            if (generation !== this._connectionGeneration) {
+                unsubscribe();
+                return;
+            }
+            this._unsubscribe = unsubscribe;
+        }
+        catch (err) {
+            // Without this the card still works, it just will not notice background
+            // work. Not worth an error the user has to dismiss.
+            console.warn("Wine Cellar: could not subscribe to updates", err);
+        }
+        finally {
+            this._subscribing = false;
+        }
+    }
+    // Batch operations fire one event per bottle, and they pace themselves with
+    // a sleep of half a second to a second between wines. A plain debounce is
+    // the wrong shape for that: the gaps are longer than any sensible debounce,
+    // so every event would still get its own full reload. What is needed is a
+    // floor on how often the cellar is re-fetched.
+    //
+    // An already-pending refresh absorbs anything that arrives before it fires,
+    // so a tight burst still costs one reload. An isolated change still shows up
+    // within REFRESH_DEBOUNCE_MS.
+    _scheduleRefresh() {
+        if (this._refreshTimer)
+            return;
+        const since = Date.now() - this._lastRefresh;
+        const wait = Math.max(REFRESH_DEBOUNCE_MS, REFRESH_MIN_INTERVAL_MS - since);
+        this._refreshTimer = window.setTimeout(() => {
+            this._refreshTimer = 0;
+            this._loadData();
+        }, wait);
     }
     async _loadData() {
         if (!this.hass) {
@@ -11797,6 +11877,9 @@ let WineCellarCard = class WineCellarCard extends i {
             setTimeout(() => this._loadData(), 500);
             return;
         }
+        // Counts against the refresh floor: the card's own actions already reload,
+        // and the event they cause must not reload a second time straight after.
+        this._lastRefresh = Date.now();
         const isInitialLoad = this._wines.length === 0 && this._cabinets.length === 0;
         if (isInitialLoad)
             this._loading = true;
@@ -11857,7 +11940,14 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     _showToast(message) {
         this._toast = message;
-        setTimeout(() => (this._toast = ""), 2500);
+        // Each toast gets its own full 2.5s: the previous timer would otherwise
+        // still be running and cut the new message short.
+        if (this._toastTimer)
+            clearTimeout(this._toastTimer);
+        this._toastTimer = window.setTimeout(() => {
+            this._toastTimer = 0;
+            this._toast = "";
+        }, 2500);
     }
     // --- Copy/Paste wine ---
     _onCellClick(e) {
@@ -12118,13 +12208,18 @@ let WineCellarCard = class WineCellarCard extends i {
                     updates: { cabinet_id: "", row: null, col: null, zone: "", depth: 0 },
                 });
             }
-            for (let i = slotIndex + 1; i < this._zonePanelWines.length; i++) {
+            // Closing the gap is one renumbering of the zone, not one round trip per
+            // bottle behind the deleted slot — emptying slot 1 of a full 20-bottle
+            // bin used to mean nineteen calls, each with its own disk write.
+            const remaining = this._zonePanelWines
+                .filter((_, i) => i !== slotIndex)
+                .map((w) => w.id);
+            if (remaining.length) {
                 await this.hass.callWS({
-                    type: "wine_cellar/move_wine",
-                    wine_id: this._zonePanelWines[i].id,
+                    type: "wine_cellar/reorder_zone",
                     cabinet_id: this._zonePanelCabinet.id,
                     zone: this._zonePanelZone,
-                    depth: i - 1,
+                    wine_ids: remaining,
                 });
             }
             if (this._zonePanelType === "box") {
@@ -12597,17 +12692,15 @@ let WineCellarCard = class WineCellarCard extends i {
                 if (toIdx === -1)
                     return;
                 zoneWines.splice(d.insertBefore ? toIdx : toIdx + 1, 0, moved);
-                for (let i = 0; i < zoneWines.length; i++) {
-                    if ((zoneWines[i].depth || 0) !== i) {
-                        await this.hass.callWS({
-                            type: "wine_cellar/move_wine",
-                            wine_id: zoneWines[i].id,
-                            cabinet_id: d.targetCabinetId,
-                            zone: d.targetZone,
-                            depth: i,
-                        });
-                    }
-                }
+                // One renumbering rather than a move per bottle: dragging within a
+                // full twenty-bottle bin used to fire up to twenty calls, each with
+                // its own disk write on the other side.
+                await this.hass.callWS({
+                    type: "wine_cellar/reorder_zone",
+                    cabinet_id: d.targetCabinetId,
+                    zone: d.targetZone,
+                    wine_ids: zoneWines.map((w) => w.id),
+                });
                 this._showToast("Wine reordered");
                 await this._loadData();
             }
@@ -12622,6 +12715,9 @@ let WineCellarCard = class WineCellarCard extends i {
         // silently block reordering within the same zone.
         if (!d.targetZone && d.sourceCabinetId === d.targetCabinetId && d.sourceRow === d.targetRow && d.sourceCol === d.targetCol && d.sourceZone === d.targetZone)
             return;
+        // Set once the first half of a swap has happened, so a failure in the
+        // second half can be undone.
+        let swappedBack = null;
         try {
             // Check if target cell has a wine (swap)
             let targetWine;
@@ -12640,6 +12736,17 @@ let WineCellarCard = class WineCellarCard extends i {
                     // only include them when they're actually set.
                     ...(d.sourceRow !== null && d.sourceRow !== undefined ? { row: d.sourceRow } : {}),
                     ...(d.sourceCol !== null && d.sourceCol !== undefined ? { col: d.sourceCol } : {}),
+                });
+                // Half of a swap is not a state the rack can be in: the target bottle
+                // is now sitting where the dragged one still is. If the second half
+                // fails, put it back before reporting the failure.
+                swappedBack = () => this.hass.callWS({
+                    type: "wine_cellar/move_wine",
+                    wine_id: targetWine.id,
+                    cabinet_id: d.targetCabinetId,
+                    zone: d.targetZone || "",
+                    ...(d.targetRow !== null && d.targetRow !== undefined ? { row: d.targetRow } : {}),
+                    ...(d.targetCol !== null && d.targetCol !== undefined ? { col: d.targetCol } : {}),
                 });
             }
             // Dropped into a bulk/box zone's general area (not swapped onto a
@@ -12684,7 +12791,19 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             console.error("Failed to move wine:", err);
+            if (swappedBack) {
+                try {
+                    await swappedBack();
+                }
+                catch (undoErr) {
+                    console.error("Failed to undo half-completed swap:", undoErr);
+                    this._showToast("Move failed and could not be undone — check both slots");
+                    await this._loadData();
+                    return;
+                }
+            }
             this._showToast("Failed to move wine");
+            await this._loadData();
         }
     }
     _copyWine(wine) {
@@ -12789,7 +12908,24 @@ let WineCellarCard = class WineCellarCard extends i {
     // cabinets the card already holds, and a stale count would point at moves
     // that have since been made.
     get _arrangementFindings() {
-        return analyzeArrangement(this._wines, this._cabinets, this._dismissedArrangements);
+        // Read from render(), so it ran on every keystroke in the search box even
+        // though typing cannot change how the cellar is arranged. Cached against
+        // the three things it actually depends on — all replaced wholesale rather
+        // than mutated, so identity is a sound key.
+        if (this._findingsCache &&
+            this._findingsCache.wines === this._wines &&
+            this._findingsCache.cabinets === this._cabinets &&
+            this._findingsCache.dismissed === this._dismissedArrangements) {
+            return this._findingsCache.findings;
+        }
+        const findings = analyzeArrangement(this._wines, this._cabinets, this._dismissedArrangements);
+        this._findingsCache = {
+            wines: this._wines,
+            cabinets: this._cabinets,
+            dismissed: this._dismissedArrangements,
+            findings,
+        };
+        return findings;
     }
     // "Leave it as it is" has to stick, or the count becomes a badge people
     // learn to ignore. Applied locally first so the finding disappears at once.
