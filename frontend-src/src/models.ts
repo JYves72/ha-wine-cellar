@@ -83,6 +83,8 @@ export interface Cabinet {
 export interface CellarStats {
   total_bottles: number;
   total_capacity: number;
+  placed_bottles: number;
+  unplaced_bottles: number;
   available_slots: number;
   total_value: number;
   total_cost: number;

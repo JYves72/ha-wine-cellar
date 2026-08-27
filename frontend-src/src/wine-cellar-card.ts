@@ -20,6 +20,12 @@ import "./components/vivino-ai-settings-dialog";
 const REFRESH_DEBOUNCE_MS = 400;
 const REFRESH_MIN_INTERVAL_MS = 3000;
 
+// Every cabinet-grid renders bottles at this diameter regardless of its own
+// column count, so a narrow 3-col cabinet doesn't stretch its bottles larger
+// than a wide one. Large cabinets still shrink to fit the card on narrow
+// screens (max-width: 100% in cabinet-grid.ts).
+const TARGET_CELL_PX = 56;
+
 interface WineCellarCardConfig {
   type: string;
   title?: string;
@@ -1993,6 +1999,14 @@ export class WineCellarCard extends LitElement {
                   <span class="stat-value">${this._stats.available_slots}</span>
                   available
                 </div>
+                ${this._stats.unplaced_bottles > 0
+                  ? html`
+                      <div class="stat" title="Bottles in Unassigned, not yet placed on a rack">
+                        <span class="stat-value" style="color:#e65100">${this._stats.unplaced_bottles}</span>
+                        unplaced
+                      </div>
+                    `
+                  : nothing}
                 ${this._arrangementFindings.length
                   ? html`
                       <div
@@ -2089,6 +2103,7 @@ export class WineCellarCard extends LitElement {
                           .cabinet=${cab}
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
+                          .targetCellPx=${TARGET_CELL_PX}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
@@ -2109,6 +2124,7 @@ export class WineCellarCard extends LitElement {
                             .cabinet=${cab}
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
+                            .targetCellPx=${TARGET_CELL_PX}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}

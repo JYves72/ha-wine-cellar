@@ -195,10 +195,12 @@ def _register_frontend_resource(hass: HomeAssistant) -> None:
                     break
 
             if existing:
-                # Update URL with new version
+                # Update URL with new version. res_type must be included here
+                # too — omitting it lets the update strip it from the stored
+                # resource (found by jamespreid).
                 if existing.get("url") != url:
                     await resources.async_update_item(
-                        existing["id"], {"url": url}
+                        existing["id"], {"res_type": "module", "url": url}
                     )
                     _LOGGER.debug("Updated wine cellar frontend resource to %s", url)
             else:

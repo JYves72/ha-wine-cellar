@@ -10,6 +10,9 @@ export class CabinetGrid extends LitElement {
   // Set briefly by "locate" so the bottle is marked on the rack drawing too,
   // not just in the side panel's slot list.
   @property({ attribute: false }) highlightWineId: string | null = null;
+  /** Target cell diameter in px. Used to cap small-cabinet bottle sizes so all
+   *  cabinets render bottles at a consistent visual size. Defaults to 64px. */
+  @property({ type: Number }) targetCellPx = 64;
 
   @state() private _dragOverCell: string | null = null;
 
@@ -1012,6 +1015,15 @@ export class CabinetGrid extends LitElement {
     const storageRows = this._getStorageRowSet();
     const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
 
+    // Uniform bottle sizing: use the targetCellPx passed from the parent so
+    // that all cabinets render bottles at the same diameter. Large cabinets
+    // naturally shrink to fit the card width (max-width: 100%); small
+    // cabinets are held to their computed width so they don't stretch their
+    // bottles to fill space.
+    const CELL_GAP_PX = 2;   // matches .row's gap: 2px
+    const GRID_PAD_PX = 12;  // matches .grid-inner's padding: 6px x2
+    const targetGridWidth = cols * this.targetCellPx + Math.max(0, cols - 1) * CELL_GAP_PX + GRID_PAD_PX;
+
     return html`
       <div class="cabinet">
         <div
@@ -1019,7 +1031,7 @@ export class CabinetGrid extends LitElement {
           @click=${hasGridRows ? () => this._onRackClick() : nothing}
           title=${hasGridRows ? "Tap to view and reorder this rack" : ""}
         >${this.cabinet.name}</div>
-        <div class="grid-inner">
+        <div class="grid-inner" style="width: ${targetGridWidth}px; max-width: 100%; margin: 0 auto;">
           ${Array.from({ length: rows }, (_, row) =>
               storageRows.has(row)
                 ? this._renderStorageZone(row)

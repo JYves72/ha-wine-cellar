@@ -24,6 +24,8 @@ export class WineDetailDialog extends LitElement {
   @state() private _saving = false;
   @state() private _refreshing = false;
   @state() private _analyzing = false;
+  @state() private _scanningLabel = false;
+  @state() private _showLabelCamera = false;
   @state() private _showRemoveConfirm = false;
   @state() private _pendingVivinoImage: string | null = null;
   @state() private _showPhotoCamera = false;
@@ -909,6 +911,55 @@ export class WineDetailDialog extends LitElement {
     this._analyzing = false;
   }
 
+  // Re-scan the label with a fresh photo: like _onPhotoReplaced but also
+  // extracts name/winery/vintage/etc via Gemini, same as the add-wine flow's
+  // label scan (jamespreid, imported for the detail dialog).
+  private async _onLabelPhotoScanned(e: CustomEvent) {
+    this._showLabelCamera = false;
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    this._scanningLabel = true;
+    try {
+      const raw = e.detail.image;
+      const result = await this.hass.callWS({
+        type: "wine_cellar/recognize_label",
+        image: raw,
+      });
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      const r = result.result;
+      if (!r) {
+        alert("Could not identify the label. Try a clearer photo.");
+        return;
+      }
+      const thumbUrl = await resizeImageForStorage(raw);
+      const updates: Record<string, any> = {};
+      if (thumbUrl) updates.image_url = thumbUrl;
+      if (r.name) updates.name = r.name;
+      if (r.winery) updates.winery = r.winery;
+      if (r.vintage) updates.vintage = r.vintage;
+      if (r.type) updates.type = r.type;
+      if (r.region) updates.region = r.region;
+      if (r.country) updates.country = r.country;
+      if (r.grape_variety) updates.grape_variety = r.grape_variety;
+      if (r.description) updates.description = r.description;
+      if (r.estimated_price) updates.retail_price = r.estimated_price;
+      await this.hass.callWS({
+        type: "wine_cellar/update_wine",
+        wine_id: this.wine.id,
+        updates,
+      });
+      if (!this._applyIfStillShowing(wineId, updates)) return;
+      this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error("Label scan failed", err);
+      alert("Label scan failed. Please try again.");
+    }
+    this._scanningLabel = false;
+  }
+
   private _splitPairings(text: string): string[] {
     const result: string[] = [];
     let depth = 0;
@@ -1193,6 +1244,11 @@ export class WineDetailDialog extends LitElement {
                     ? html`<button class="btn btn-primary" style="background:#1565c0"
                         ?disabled=${this._analyzing} @click=${this._analyzeWithAI}>
                         ${this._analyzing ? "..." : "🤖 AI Scan"}
+                      </button>
+                      <button class="btn btn-primary" style="background:#2e7d32"
+                        ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
+                        title="Take a fresh photo of the label to update this bottle's photo and details">
+                        ${this._scanningLabel ? "..." : "📷 Scan Label"}
                       </button>`
                     : nothing}
                   ${this.mode === "cellar"
@@ -1463,6 +1519,22 @@ export class WineDetailDialog extends LitElement {
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._showPhotoCamera = false)}
+                  >Cancel</button>
+                </div>
+              </div>
+            </div>
+          ` : nothing}
+          ${this._showLabelCamera ? html`
+            <div
+              style="position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px;padding:16px"
+              @click=${() => (this._showLabelCamera = false)}
+            >
+              <div style="width:100%" @click=${(e: Event) => e.stopPropagation()}>
+                <label-camera .active=${this._showLabelCamera} @photo-captured=${this._onLabelPhotoScanned}></label-camera>
+                <div style="text-align:center;margin-top:12px">
+                  <button
+                    style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
+                    @click=${() => (this._showLabelCamera = false)}
                   >Cancel</button>
                 </div>
               </div>

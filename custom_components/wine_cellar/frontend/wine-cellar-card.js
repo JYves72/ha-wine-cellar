@@ -1787,6 +1787,9 @@ let CabinetGrid = class CabinetGrid extends i {
         // Set briefly by "locate" so the bottle is marked on the rack drawing too,
         // not just in the side panel's slot list.
         this.highlightWineId = null;
+        /** Target cell diameter in px. Used to cap small-cabinet bottle sizes so all
+         *  cabinets render bottles at a consistent visual size. Defaults to 64px. */
+        this.targetCellPx = 64;
         this._dragOverCell = null;
         // --- Long press (mobile move) ---
         this._longPressTimer = null;
@@ -2221,6 +2224,14 @@ let CabinetGrid = class CabinetGrid extends i {
         const { rows, cols } = this.cabinet;
         const storageRows = this._getStorageRowSet();
         const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
+        // Uniform bottle sizing: use the targetCellPx passed from the parent so
+        // that all cabinets render bottles at the same diameter. Large cabinets
+        // naturally shrink to fit the card width (max-width: 100%); small
+        // cabinets are held to their computed width so they don't stretch their
+        // bottles to fill space.
+        const CELL_GAP_PX = 2; // matches .row's gap: 2px
+        const GRID_PAD_PX = 12; // matches .grid-inner's padding: 6px x2
+        const targetGridWidth = cols * this.targetCellPx + Math.max(0, cols - 1) * CELL_GAP_PX + GRID_PAD_PX;
         return b `
       <div class="cabinet">
         <div
@@ -2228,7 +2239,7 @@ let CabinetGrid = class CabinetGrid extends i {
           @click=${hasGridRows ? () => this._onRackClick() : A}
           title=${hasGridRows ? "Tap to view and reorder this rack" : ""}
         >${this.cabinet.name}</div>
-        <div class="grid-inner">
+        <div class="grid-inner" style="width: ${targetGridWidth}px; max-width: 100%; margin: 0 auto;">
           ${Array.from({ length: rows }, (_, row) => storageRows.has(row)
             ? this._renderStorageZone(row)
             : this._renderGridRow(row, cols))}
@@ -2797,6 +2808,9 @@ __decorate([
     n({ attribute: false })
 ], CabinetGrid.prototype, "highlightWineId", void 0);
 __decorate([
+    n({ type: Number })
+], CabinetGrid.prototype, "targetCellPx", void 0);
+__decorate([
     r()
 ], CabinetGrid.prototype, "_dragOverCell", void 0);
 CabinetGrid = __decorate([
@@ -3327,6 +3341,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._saving = false;
         this._refreshing = false;
         this._analyzing = false;
+        this._scanningLabel = false;
+        this._showLabelCamera = false;
         this._showRemoveConfirm = false;
         this._pendingVivinoImage = null;
         this._showPhotoCamera = false;
@@ -3686,6 +3702,67 @@ let WineDetailDialog = class WineDetailDialog extends i {
         }
         this._analyzing = false;
     }
+    // Re-scan the label with a fresh photo: like _onPhotoReplaced but also
+    // extracts name/winery/vintage/etc via Gemini, same as the add-wine flow's
+    // label scan (jamespreid, imported for the detail dialog).
+    async _onLabelPhotoScanned(e) {
+        this._showLabelCamera = false;
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        this._scanningLabel = true;
+        try {
+            const raw = e.detail.image;
+            const result = await this.hass.callWS({
+                type: "wine_cellar/recognize_label",
+                image: raw,
+            });
+            if (result.error) {
+                alert(result.error);
+                return;
+            }
+            const r = result.result;
+            if (!r) {
+                alert("Could not identify the label. Try a clearer photo.");
+                return;
+            }
+            const thumbUrl = await resizeImageForStorage(raw);
+            const updates = {};
+            if (thumbUrl)
+                updates.image_url = thumbUrl;
+            if (r.name)
+                updates.name = r.name;
+            if (r.winery)
+                updates.winery = r.winery;
+            if (r.vintage)
+                updates.vintage = r.vintage;
+            if (r.type)
+                updates.type = r.type;
+            if (r.region)
+                updates.region = r.region;
+            if (r.country)
+                updates.country = r.country;
+            if (r.grape_variety)
+                updates.grape_variety = r.grape_variety;
+            if (r.description)
+                updates.description = r.description;
+            if (r.estimated_price)
+                updates.retail_price = r.estimated_price;
+            await this.hass.callWS({
+                type: "wine_cellar/update_wine",
+                wine_id: this.wine.id,
+                updates,
+            });
+            if (!this._applyIfStillShowing(wineId, updates))
+                return;
+            this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Label scan failed", err);
+            alert("Label scan failed. Please try again.");
+        }
+        this._scanningLabel = false;
+    }
     _splitPairings(text) {
         const result = [];
         let depth = 0;
@@ -3965,6 +4042,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<button class="btn btn-primary" style="background:#1565c0"
                         ?disabled=${this._analyzing} @click=${this._analyzeWithAI}>
                         ${this._analyzing ? "..." : "🤖 AI Scan"}
+                      </button>
+                      <button class="btn btn-primary" style="background:#2e7d32"
+                        ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
+                        title="Take a fresh photo of the label to update this bottle's photo and details">
+                        ${this._scanningLabel ? "..." : "📷 Scan Label"}
                       </button>`
                 : A}
                   ${this.mode === "cellar"
@@ -4229,6 +4311,22 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._showPhotoCamera = false)}
+                  >Cancel</button>
+                </div>
+              </div>
+            </div>
+          ` : A}
+          ${this._showLabelCamera ? b `
+            <div
+              style="position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px;padding:16px"
+              @click=${() => (this._showLabelCamera = false)}
+            >
+              <div style="width:100%" @click=${(e) => e.stopPropagation()}>
+                <label-camera .active=${this._showLabelCamera} @photo-captured=${this._onLabelPhotoScanned}></label-camera>
+                <div style="text-align:center;margin-top:12px">
+                  <button
+                    style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
+                    @click=${() => (this._showLabelCamera = false)}
                   >Cancel</button>
                 </div>
               </div>
@@ -4825,6 +4923,12 @@ __decorate([
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_analyzing", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_scanningLabel", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_showLabelCamera", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_showRemoveConfirm", void 0);
@@ -11711,6 +11815,11 @@ VivinoAiSettingsDialog = __decorate([
 // on how often it may do so at all.
 const REFRESH_DEBOUNCE_MS = 400;
 const REFRESH_MIN_INTERVAL_MS = 3000;
+// Every cabinet-grid renders bottles at this diameter regardless of its own
+// column count, so a narrow 3-col cabinet doesn't stretch its bottles larger
+// than a wide one. Large cabinets still shrink to fit the card on narrow
+// screens (max-width: 100% in cabinet-grid.ts).
+const TARGET_CELL_PX = 56;
 let WineCellarCard = class WineCellarCard extends i {
     constructor() {
         super(...arguments);
@@ -13277,6 +13386,14 @@ let WineCellarCard = class WineCellarCard extends i {
                   <span class="stat-value">${this._stats.available_slots}</span>
                   available
                 </div>
+                ${this._stats.unplaced_bottles > 0
+                ? b `
+                      <div class="stat" title="Bottles in Unassigned, not yet placed on a rack">
+                        <span class="stat-value" style="color:#e65100">${this._stats.unplaced_bottles}</span>
+                        unplaced
+                      </div>
+                    `
+                : A}
                 ${this._arrangementFindings.length
                 ? b `
                       <div
@@ -13370,6 +13487,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           .cabinet=${cab}
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
+                          .targetCellPx=${TARGET_CELL_PX}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
@@ -13388,6 +13506,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             .cabinet=${cab}
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
+                            .targetCellPx=${TARGET_CELL_PX}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}

@@ -953,10 +953,12 @@ async def ws_refresh_wine(
     if cur_desc and any(kw in cur_desc.lower() for kw in bad_keywords):
         if "description" not in updates:
             updates["description"] = ""
-    # Only fill in fields that are currently empty
+    # Always overwrite region/country/type — manual refresh means the user
+    # wants fresh Vivino data, unlike the fill-empty-only rule batch refresh
+    # still follows below.
     for key in ("region", "country", "type"):
         val = lookup.get(key)
-        if val and not wine.get(key):
+        if val:
             updates[key] = val
 
     # The field list reported to the frontend is the real changes only; the

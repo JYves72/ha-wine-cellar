@@ -425,15 +425,23 @@ class WineCellarStorage:
         """Get cellar statistics."""
         total_bottles = len(self.wines)
         total_capacity = sum(self.cabinet_capacity(c) for c in self.cabinets)
+        valid_cabinet_ids = {c["id"] for c in self.cabinets}
         by_type: dict[str, int] = {}
         by_cabinet: dict[str, int] = {}
         total_value = 0.0
         total_cost = 0.0
+        # Bottles sitting in Unassigned still count in total_bottles but take
+        # no rack slot — counting them against available_slots undercounted
+        # what's actually free by however many bottles were unplaced (found
+        # by jamespreid; e.g. showed "-2 available" with 2 unplaced bottles).
+        placed_bottles = 0
         for wine in self.wines:
             wine_type = wine.get("type", "unknown")
             by_type[wine_type] = by_type.get(wine_type, 0) + 1
             cab_id = wine.get("cabinet_id", "unassigned")
             by_cabinet[cab_id] = by_cabinet.get(cab_id, 0) + 1
+            if cab_id in valid_cabinet_ids:
+                placed_bottles += 1
             # Use retail price (current value) if available, else purchase price
             price = wine.get("retail_price") or wine.get("price")
             if price and isinstance(price, (int, float)):
@@ -446,7 +454,9 @@ class WineCellarStorage:
         return {
             "total_bottles": total_bottles,
             "total_capacity": total_capacity,
-            "available_slots": total_capacity - total_bottles,
+            "placed_bottles": placed_bottles,
+            "unplaced_bottles": total_bottles - placed_bottles,
+            "available_slots": total_capacity - placed_bottles,
             "total_value": round(total_value, 2),
             "total_cost": round(total_cost, 2),
             "by_type": by_type,
