@@ -106,6 +106,7 @@
       "conflictCounts": "Vivino : {vivino} · ici : {here}",
       "conflictHint": "Vos bouteilles sont entourées ci-dessous. Corrigez-les si besoin (ouvrir une bouteille pour la retirer, coller pour en ajouter), puis confirmez :",
       "conflictConfirmBtn": "Cork Dork a raison — régler Vivino sur {n}",
+      "conflictSyncing": "Synchronisation vers Vivino...",
       "vivinoWineFallback": "Vin Vivino {vid}",
       "syncCountConfirmTitle": "Synchroniser ce nombre vers Vivino ?",
       "syncCountConfirmBodyOne": "Vivino sera réglé sur {n} bouteille — le nombre actuel dans Cork Dork. L'ajustement apparaît dans l'historique de votre cave Vivino et peut y être annulé.",

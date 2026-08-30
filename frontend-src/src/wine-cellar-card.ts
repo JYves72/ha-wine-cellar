@@ -79,6 +79,9 @@ export class WineCellarCard extends LitElement {
   @state() private _vivinoConflicts: any[] = [];
   @state() private _conflictFocusVid: string | null = null;
   @state() private _conflictConfirmVid: string | null = null;
+  // vivino_id currently being pushed to Vivino (the write plus its
+  // verification can take several seconds)
+  @state() private _conflictResolving: string | null = null;
   @state() private _metadataLanguage = "en";
   @state() private _supportedLanguages: string[] = ["en", "fr", "de"];
   @state() private _metadataCurrency = "USD";
@@ -214,6 +217,11 @@ export class WineCellarCard extends LitElement {
         font-size: 0.8em;
         padding: 6px 12px;
         margin: 4px 0 6px;
+      }
+
+      .conflict-confirm:disabled {
+        opacity: 0.6;
+        cursor: wait;
       }
 
       .header-row {
@@ -1907,8 +1915,9 @@ export class WineCellarCard extends LitElement {
 
   private async _confirmConflictResolution() {
     const vid = this._conflictConfirmVid;
-    if (!vid) return;
+    if (!vid || this._conflictResolving) return;
     this._conflictConfirmVid = null;
+    this._conflictResolving = vid;
     const target = this._removalCandidates(vid).length;
     try {
       const res = await this.hass.callWS({
@@ -1929,6 +1938,8 @@ export class WineCellarCard extends LitElement {
       await this._loadData();
     } catch {
       this._showToast(this._t("toast.vivinoConflictUpdateFailed"));
+    } finally {
+      this._conflictResolving = null;
     }
   }
 
@@ -2382,11 +2393,14 @@ export class WineCellarCard extends LitElement {
                     <div class="removal-hint">${this._t("ui.card.conflictHint")}</div>
                     <button
                       class="btn btn-primary conflict-confirm"
+                      ?disabled=${this._conflictResolving !== null}
                       @click=${(e: Event) => {
                         e.stopPropagation();
                         this._conflictConfirmVid = vid;
                       }}
-                    >${this._t("ui.card.conflictConfirmBtn", { n: cdNow })}</button>
+                    >${this._conflictResolving === vid
+                      ? this._t("ui.card.conflictSyncing")
+                      : this._t("ui.card.conflictConfirmBtn", { n: cdNow })}</button>
                   ` : nothing}
                 `;
               })}
