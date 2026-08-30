@@ -20,15 +20,6 @@ import "./components/vivino-ai-settings-dialog";
 const REFRESH_DEBOUNCE_MS = 400;
 const REFRESH_MIN_INTERVAL_MS = 3000;
 
-// Every cabinet-grid renders bottles at this diameter regardless of its own
-// column count, so a narrow 3-col cabinet doesn't stretch its bottles larger
-// than a wide one. Large cabinets still shrink to fit the card on narrow
-// screens (max-width: 100% in cabinet-grid.ts) — that shrink-to-fit is what
-// still protects phones/narrow windows, so this is just the preferred size
-// when there's room. 150% of the original 56px, since PC/Mac browser
-// windows are usually plenty wide for it.
-const TARGET_CELL_PX = 84;
-
 interface WineCellarCardConfig {
   type: string;
   title?: string;
@@ -428,11 +419,10 @@ export class WineCellarCard extends LitElement {
         }
       }
 
-      /* Tablet: 2 cabinets side by side when they fit, wrapping to 1 when
-         they don't. */
+      /* Tablet: 2 cabinets side by side */
       @media (min-width: 600px) and (max-width: 1023px) {
         .cabinets-row {
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          grid-template-columns: repeat(2, 1fr);
           gap: 12px;
         }
       }
@@ -2107,7 +2097,6 @@ export class WineCellarCard extends LitElement {
                           .cabinet=${cab}
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
-                          .targetCellPx=${TARGET_CELL_PX}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
@@ -2128,7 +2117,6 @@ export class WineCellarCard extends LitElement {
                             .cabinet=${cab}
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
-                            .targetCellPx=${TARGET_CELL_PX}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
@@ -2428,6 +2416,7 @@ export class WineCellarCard extends LitElement {
         <!-- Wine Detail Dialog -->
         <wine-detail-dialog
           .wine=${this._selectedWine}
+          .wines=${this._wines}
           .hass=${this.hass}
           .cabinets=${this._cabinets}
           .open=${this._showDetail}

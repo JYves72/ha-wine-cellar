@@ -26,6 +26,10 @@ export interface Wine {
   drink_by: string;
   notes: string;
   description: string;
+  // Language ("en"/"fr"/"de") the description was last written in — lets a
+  // later AI analysis tell a stale-language description apart from a
+  // manually-curated one and refresh it instead of leaving it as-is.
+  description_language?: string;
   food_pairings: string;
   alcohol: string;
   cabinet_id: string;

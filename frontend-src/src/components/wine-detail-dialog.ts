@@ -11,6 +11,10 @@ export type WineDetailMode = "cellar" | "buylist" | "winelist";
 @customElement("wine-detail-dialog")
 export class WineDetailDialog extends LitElement {
   @property({ attribute: false }) wine: Wine | null = null;
+  // Full cellar wine list, used only to find other bottles of this same
+  // wine (same name+winery+vintage) so the "propagate this note?" prompt
+  // in _saveFields can tell the user how many bottles would be affected.
+  @property({ attribute: false }) wines: Wine[] = [];
   @property({ attribute: false }) hass: any;
   @property({ attribute: false }) cabinets: Cabinet[] = [];
   @property({ type: Boolean }) open = false;
@@ -648,10 +652,31 @@ export class WineDetailDialog extends LitElement {
         this._editData = {};
         this.dispatchEvent(new CustomEvent("buy-list-updated", { bubbles: true, composed: true }));
       } else {
+        // "notes" is personal and per-bottle by default (unlike everything
+        // else here, which the backend already copies to every other
+        // bottle of this same wine automatically) — ask before spreading
+        // it, since a note like "opened for the anniversary" usually
+        // shouldn't land on the other 5 bottles.
+        let propagateNotes = false;
+        if ("notes" in updates && updates.notes !== (this.wine.notes || "")) {
+          const duplicates = this.wines.filter(
+            (w) =>
+              w.id !== this.wine!.id &&
+              w.name === this.wine!.name &&
+              w.winery === this.wine!.winery &&
+              w.vintage === this.wine!.vintage
+          );
+          if (duplicates.length > 0) {
+            propagateNotes = window.confirm(
+              `Apply this note to your other ${duplicates.length} bottle${duplicates.length > 1 ? "s" : ""} of ${this.wine.name} too?`
+            );
+          }
+        }
         await this.hass.callWS({
           type: "wine_cellar/update_wine",
           wine_id: this.wine.id,
           updates,
+          propagate_notes: propagateNotes,
         });
         if (!this._applyIfStillShowing(wineId, updates)) return;
         this._editingFields = false;

@@ -74,7 +74,9 @@ def _select_wines(storage: Any, wine_ids: list[str] | None) -> list[dict[str, An
     return [w for w in storage.wines if w.get("id") in wanted]
 
 
-def _build_ai_updates(wine: dict[str, Any], result: dict[str, Any], currency: str = "USD") -> dict[str, Any]:
+def _build_ai_updates(
+    wine: dict[str, Any], result: dict[str, Any], currency: str = "USD", language: str = "en"
+) -> dict[str, Any]:
     """Build a wine `updates` dict from a Gemini analyze_single_wine result."""
     updates: dict[str, Any] = {}
     if result.get("disposition"):
@@ -82,12 +84,24 @@ def _build_ai_updates(wine: dict[str, Any], result: dict[str, Any], currency: st
     if result.get("drink_by"):
         updates["drink_by"] = result["drink_by"]
 
-    # Set AI description if wine has no description or has error text
+    # Set AI description if wine has no description, has error text, or the
+    # description on file isn't tagged as already being in the language now
+    # configured — otherwise a description generated back when the user had
+    # a different metadata language selected would linger forever, since
+    # it's never "empty". description_language is stamped below whenever
+    # description is written, so once a wine has been through this check
+    # (tagged with the current language) it's left alone until the language
+    # actually changes again. A wine with no tag at all — anything that
+    # existed before this check was added — is treated the same as a
+    # mismatch: there's no record of what language it's in, so it's safer
+    # to refresh it than to assume it already matches.
     cur_desc = wine.get("description", "")
     bad_kw = ("forbidden", "underage", "try searching", "page is blocked")
     has_bad_desc = cur_desc and any(kw in cur_desc.lower() for kw in bad_kw)
-    if result.get("description") and (not cur_desc or has_bad_desc):
+    stale_language = bool(cur_desc) and wine.get("description_language") != language
+    if result.get("description") and (not cur_desc or has_bad_desc or stale_language):
         updates["description"] = result["description"]
+        updates["description_language"] = language
 
     ai_ratings: dict[str, int] = {}
     for key in ("rating_ws", "rating_rp", "rating_jd", "rating_ag"):
@@ -118,6 +132,50 @@ def _build_ai_updates(wine: dict[str, Any], result: dict[str, Any], currency: st
             updates[key] = val
 
     return updates
+
+
+# Fields that describe one physical bottle, not the wine itself — never
+# copied to other bottles of the same wine even though everything else
+# (description, ratings, photo, tasting profile, etc.) now is. A cellar
+# routinely holds several bottles of the same wine (same name + winery +
+# vintage), each in its own slot, so this is what lets a Vivino/AI lookup
+# on any one of them update the rest instead of having to be repeated per
+# bottle. barcode is deliberately NOT here — identical bottles share the
+# same product barcode. "notes" (the free-text personal note, distinct
+# from the AI tasting profile) is here on purpose: a note like "opened
+# for the anniversary" is about one specific bottle, so it only
+# propagates when the user explicitly opts in (see propagate_notes below).
+_INSTANCE_ONLY_FIELDS = {
+    "id", "cabinet_id", "row", "col", "zone", "depth",
+    "price", "purchase_date", "added_at", "notes",
+}
+
+
+def _propagate_to_duplicates(
+    storage: Any, wine: dict[str, Any], updates: dict[str, Any], extra_fields: set[str] | None = None
+) -> None:
+    """Copy the shared (non-instance) fields of `updates` onto every other
+    bottle of the same wine (same name + winery + vintage) in the cellar.
+
+    `extra_fields` opts specific normally-excluded fields back in for this
+    call only — used for "notes", which the user must explicitly confirm
+    propagating rather than have it happen silently.
+    """
+    excluded = _INSTANCE_ONLY_FIELDS - (extra_fields or set())
+    shared = {k: v for k, v in updates.items() if k not in excluded}
+    if not shared:
+        return
+    name = wine.get("name", "")
+    winery = wine.get("winery", "")
+    vintage = wine.get("vintage")
+    for other in storage.wines:
+        if (
+            other["id"] != wine["id"]
+            and other.get("name") == name
+            and other.get("winery") == winery
+            and other.get("vintage") == vintage
+        ):
+            storage.update_wine(other["id"], shared)
 
 
 def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]) -> bool:
@@ -241,6 +299,7 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
                 updates["vivino_id"] = lookup["vivino_id"]
             _LOGGER.debug("Auto-enrich wine %s: %s", wine.get("id"), list(updates.keys()))
             storage.update_wine(wine["id"], updates)
+            _propagate_to_duplicates(storage, wine, updates)
             await storage.async_save()
             hass.bus.async_fire(f"{DOMAIN}_updated")
     except Exception as err:
@@ -454,6 +513,11 @@ async def ws_remove_wine(
         vol.Required("type"): "wine_cellar/update_wine",
         vol.Required("wine_id"): str,
         vol.Required("updates"): dict,
+        # User opted in (via a confirm prompt) to also copying the personal
+        # "notes" text onto every other bottle of this same wine — normally
+        # excluded from the automatic propagation below since it's usually
+        # about one specific bottle.
+        vol.Optional("propagate_notes"): bool,
     }
 )
 @websocket_api.async_response
@@ -468,21 +532,8 @@ async def ws_update_wine(
     wine = storage.update_wine(msg["wine_id"], updates)
     if wine:
         await photos.store_wine_photos(hass, wine)
-        # Propagate user_rating/tasting_notes to duplicates (same name+winery+vintage)
-        rating_fields = {"user_rating", "tasting_notes"} & set(updates.keys())
-        if rating_fields:
-            dup_updates = {k: updates[k] for k in rating_fields}
-            name = wine.get("name", "")
-            winery = wine.get("winery", "")
-            vintage = wine.get("vintage")
-            for other in storage.wines:
-                if (
-                    other["id"] != wine["id"]
-                    and other.get("name") == name
-                    and other.get("winery") == winery
-                    and other.get("vintage") == vintage
-                ):
-                    storage.update_wine(other["id"], dup_updates)
+        extra = {"notes"} if msg.get("propagate_notes") else None
+        _propagate_to_duplicates(storage, wine, updates, extra)
         await storage.async_save()
         hass.bus.async_fire(f"{DOMAIN}_updated")
     connection.send_result(msg["id"], {"wine": wine})
@@ -902,6 +953,10 @@ async def ws_refresh_wine(
         val = lookup.get(key)
         if val:
             updates[key] = val
+            if key == "description":
+                # So a later AI analysis run knows this description is
+                # already in the current language and doesn't redo it.
+                updates["description_language"] = language
 
     # Photo: never silently overwrite a photo the user already has. If the
     # wine has no photo yet, apply Vivino's automatically. Otherwise surface
@@ -953,13 +1008,18 @@ async def ws_refresh_wine(
     if cur_desc and any(kw in cur_desc.lower() for kw in bad_keywords):
         if "description" not in updates:
             updates["description"] = ""
-    # Always overwrite region/country/type — manual refresh means the user
-    # wants fresh Vivino data, unlike the fill-empty-only rule batch refresh
-    # still follows below.
-    for key in ("region", "country", "type"):
+    # Always overwrite region/country — manual refresh means the user wants
+    # fresh Vivino data, unlike the fill-empty-only rule batch refresh still
+    # follows below. Type stays fill-empty-only: two different wines can
+    # share the same name (e.g. a producer's red and rosé of the same
+    # cuvée), so a refresh that matches the wrong one on Vivino must not
+    # flip a type the user already set correctly.
+    for key in ("region", "country"):
         val = lookup.get(key)
         if val:
             updates[key] = val
+    if not wine.get("type") and lookup.get("type"):
+        updates["type"] = lookup["type"]
 
     # The field list reported to the frontend is the real changes only; the
     # bookkeeping keys added below would otherwise show up as "1 field
@@ -980,6 +1040,8 @@ async def ws_refresh_wine(
         updates["ai_checked_at"] = now
 
     updated_wine = storage.update_wine(msg["wine_id"], updates)
+    if updated_wine:
+        _propagate_to_duplicates(storage, updated_wine, updates)
     await storage.async_save()
     hass.bus.async_fire(f"{DOMAIN}_updated")
     connection.send_result(msg["id"], {
@@ -1018,13 +1080,14 @@ async def ws_analyze_single_wine(
         return
 
     currency = _get_metadata_currency(hass)
-    result = await gemini.analyze_single_wine(wine, _get_metadata_language(hass), currency)
+    language = _get_metadata_language(hass)
+    result = await gemini.analyze_single_wine(wine, language, currency)
     if "error" in result:
         connection.send_result(msg["id"], {"error": result["error"]})
         return
 
     # Apply results to wine
-    updates = _build_ai_updates(wine, result, currency)
+    updates = _build_ai_updates(wine, result, currency, language)
 
     _LOGGER.debug("Final updates for wine %s: %s", msg["wine_id"], list(updates.keys()))
     # Same split as the Vivino path: the check is always recorded, the update
@@ -1034,6 +1097,8 @@ async def ws_analyze_single_wine(
         updates["ai_updated_at"] = now
     updates["ai_checked_at"] = now
     updated_wine = storage.update_wine(msg["wine_id"], updates)
+    if updated_wine:
+        _propagate_to_duplicates(storage, updated_wine, updates)
     await storage.async_save()
     hass.bus.async_fire(f"{DOMAIN}_updated")
     connection.send_result(msg["id"], {"wine": updated_wine, "analysis": result})
@@ -1084,7 +1149,7 @@ async def ws_batch_analyze_wines(
                 errors += 1
                 continue
 
-            updates = _build_ai_updates(wine, result, currency)
+            updates = _build_ai_updates(wine, result, currency, language)
             had_changes = bool(updates)
 
             # The check is always recorded; the update timestamp only moves
@@ -1095,6 +1160,7 @@ async def ws_batch_analyze_wines(
                 updates["ai_updated_at"] = now
             updates["ai_checked_at"] = now
             storage.update_wine(wine["id"], updates)
+            _propagate_to_duplicates(storage, wine, updates)
             if had_changes:
                 updated += 1
             else:
@@ -1206,13 +1272,14 @@ async def ws_batch_refresh_vivino(
                     try:
                         ai_result = await gemini.analyze_single_wine(wine, language, currency)
                         if "error" not in ai_result:
-                            ai_updates = _build_ai_updates(wine, ai_result, currency)
+                            ai_updates = _build_ai_updates(wine, ai_result, currency, language)
                             had_ai_changes = bool(ai_updates)
                             ai_now = datetime.now(timezone.utc).isoformat()
                             if had_ai_changes:
                                 ai_updates["ai_updated_at"] = ai_now
                             ai_updates["ai_checked_at"] = ai_now
                             storage.update_wine(wine["id"], ai_updates)
+                            _propagate_to_duplicates(storage, wine, ai_updates)
                             if had_ai_changes:
                                 updated += 1
                                 ai_fallback_used += 1
@@ -1244,6 +1311,8 @@ async def ws_batch_refresh_vivino(
                 val = lookup.get(key)
                 if val:
                     updates[key] = val
+                    if key == "description":
+                        updates["description_language"] = language
 
             # Photo: only overwrite an existing photo when the user opted in
             # via photo_mode="replace"; otherwise leave the user's photo alone.
@@ -1305,6 +1374,7 @@ async def ws_batch_refresh_vivino(
                 updates["ai_updated_at"] = now
                 updates["ai_checked_at"] = now
             storage.update_wine(wine["id"], updates)
+            _propagate_to_duplicates(storage, wine, updates)
             if had_changes:
                 updated += 1
             else:

@@ -10,9 +10,6 @@ export class CabinetGrid extends LitElement {
   // Set briefly by "locate" so the bottle is marked on the rack drawing too,
   // not just in the side panel's slot list.
   @property({ attribute: false }) highlightWineId: string | null = null;
-  /** Target cell diameter in px. Used to cap small-cabinet bottle sizes so all
-   *  cabinets render bottles at a consistent visual size. Defaults to 64px. */
-  @property({ type: Number }) targetCellPx = 64;
 
   @state() private _dragOverCell: string | null = null;
 
@@ -21,16 +18,6 @@ export class CabinetGrid extends LitElement {
     css`
       :host {
         display: block;
-        /* cabinet-grid is itself the grid item inside .cabinets-row's CSS
-           grid. Grid items default to min-width: auto, which floors their
-           shrink at their content's intrinsic size — .grid-inner's explicit
-           width: Npx (for uniform bottle sizing) counted as that intrinsic
-           size, so the host refused to shrink below it: overflowing off the
-           edge on desktop instead of wrapping to a new row, and staying
-           wider than the screen on mobile so part of the grid was
-           unreachable. min-width: 0 here lets the host shrink normally;
-           .grid-inner's own max-width: 100% then does the actual fitting. */
-        min-width: 0;
       }
 
       .cabinet {
@@ -61,15 +48,7 @@ export class CabinetGrid extends LitElement {
 
       .grid-inner {
         background: linear-gradient(180deg, #1a1a3a 0%, #0d0d2b 100%);
-        /* Nested rounded corners only stay fully inside their parent's
-           curve when inner-radius <= outer-radius - padding. .cabinet is
-           12px radius / 8px padding here (10px / 6px at the phone
-           breakpoint), so 4px is the safe radius at every breakpoint —
-           the old 8px was double that, so this corner's own curve poked
-           past .cabinet's gold corner. Easy to miss at the smaller
-           pre-uniform-sizing bottle diameter; obvious at 84px, where the
-           corner bottle fills right up to the edge. */
-        border-radius: 4px;
+        border-radius: 8px;
         padding: 6px;
         position: relative;
         overflow: hidden;
@@ -1028,22 +1007,10 @@ export class CabinetGrid extends LitElement {
     );
   }
 
-  // Uniform bottle sizing: use the targetCellPx passed from the parent so
-  // that all cabinets render bottles at the same diameter. Large cabinets
-  // naturally shrink to fit the card width (max-width: 100%); small
-  // cabinets are held to their computed width so they don't stretch their
-  // bottles to fill space.
-  private _targetGridWidth(): number {
-    const CELL_GAP_PX = 2;   // matches .row's gap: 2px
-    const GRID_PAD_PX = 12;  // matches .grid-inner's padding: 6px x2
-    return this.cabinet.cols * this.targetCellPx + Math.max(0, this.cabinet.cols - 1) * CELL_GAP_PX + GRID_PAD_PX;
-  }
-
   render() {
     const { rows, cols } = this.cabinet;
     const storageRows = this._getStorageRowSet();
     const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
-    const targetGridWidth = this._targetGridWidth();
 
     return html`
       <div class="cabinet">
@@ -1052,7 +1019,7 @@ export class CabinetGrid extends LitElement {
           @click=${hasGridRows ? () => this._onRackClick() : nothing}
           title=${hasGridRows ? "Tap to view and reorder this rack" : ""}
         >${this.cabinet.name}</div>
-        <div class="grid-inner" style="width: ${targetGridWidth}px; max-width: 100%; margin: 0 auto;">
+        <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) =>
               storageRows.has(row)
                 ? this._renderStorageZone(row)
