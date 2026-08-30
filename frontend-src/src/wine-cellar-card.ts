@@ -74,6 +74,11 @@ export class WineCellarCard extends LitElement {
   @state() private _pendingRemovals: Record<string, any> = {};
   @state() private _removalFocusVid: string | null = null;
   @state() private _removalConfirmWine: Wine | null = null;
+  // Sync conflicts (both sides changed a wine differently) awaiting manual
+  // resolution: the user reviews Cork Dork's bottles and declares them truth.
+  @state() private _vivinoConflicts: any[] = [];
+  @state() private _conflictFocusVid: string | null = null;
+  @state() private _conflictConfirmVid: string | null = null;
   @state() private _metadataLanguage = "en";
   @state() private _supportedLanguages: string[] = ["en", "fr", "de"];
   @state() private _metadataCurrency = "USD";
@@ -192,6 +197,23 @@ export class WineCellarCard extends LitElement {
         font-size: 0.75em;
         color: var(--wc-text-secondary);
         margin-top: 6px;
+      }
+
+      .conflict-title {
+        margin-top: 8px;
+        color: #d32f2f;
+      }
+
+      .removal-entry.conflict.active {
+        background: rgba(211, 47, 47, 0.15);
+        box-shadow: inset 0 0 0 1px #d32f2f;
+      }
+
+      .conflict-confirm {
+        background: #e65100;
+        font-size: 0.8em;
+        padding: 6px 12px;
+        margin: 4px 0 6px;
       }
 
       .header-row {
@@ -639,6 +661,13 @@ export class WineCellarCard extends LitElement {
       this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
       if (this._removalFocusVid && !this._pendingRemovals[this._removalFocusVid]) {
         this._removalFocusVid = null;
+      }
+      this._vivinoConflicts = pendingRemovalsResult?.conflicts || [];
+      if (
+        this._conflictFocusVid &&
+        !this._vivinoConflicts.some((c) => String(c.vintage_id) === this._conflictFocusVid)
+      ) {
+        this._conflictFocusVid = null;
       }
 
       // Refresh selected wine if detail dialog is open
@@ -1866,9 +1895,41 @@ export class WineCellarCard extends LitElement {
   }
 
   private get _removalHighlightIds(): string[] {
-    return this._removalFocusVid
-      ? this._removalCandidates(this._removalFocusVid).map((w) => w.id)
-      : [];
+    const vid = this._removalFocusVid || this._conflictFocusVid;
+    return vid ? this._removalCandidates(vid).map((w) => w.id) : [];
+  }
+
+  private _conflictLabel(vid: string): string {
+    const w = this._removalCandidates(vid)[0];
+    if (!w) return this._t("ui.card.vivinoWineFallback", { vid });
+    return `${w.winery ? `${w.winery} — ` : ""}${w.name}${w.vintage ? ` (${w.vintage})` : ""}`;
+  }
+
+  private async _confirmConflictResolution() {
+    const vid = this._conflictConfirmVid;
+    if (!vid) return;
+    this._conflictConfirmVid = null;
+    const target = this._removalCandidates(vid).length;
+    try {
+      const res = await this.hass.callWS({
+        type: "wine_cellar/resolve_vivino_conflict",
+        vivino_id: vid,
+      });
+      if (res.error) {
+        this._showToast(res.error);
+        return;
+      }
+      this._vivinoConflicts = res.conflicts || [];
+      this._conflictFocusVid = null;
+      this._showToast(
+        target === 1
+          ? this._t("toast.vivinoConflictUpdatedOne", { n: target })
+          : this._t("toast.vivinoConflictUpdatedMany", { n: target })
+      );
+      await this._loadData();
+    } catch {
+      this._showToast(this._t("toast.vivinoConflictUpdateFailed"));
+    }
   }
 
   private _bottlePosition(wine: Wine): string {
@@ -1946,6 +2007,13 @@ export class WineCellarCard extends LitElement {
             result.cellar_removal_choices === 1
               ? this._t("toast.vivinoRemovalChoicesOne", { n: result.cellar_removal_choices })
               : this._t("toast.vivinoRemovalChoicesMany", { n: result.cellar_removal_choices })
+          );
+        }
+        if (result.cellar_conflicts > 0) {
+          parts.push(
+            result.cellar_conflicts === 1
+              ? this._t("toast.vivinoConflictsOne", { n: result.cellar_conflicts })
+              : this._t("toast.vivinoConflictsMany", { n: result.cellar_conflicts })
           );
         }
         if (result.errors?.length) parts.push(this._t("toast.errorsCount", { n: result.errors.length }));
@@ -2273,22 +2341,55 @@ export class WineCellarCard extends LitElement {
         ></wine-search-bar>
 
         <!-- Cabinet grids -->
-        ${Object.keys(this._pendingRemovals).length > 0 ? html`
+        ${Object.keys(this._pendingRemovals).length > 0 || this._vivinoConflicts.length > 0 ? html`
           <div class="removal-panel">
-            <div class="removal-panel-title">🍷 Vivino removed bottles — pick which ones to remove here</div>
-            ${Object.entries(this._pendingRemovals).map(([vid, entry]: [string, any]) => html`
-              <div
-                class="removal-entry ${this._removalFocusVid === vid ? "active" : ""}"
-                @click=${() => {
-                  this._removalFocusVid = this._removalFocusVid === vid ? null : vid;
-                }}
-              >
-                <span>${entry.winery ? `${entry.winery} — ` : ""}${entry.name || this._t("ui.card.unknownWine")}${entry.vintage ? ` (${entry.vintage})` : ""}</span>
-                <span class="removal-count">choose ${entry.count}</span>
-              </div>
-            `)}
-            ${this._removalFocusVid ? html`
-              <div class="removal-hint">Candidates are ringed in orange below — click the bottle that is actually gone.</div>
+            ${Object.keys(this._pendingRemovals).length > 0 ? html`
+              <div class="removal-panel-title">${this._t("ui.card.removalPanelTitle")}</div>
+              ${Object.entries(this._pendingRemovals).map(([vid, entry]: [string, any]) => html`
+                <div
+                  class="removal-entry ${this._removalFocusVid === vid ? "active" : ""}"
+                  @click=${() => {
+                    this._removalFocusVid = this._removalFocusVid === vid ? null : vid;
+                    if (this._removalFocusVid) this._conflictFocusVid = null;
+                  }}
+                >
+                  <span>${entry.winery ? `${entry.winery} — ` : ""}${entry.name || this._t("ui.card.unknownWine")}${entry.vintage ? ` (${entry.vintage})` : ""}</span>
+                  <span class="removal-count">${this._t("ui.card.removalChooseCount", { n: entry.count })}</span>
+                </div>
+              `)}
+              ${this._removalFocusVid ? html`
+                <div class="removal-hint">${this._t("ui.card.removalHint")}</div>
+              ` : nothing}
+            ` : nothing}
+            ${this._vivinoConflicts.length > 0 ? html`
+              <div class="removal-panel-title conflict-title">${this._t("ui.card.conflictPanelTitle")}</div>
+              ${this._vivinoConflicts.map((c: any) => {
+                const vid = String(c.vintage_id);
+                const cdNow = this._removalCandidates(vid).length;
+                const active = this._conflictFocusVid === vid;
+                return html`
+                  <div
+                    class="removal-entry conflict ${active ? "active" : ""}"
+                    @click=${() => {
+                      this._conflictFocusVid = active ? null : vid;
+                      if (this._conflictFocusVid) this._removalFocusVid = null;
+                    }}
+                  >
+                    <span>${this._conflictLabel(vid)}</span>
+                    <span class="removal-count">${this._t("ui.card.conflictCounts", { vivino: c.vivino, here: cdNow })}</span>
+                  </div>
+                  ${active ? html`
+                    <div class="removal-hint">${this._t("ui.card.conflictHint")}</div>
+                    <button
+                      class="btn btn-primary conflict-confirm"
+                      @click=${(e: Event) => {
+                        e.stopPropagation();
+                        this._conflictConfirmVid = vid;
+                      }}
+                    >${this._t("ui.card.conflictConfirmBtn", { n: cdNow })}</button>
+                  ` : nothing}
+                `;
+              })}
             ` : nothing}
           </div>
         ` : nothing}
@@ -2584,6 +2685,30 @@ export class WineCellarCard extends LitElement {
                 <button
                   style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                   @click=${() => (this._removalConfirmWine = null)}
+                >${this._t("ui.common.cancel")}</button>
+              </div>
+            </div>
+          </div>
+        ` : nothing}
+        ${this._conflictConfirmVid ? html`
+          <div class="dialog-overlay" @click=${() => (this._conflictConfirmVid = null)}>
+            <div class="dialog" style="max-width:360px;padding:24px;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.syncCountConfirmTitle")}</h3>
+              <p style="margin:0 0 4px;font-size:0.9em;color:var(--wc-text)">
+                ${this._conflictLabel(this._conflictConfirmVid)}
+              </p>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                ${this._removalCandidates(this._conflictConfirmVid).length === 1
+                  ? this._t("ui.card.syncCountConfirmBodyOne", { n: this._removalCandidates(this._conflictConfirmVid).length })
+                  : this._t("ui.card.syncCountConfirmBodyMany", { n: this._removalCandidates(this._conflictConfirmVid).length })}
+              </p>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button class="btn btn-primary" style="background:#e65100" @click=${this._confirmConflictResolution}>
+                  ${this._t("ui.card.syncCountConfirmBtn")}
+                </button>
+                <button
+                  style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
+                  @click=${() => (this._conflictConfirmVid = null)}
                 >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
