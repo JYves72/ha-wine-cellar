@@ -2011,6 +2011,13 @@ export class WineCellarCard extends LitElement {
                 ? this._t("toast.vivinoImportCompleteOne", { n: bottles })
                 : this._t("toast.vivinoImportCompleteMany", { n: bottles })),
         ];
+        if (result.cellar_removed > 0) {
+          parts.push(
+            result.cellar_removed === 1
+              ? this._t("toast.vivinoRemovedCountOne", { n: result.cellar_removed })
+              : this._t("toast.vivinoRemovedCountMany", { n: result.cellar_removed })
+          );
+        }
         if (result.wishlist_imported > 0) parts.push(this._t("toast.vivinoWishlistAdded", { n: result.wishlist_imported }));
         if (result.cellar_pushed > 0) parts.push(this._t("toast.vivinoPushedCount", { n: result.cellar_pushed }));
         if (result.cellar_removal_choices > 0) {

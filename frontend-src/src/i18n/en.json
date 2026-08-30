@@ -656,6 +656,8 @@
     "vivinoSyncCompleteMany": "Vivino sync complete! {n} bottles imported",
     "vivinoWishlistAdded": "+ {n} to buy list",
     "vivinoPushedCount": "({n} pushed to Vivino)",
+    "vivinoRemovedCountOne": "· {n} bottle removed",
+    "vivinoRemovedCountMany": "· {n} bottles removed",
     "vivinoSyncFailed": "Vivino sync failed.",
     "vivinoImporting": "Importing your Vivino cellar & wishlist...",
     "vivinoImportFailedError": "Vivino import failed: {error}",

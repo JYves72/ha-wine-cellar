@@ -656,6 +656,8 @@
     "vivinoSyncCompleteMany": "Synchro Vivino terminée ! {n} bouteilles importées",
     "vivinoWishlistAdded": "+ {n} à la liste d'achat",
     "vivinoPushedCount": "({n} renvoyée(s) vers Vivino)",
+    "vivinoRemovedCountOne": "· {n} bouteille retirée",
+    "vivinoRemovedCountMany": "· {n} bouteilles retirées",
     "vivinoSyncFailed": "Échec de la synchro Vivino.",
     "vivinoImporting": "Import de votre cave et liste de souhaits Vivino...",
     "vivinoImportFailedError": "Échec de l'import Vivino : {error}",

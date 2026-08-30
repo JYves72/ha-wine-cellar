@@ -14694,6 +14694,9 @@ let WineCellarCard = class WineCellarCard extends i {
                         ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
                         : this._t("toast.vivinoSyncCompleteMany", { n: bottles }),
                 ];
+                if (result.cellar_removed > 0) {
+                    parts.push(`· ${result.cellar_removed} bottle${result.cellar_removed === 1 ? "" : "s"} removed`);
+                }
                 if (result.wishlist_imported > 0)
                     parts.push(this._t("toast.vivinoWishlistAdded", { n: result.wishlist_imported }));
                 if (result.errors?.length)
