@@ -69,6 +69,7 @@ export class WineCellarCard extends LitElement {
   @state() private _toast = "";
   @state() private _hasGemini = false;
   @state() private _hasVivinoAccount = false;
+  @state() private _vivinoMode = "import";
   @state() private _metadataLanguage = "en";
   @state() private _supportedLanguages: string[] = ["en", "fr", "de"];
   @state() private _metadataCurrency = "USD";
@@ -573,6 +574,7 @@ export class WineCellarCard extends LitElement {
       this._stats = statsResult;
       this._hasGemini = capResult?.has_gemini || false;
       this._hasVivinoAccount = capResult?.has_vivino_account || false;
+      this._vivinoMode = capResult?.vivino_mode || "import";
       this._metadataLanguage = capResult?.metadata_language || "en";
       this._supportedLanguages = capResult?.supported_languages || ["en", "fr", "de"];
       this._metadataCurrency = capResult?.metadata_currency || "USD";
@@ -1776,29 +1778,46 @@ export class WineCellarCard extends LitElement {
   }
 
   // --- Vivino Account Sync ---
+  private get _vivinoSyncMode(): boolean {
+    return this._vivinoMode === "sync";
+  }
+
   private async _syncVivino() {
     this._vivinoSyncing = true;
-    this._showToast(this._t("toast.vivinoSyncing"));
+    this._showToast(
+      this._vivinoSyncMode ? this._t("toast.vivinoSyncing") : this._t("toast.vivinoImporting")
+    );
     try {
       const result = await this.hass.callWS({
         type: "wine_cellar/sync_vivino",
       });
       if (result.error) {
-        this._showToast(this._t("toast.vivinoSyncFailedError", { error: result.error }));
+        this._showToast(
+          this._vivinoSyncMode
+            ? this._t("toast.vivinoSyncFailedError", { error: result.error })
+            : this._t("toast.vivinoImportFailedError", { error: result.error })
+        );
       } else {
         const bottles = (result.cellar_imported || 0) + (result.my_wines_imported || 0);
         const parts = [
-          bottles === 1
-            ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
-            : this._t("toast.vivinoSyncCompleteMany", { n: bottles }),
+          this._vivinoSyncMode
+            ? (bottles === 1
+                ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
+                : this._t("toast.vivinoSyncCompleteMany", { n: bottles }))
+            : (bottles === 1
+                ? this._t("toast.vivinoImportCompleteOne", { n: bottles })
+                : this._t("toast.vivinoImportCompleteMany", { n: bottles })),
         ];
         if (result.wishlist_imported > 0) parts.push(this._t("toast.vivinoWishlistAdded", { n: result.wishlist_imported }));
+        if (result.cellar_pushed > 0) parts.push(this._t("toast.vivinoPushedCount", { n: result.cellar_pushed }));
         if (result.errors?.length) parts.push(this._t("toast.errorsCount", { n: result.errors.length }));
         this._showToast(parts.join(" "));
         await this._loadData();
       }
     } catch (err: any) {
-      this._showToast(this._t("toast.vivinoSyncFailed"));
+      this._showToast(
+        this._vivinoSyncMode ? this._t("toast.vivinoSyncFailed") : this._t("toast.vivinoImportFailed")
+      );
     }
     this._vivinoSyncing = false;
   }
@@ -1937,10 +1956,12 @@ export class WineCellarCard extends LitElement {
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #b71c1c;"
                 @click=${this._syncVivino}
-                title="${this._t("ui.card.importVivinoTitle")}"
+                title="${this._vivinoSyncMode ? this._t("ui.card.syncVivinoTitle") : this._t("ui.card.importVivinoTitle")}"
                 ?disabled=${this._vivinoSyncing || this._batchVivino || this._analyzing}
               >
-                ${this._vivinoSyncing ? this._t("ui.card.vivinoSyncing") : this._t("ui.card.vivinoSyncBtn")}
+                ${this._vivinoSyncing
+                  ? (this._vivinoSyncMode ? this._t("ui.card.vivinoSyncing") : this._t("ui.card.vivinoImporting"))
+                  : (this._vivinoSyncMode ? this._t("ui.card.vivinoSyncBtn") : this._t("ui.card.vivinoImportBtn"))}
               </button>
             ` : nothing}
             ${this._hasGemini ? html`
