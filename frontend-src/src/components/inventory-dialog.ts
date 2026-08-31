@@ -97,6 +97,30 @@ export class InventoryDialog extends LitElement {
   @state() private _historyItems: WineHistoryItem[] = [];
   @state() private _historyLoading = false;
 
+  // HA websocket errors can arrive as a plain string, an Error, or a
+  // {code, message} object depending on where they're thrown from — a bare
+  // `err.message || err` shows "[object Object]" for the last shape instead
+  // of anything useful. This tries the common shapes in order before
+  // falling back to a JSON dump.
+  private _formatError(err: any): string {
+    if (typeof err === "string") return err;
+    if (err?.message && err?.code) return `${err.message} (${err.code})`;
+    if (err?.message) return err.message;
+    if (err?.error && typeof err.error === "string") return err.error;
+    if (err?.body && typeof err.body === "string") return err.body;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+
+  private _logStatus(context: string, err: any): string {
+    const message = this._formatError(err);
+    console.error(`Cork Dork: ${context}`, err);
+    return message;
+  }
+
   static styles = [
     sharedStyles,
     css`
@@ -980,7 +1004,7 @@ export class InventoryDialog extends LitElement {
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
       }
     } catch (err: any) {
-      this._statusMsg = `Refresh failed: ${err.message || err}`;
+      this._statusMsg = `Refresh failed: ${this._logStatus("enrich refresh failed", err)}`;
     }
     this._enriching = "";
   }
@@ -1467,7 +1491,7 @@ export class InventoryDialog extends LitElement {
       );
       this._statusMsg = `Backup saved — ${result.wines?.length || 0} wines, ${result.cabinets?.length || 0} racks, ${result.buy_list?.length || 0} buy list`;
     } catch (err: any) {
-      this._statusMsg = `Backup failed: ${err.message || err}`;
+      this._statusMsg = `Backup failed: ${this._logStatus("local backup save failed", err)}`;
     }
     this._backingUp = false;
   }
@@ -1492,7 +1516,7 @@ export class InventoryDialog extends LitElement {
     try {
       wines = this._parseCSV(await file.text());
     } catch (err: any) {
-      this._statusMsg = `Import failed: ${err.message || err}`;
+      this._statusMsg = `Import failed: ${this._logStatus("CSV parse failed", err)}`;
       return;
     }
 
@@ -1541,7 +1565,7 @@ export class InventoryDialog extends LitElement {
         : base;
       this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
     } catch (err: any) {
-      this._statusMsg = `Import failed: ${err.message || err}`;
+      this._statusMsg = `Import failed: ${this._logStatus("wine import failed", err)}`;
     }
     this._importing = false;
   }
@@ -1718,7 +1742,7 @@ export class InventoryDialog extends LitElement {
       this._restoreData = data;
       this._confirmRestore = true;
     } catch (err: any) {
-      this._statusMsg = `Invalid JSON file: ${err.message || err}`;
+      this._statusMsg = `Invalid JSON file: ${this._logStatus("invalid restore JSON", err)}`;
     }
   }
 
@@ -1742,7 +1766,7 @@ export class InventoryDialog extends LitElement {
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
       }
     } catch (err: any) {
-      this._statusMsg = `Restore failed: ${err.message || err}`;
+      this._statusMsg = `Restore failed: ${this._logStatus("local restore failed", err)}`;
     }
 
     this._restoring = false;
@@ -1766,7 +1790,7 @@ export class InventoryDialog extends LitElement {
         setTimeout(() => { this._serverBackupLabel = ""; }, 4000);
       }
     } catch (err: any) {
-      this._statusMsg = `Server backup failed: ${err.message || err}`;
+      this._statusMsg = `Server backup failed: ${this._logStatus("server backup save failed", err)}`;
       this._serverBackupLabel = "";
     }
     this._serverBackingUp = false;
@@ -1781,7 +1805,7 @@ export class InventoryDialog extends LitElement {
       if (typeof result?.keep === "number") this._backupKeep = result.keep;
       if (Array.isArray(result?.keep_choices)) this._backupKeepChoices = result.keep_choices;
     } catch (err: any) {
-      this._statusMsg = `Failed to list backups: ${err.message || err}`;
+      this._statusMsg = `Failed to list backups: ${this._logStatus("server backup list failed", err)}`;
       this._serverBackups = [];
     }
   }
@@ -1805,7 +1829,7 @@ export class InventoryDialog extends LitElement {
           ? "Keeping every server backup."
           : `Keeping the ${keep} most recent server backups.`;
     } catch (err: any) {
-      this._statusMsg = `Could not save retention: ${err.message || err}`;
+      this._statusMsg = `Could not save retention: ${this._logStatus("backup retention save failed", err)}`;
     }
   }
 
@@ -1822,7 +1846,7 @@ export class InventoryDialog extends LitElement {
       this._serverBackups = this._serverBackups.filter((b: any) => b.filename !== filename);
       this._statusMsg = `Deleted ${filename}`;
     } catch (err: any) {
-      this._statusMsg = `Delete failed: ${err.message || err}`;
+      this._statusMsg = `Delete failed: ${this._logStatus("server backup delete failed", err)}`;
     }
   }
 
@@ -1847,7 +1871,7 @@ export class InventoryDialog extends LitElement {
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
       }
     } catch (err: any) {
-      this._statusMsg = `Restore failed: ${err.message || err}`;
+      this._statusMsg = `Restore failed: ${this._logStatus("server backup restore failed", err)}`;
     }
     this._serverRestoring = false;
   }

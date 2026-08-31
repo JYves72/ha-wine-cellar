@@ -3522,6 +3522,30 @@ let WineDetailDialog = class WineDetailDialog extends i {
             this._close();
         }
     }
+    // Send a placed bottle straight back to Unassigned, without going through
+    // the "tap a cell to move" flow — for when you just want it out of its
+    // slot (e.g. it's actually elsewhere, or you're about to remove the
+    // cabinet it's in) rather than relocating it somewhere specific.
+    async _moveToUnassigned() {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/move_wine",
+                wine_id: this.wine.id,
+                cabinet_id: "",
+            });
+            const updates = { cabinet_id: "", row: null, col: null, zone: "", depth: 0 };
+            if (!this._applyIfStillShowing(wineId, updates))
+                return;
+            this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+            this._close();
+        }
+        catch (err) {
+            console.error("Failed to move wine to Unassigned", err);
+        }
+    }
     _onRatingChange(e) {
         this._userRating = e.detail.value;
     }
@@ -4059,6 +4083,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `
                         <button class="btn btn-primary" style="background:#546e7a" @click=${this._onCopy}>📋 Copy</button>
                         <button class="btn btn-primary" style="background:#6d4c41" @click=${this._onMove}>↔ Move</button>
+                        ${wine.cabinet_id
+                    ? b `<button class="btn btn-primary" style="background:#ef6c00" @click=${this._moveToUnassigned}>📦 Unassign</button>`
+                    : A}
                       `
                 : A}
                   <button class="btn btn-primary" style="background:#c62828"
@@ -9122,6 +9149,34 @@ let InventoryDialog = class InventoryDialog extends i {
         this._historyItems = [];
         this._historyLoading = false;
     }
+    // HA websocket errors can arrive as a plain string, an Error, or a
+    // {code, message} object depending on where they're thrown from — a bare
+    // `err.message || err` shows "[object Object]" for the last shape instead
+    // of anything useful. This tries the common shapes in order before
+    // falling back to a JSON dump.
+    _formatError(err) {
+        if (typeof err === "string")
+            return err;
+        if (err?.message && err?.code)
+            return `${err.message} (${err.code})`;
+        if (err?.message)
+            return err.message;
+        if (err?.error && typeof err.error === "string")
+            return err.error;
+        if (err?.body && typeof err.body === "string")
+            return err.body;
+        try {
+            return JSON.stringify(err);
+        }
+        catch {
+            return String(err);
+        }
+    }
+    _logStatus(context, err) {
+        const message = this._formatError(err);
+        console.error(`Cork Dork: ${context}`, err);
+        return message;
+    }
     updated(changedProps) {
         if (changedProps.has("open") && this.open) {
             // Only the search query is transient. Sort order and filters are
@@ -9345,7 +9400,7 @@ let InventoryDialog = class InventoryDialog extends i {
             }
         }
         catch (err) {
-            this._statusMsg = `Refresh failed: ${err.message || err}`;
+            this._statusMsg = `Refresh failed: ${this._logStatus("enrich refresh failed", err)}`;
         }
         this._enriching = "";
     }
@@ -9756,7 +9811,7 @@ let InventoryDialog = class InventoryDialog extends i {
             this._statusMsg = `Backup saved — ${result.wines?.length || 0} wines, ${result.cabinets?.length || 0} racks, ${result.buy_list?.length || 0} buy list`;
         }
         catch (err) {
-            this._statusMsg = `Backup failed: ${err.message || err}`;
+            this._statusMsg = `Backup failed: ${this._logStatus("local backup save failed", err)}`;
         }
         this._backingUp = false;
     }
@@ -9778,7 +9833,7 @@ let InventoryDialog = class InventoryDialog extends i {
             wines = this._parseCSV(await file.text());
         }
         catch (err) {
-            this._statusMsg = `Import failed: ${err.message || err}`;
+            this._statusMsg = `Import failed: ${this._logStatus("CSV parse failed", err)}`;
             return;
         }
         if (wines.length === 0) {
@@ -9821,7 +9876,7 @@ let InventoryDialog = class InventoryDialog extends i {
             this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
         }
         catch (err) {
-            this._statusMsg = `Import failed: ${err.message || err}`;
+            this._statusMsg = `Import failed: ${this._logStatus("wine import failed", err)}`;
         }
         this._importing = false;
     }
@@ -9993,7 +10048,7 @@ let InventoryDialog = class InventoryDialog extends i {
             this._confirmRestore = true;
         }
         catch (err) {
-            this._statusMsg = `Invalid JSON file: ${err.message || err}`;
+            this._statusMsg = `Invalid JSON file: ${this._logStatus("invalid restore JSON", err)}`;
         }
     }
     async _executeRestore() {
@@ -10016,7 +10071,7 @@ let InventoryDialog = class InventoryDialog extends i {
             }
         }
         catch (err) {
-            this._statusMsg = `Restore failed: ${err.message || err}`;
+            this._statusMsg = `Restore failed: ${this._logStatus("local restore failed", err)}`;
         }
         this._restoring = false;
         this._restoreData = null;
@@ -10039,7 +10094,7 @@ let InventoryDialog = class InventoryDialog extends i {
             }
         }
         catch (err) {
-            this._statusMsg = `Server backup failed: ${err.message || err}`;
+            this._statusMsg = `Server backup failed: ${this._logStatus("server backup save failed", err)}`;
             this._serverBackupLabel = "";
         }
         this._serverBackingUp = false;
@@ -10056,7 +10111,7 @@ let InventoryDialog = class InventoryDialog extends i {
                 this._backupKeepChoices = result.keep_choices;
         }
         catch (err) {
-            this._statusMsg = `Failed to list backups: ${err.message || err}`;
+            this._statusMsg = `Failed to list backups: ${this._logStatus("server backup list failed", err)}`;
             this._serverBackups = [];
         }
     }
@@ -10082,7 +10137,7 @@ let InventoryDialog = class InventoryDialog extends i {
                     : `Keeping the ${keep} most recent server backups.`;
         }
         catch (err) {
-            this._statusMsg = `Could not save retention: ${err.message || err}`;
+            this._statusMsg = `Could not save retention: ${this._logStatus("backup retention save failed", err)}`;
         }
     }
     async _serverBackupDelete(filename) {
@@ -10099,7 +10154,7 @@ let InventoryDialog = class InventoryDialog extends i {
             this._statusMsg = `Deleted ${filename}`;
         }
         catch (err) {
-            this._statusMsg = `Delete failed: ${err.message || err}`;
+            this._statusMsg = `Delete failed: ${this._logStatus("server backup delete failed", err)}`;
         }
     }
     async _loadStorageInfo() {
@@ -10125,7 +10180,7 @@ let InventoryDialog = class InventoryDialog extends i {
             }
         }
         catch (err) {
-            this._statusMsg = `Restore failed: ${err.message || err}`;
+            this._statusMsg = `Restore failed: ${this._logStatus("server backup restore failed", err)}`;
         }
         this._serverRestoring = false;
     }
@@ -11827,6 +11882,19 @@ const REFRESH_MIN_INTERVAL_MS = 3000;
 let WineCellarCard = class WineCellarCard extends i {
     constructor() {
         super(...arguments);
+        // HA's frontend can reject an in-flight unsubscribe with this specific
+        // error when the websocket connection already dropped underneath it
+        // (page navigation, HA restart, tab backgrounded) — harmless, the
+        // subscription is gone either way, but left unhandled it surfaces as a
+        // console error on every reload. Scoped to this one error shape so any
+        // other unhandled rejection still surfaces normally.
+        this._onUnhandledRejection = (event) => {
+            const reason = event.reason;
+            if (reason?.code === "not_found" && reason?.message === "Subscription not found.") {
+                event.preventDefault();
+                console.debug("Cork Dork: suppressed stale websocket subscription cleanup error");
+            }
+        };
         this._wines = [];
         this._cabinets = [];
         this._stats = null;
@@ -11912,11 +11980,13 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     connectedCallback() {
         super.connectedCallback();
+        window.addEventListener("unhandledrejection", this._onUnhandledRejection);
         this._loadData();
         this._subscribeToUpdates();
     }
     disconnectedCallback() {
         super.disconnectedCallback();
+        window.removeEventListener("unhandledrejection", this._onUnhandledRejection);
         // Invalidates any subscription still being set up.
         this._connectionGeneration++;
         this._unsubscribe?.();

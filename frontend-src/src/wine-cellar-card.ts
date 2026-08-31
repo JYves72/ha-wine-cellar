@@ -29,6 +29,20 @@ interface WineCellarCardConfig {
 export class WineCellarCard extends LitElement {
   @property({ attribute: false }) hass: any;
 
+  // HA's frontend can reject an in-flight unsubscribe with this specific
+  // error when the websocket connection already dropped underneath it
+  // (page navigation, HA restart, tab backgrounded) — harmless, the
+  // subscription is gone either way, but left unhandled it surfaces as a
+  // console error on every reload. Scoped to this one error shape so any
+  // other unhandled rejection still surfaces normally.
+  private _onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    if (reason?.code === "not_found" && reason?.message === "Subscription not found.") {
+      event.preventDefault();
+      console.debug("Cork Dork: suppressed stale websocket subscription cleanup error");
+    }
+  };
+
   @state() private _config?: WineCellarCardConfig;
   @state() private _wines: Wine[] = [];
   @state() private _cabinets: Cabinet[] = [];
@@ -451,12 +465,14 @@ export class WineCellarCard extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("unhandledrejection", this._onUnhandledRejection);
     this._loadData();
     this._subscribeToUpdates();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener("unhandledrejection", this._onUnhandledRejection);
     // Invalidates any subscription still being set up.
     this._connectionGeneration++;
     this._unsubscribe?.();

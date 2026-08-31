@@ -758,6 +758,28 @@ export class WineDetailDialog extends LitElement {
     }
   }
 
+  // Send a placed bottle straight back to Unassigned, without going through
+  // the "tap a cell to move" flow — for when you just want it out of its
+  // slot (e.g. it's actually elsewhere, or you're about to remove the
+  // cabinet it's in) rather than relocating it somewhere specific.
+  private async _moveToUnassigned() {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/move_wine",
+        wine_id: this.wine.id,
+        cabinet_id: "",
+      });
+      const updates = { cabinet_id: "", row: null, col: null, zone: "", depth: 0 };
+      if (!this._applyIfStillShowing(wineId, updates)) return;
+      this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+      this._close();
+    } catch (err) {
+      console.error("Failed to move wine to Unassigned", err);
+    }
+  }
+
   private _onRatingChange(e: CustomEvent) {
     this._userRating = e.detail.value;
   }
@@ -1280,6 +1302,9 @@ export class WineDetailDialog extends LitElement {
                     ? html`
                         <button class="btn btn-primary" style="background:#546e7a" @click=${this._onCopy}>📋 Copy</button>
                         <button class="btn btn-primary" style="background:#6d4c41" @click=${this._onMove}>↔ Move</button>
+                        ${wine.cabinet_id
+                          ? html`<button class="btn btn-primary" style="background:#ef6c00" @click=${this._moveToUnassigned}>📦 Unassign</button>`
+                          : nothing}
                       `
                     : nothing}
                   <button class="btn btn-primary" style="background:#c62828"
