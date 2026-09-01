@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Wine, Cabinet, WineType, WINE_TYPE_COLORS, WINE_TYPE_LABELS, WineHistoryItem, getWineLocation } from "../models";
+import { Wine, Cabinet, WineType, WINE_TYPE_COLORS, getWineTypeLabels, WineHistoryItem, getWineLocation, getRemovalReasons } from "../models";
+import { t } from "../i18n";
 import { sharedStyles } from "../styles";
 import {
   matchesQuery,
@@ -119,6 +120,11 @@ export class InventoryDialog extends LitElement {
     const message = this._formatError(err);
     console.error(`Cork Dork: ${context}`, err);
     return message;
+  }
+
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
   }
 
   static styles = [
@@ -976,35 +982,35 @@ export class InventoryDialog extends LitElement {
     this._confirmEnrichRetry = false;
     if (!wines.length) return;
 
-    const sourceLabel = source === "vivino" ? "Vivino" : "the AI";
+    const sourceLabel = source === "vivino" ? "Vivino" : this._t("ui.inventory.whatAiInfer");
     this._enriching = source;
-    this._statusMsg = `Refreshing ${wines.length} wines via ${sourceLabel}…`;
+    this._statusMsg = this._t("ui.inventory.refreshingWines", { n: wines.length, source: sourceLabel });
     try {
       const result = await this.hass.callWS({
         type: source === "vivino" ? "wine_cellar/batch_refresh_vivino" : "wine_cellar/batch_analyze_wines",
         wine_ids: wines.map((w) => w.id),
       });
       if (result?.error) {
-        this._statusMsg = `Refresh failed: ${result.error}`;
+        this._statusMsg = this._t("ui.inventory.refreshFailed", { error: result.error });
       } else {
         const updated = result?.updated ?? 0;
         const unchanged = result?.unchanged ?? 0;
         const errors = result?.errors ?? 0;
         const source = sourceLabel;
-        const parts = [`${updated} updated`];
-        if (unchanged) parts.push(`${unchanged} had nothing new on ${source}`);
-        if (errors) parts.push(`${errors} could not be reached`);
+        const parts = [this._t("ui.inventory.enrichUpdated", { n: updated })];
+        if (unchanged) parts.push(this._t("ui.inventory.enrichUnchanged", { n: unchanged, source }));
+        if (errors) parts.push(this._t("ui.inventory.enrichErrors", { n: errors }));
         this._statusMsg =
           `${parts.join(", ")}.` +
           (unchanged
             ? retry
-              ? " Their check date is updated — try again later."
-              : " Their check date is updated; they move to the retry line."
+              ? " " + this._t("ui.inventory.enrichRetryNote")
+              : " " + this._t("ui.inventory.enrichMoveToRetryNote")
             : "");
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
       }
     } catch (err: any) {
-      this._statusMsg = `Refresh failed: ${this._logStatus("enrich refresh failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.refreshFailed", { error: this._logStatus("enrich refresh failed", err) });
     }
     this._enriching = "";
   }
@@ -1193,7 +1199,7 @@ export class InventoryDialog extends LitElement {
       await this.hass.callWS({ type: "wine_cellar/clear_wine_history" });
       this._historyItems = [];
       this._loadStorageInfo();
-      this._statusMsg = "History cleared";
+      this._statusMsg = this._t("ui.inventory.historyCleared");
     } catch (err) {
       console.error("Failed to clear history", err);
     }
@@ -1203,20 +1209,17 @@ export class InventoryDialog extends LitElement {
     try {
       await this.hass.callWS({ type: "wine_cellar/restore_wine", history_id: historyId });
       this._historyItems = this._historyItems.filter((i) => i.id !== historyId);
-      this._statusMsg = "Wine restored to Unassigned";
+      this._statusMsg = this._t("ui.inventory.wineRestoredUnassigned");
       this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
     } catch (err) {
       console.error("Failed to restore wine from history", err);
-      this._statusMsg = "Failed to restore wine";
+      this._statusMsg = this._t("ui.inventory.restoreWineFailed");
     }
   }
 
   private _formatReason(reason: string): string {
-    const map: Record<string, string> = {
-      drank: "Drank", gifted: "Gifted", sold: "Sold",
-      broken: "Broken", spoiled: "Spoiled", other: "Other",
-    };
-    return map[reason] || reason;
+    const labels = getRemovalReasons(this.hass?.language);
+    return labels.find((r) => r.id === reason)?.label || reason;
   }
 
   private _formatDate(iso: string): string {
@@ -1228,14 +1231,14 @@ export class InventoryDialog extends LitElement {
 
   private _renderHistory() {
     if (this._historyLoading) {
-      return html`<div class="inv-empty">Loading history...</div>`;
+      return html`<div class="inv-empty">${this._t("ui.inventory.loadingHistory")}</div>`;
     }
     if (this._historyItems.length === 0) {
       return html`
         ${this._renderStorageInfo()}
-        <div class="inv-empty">No removal history yet</div>
+        <div class="inv-empty">${this._t("ui.inventory.noHistory")}</div>
         <div class="inv-footer">
-          <span class="inv-count">0 wines removed</span>
+          <span class="inv-count">${this._t("ui.inventory.winesRemoved", { n: 0 })}</span>
         </div>
       `;
     }
@@ -1257,18 +1260,18 @@ export class InventoryDialog extends LitElement {
             <div class="inv-right">
               ${item.price ? html`<div class="inv-price">${this.currency} ${item.price.toFixed(0)}</div>` : nothing}
               <div class="inv-location">${this._formatDate(item.removed_at)}</div>
-              <button class="inv-btn" style="margin-top:4px" @click=${() => this._restoreFromHistory(item.id)}>Restore</button>
+              <button class="inv-btn" style="margin-top:4px" @click=${() => this._restoreFromHistory(item.id)}>${this._t("ui.inventory.restoreBtn")}</button>
             </div>
           </div>
         `)}
       </div>
       <div class="inv-footer">
-        <span class="inv-count">${this._historyItems.length} wines removed</span>
+        <span class="inv-count">${this._t("ui.inventory.winesRemoved", { n: this._historyItems.length })}</span>
         ${this._statusMsg
           ? html`<div class="inv-status">${this._statusMsg}</div>`
           : nothing}
         <div class="inv-footer-btns">
-          <button class="inv-btn" @click=${this._clearHistory}>Clear History</button>
+          <button class="inv-btn" @click=${this._clearHistory}>${this._t("ui.inventory.clearHistoryBtn")}</button>
         </div>
       </div>
     `;
@@ -1298,7 +1301,7 @@ export class InventoryDialog extends LitElement {
             this._confirmEnrichRetry = retry;
           }}
         >
-          ${this._enriching === source ? "Working…" : `${label} (${wines.length})`}
+          ${this._enriching === source ? this._t("ui.inventory.working") : `${label} (${wines.length})`}
         </button>
       </div>
     `;
@@ -1319,32 +1322,29 @@ export class InventoryDialog extends LitElement {
           "vivino",
           needVivino,
           false,
-          html`<strong>${needVivino.length}</strong> missing pairings or description, never
-            checked against Vivino`,
-          "Fill from Vivino"
+          html`<strong>${needVivino.length}</strong> ${this._t("ui.inventory.enrichMissingVivino")}`,
+          this._t("ui.inventory.fillFromVivino")
         )}
         ${this._renderEnrichRow(
           "ai",
           needAI,
           false,
-          html`<strong>${needAI.length}</strong> missing a drink window or verdict, never
-            analyzed by AI`,
-          "Analyze with AI"
+          html`<strong>${needAI.length}</strong> ${this._t("ui.inventory.enrichMissingAI")}`,
+          this._t("ui.inventory.analyzeWithAi")
         )}
         ${this._renderEnrichRow(
           "vivino",
           missVivino,
           true,
-          html`<strong>${missVivino.length}</strong> checked against Vivino, still nothing —
-            Vivino does add bottles over time`,
-          "Retry Vivino"
+          html`<strong>${missVivino.length}</strong> ${this._t("ui.inventory.enrichRetryVivino")}`,
+          this._t("ui.inventory.retryVivino")
         )}
         ${this._renderEnrichRow(
           "ai",
           missAI,
           true,
-          html`<strong>${missAI.length}</strong> analyzed by AI, still without a verdict`,
-          "Retry AI"
+          html`<strong>${missAI.length}</strong> ${this._t("ui.inventory.enrichRetryAI")}`,
+          this._t("ui.inventory.retryAI")
         )}
       </div>
     `;
@@ -1367,36 +1367,33 @@ export class InventoryDialog extends LitElement {
           <h3>
             ${source === "vivino"
               ? retry
-                ? "🍇 Retry Vivino?"
-                : "🍇 Fill from Vivino?"
+                ? this._t("ui.inventory.retryVivinoQ")
+                : this._t("ui.inventory.fillFromVivinoQ")
               : retry
-                ? "🤖 Retry AI analysis?"
-                : "🤖 Analyze with AI?"}
+                ? this._t("ui.inventory.retryAiQ")
+                : this._t("ui.inventory.analyzeWithAiQ")}
           </h3>
           <p>
-            ${count} wine${count > 1 ? "s" : ""} will be looked up one at a time. This is a
-            slow, rate-limited network call — expect it to run for a while, and leave the
-            dialog open until it finishes.
+            ${count > 1
+              ? this._t("ui.inventory.enrichConfirmBodyMany", { count })
+              : this._t("ui.inventory.enrichConfirmBodyOne", { count })}
           </p>
           <div class="inv-confirm-stats">
             ${retry
-              ? html`These were already checked and came back empty. The check date is
-                  updated either way, so you can always see when the last attempt was.`
-              : html`Some will come back with nothing new — not every bottle exists in
-                  ${source === "vivino" ? "Vivino's catalogue" : "what the AI can infer"}.
-                  Those move to the retry line below rather than staying here.`}
+              ? this._t("ui.inventory.retryExplain")
+              : this._t("ui.inventory.newExplain", { source: source === "vivino" ? this._t("ui.inventory.vivinoCatalogue") : this._t("ui.inventory.whatAiInfer") })}
           </div>
           <div class="inv-confirm-stats">
             ${source === "vivino"
-              ? "Fills food pairings, description, rating and the label photo where Vivino has them. Existing values are kept."
-              : "Fills the drinking verdict, drink window and critic scores where the AI can infer them. Existing values are kept."}
+              ? this._t("ui.inventory.vivinoFillsExplain")
+              : this._t("ui.inventory.aiFillsExplain")}
           </div>
           <div class="inv-confirm-btns">
             <button class="inv-confirm-cancel" @click=${() => (this._confirmEnrich = "")}>
-              Cancel
+              ${this._t("ui.common.cancel")}
             </button>
             <button class="inv-confirm-go" @click=${() => this._runEnrich(source, retry)}>
-              Start
+              ${this._t("ui.common.start")}
             </button>
           </div>
         </div>
@@ -1413,14 +1410,9 @@ export class InventoryDialog extends LitElement {
     const heavy = info.history_bytes > 512 * 1024;
     return html`
       <div class="inv-storage-info ${heavy ? "heavy" : ""}">
-        Database ${this._formatBytes(info.total_bytes)} ·
-        history ${this._formatBytes(info.history_bytes)} (${share}%) ·
-        ${info.wines_count} wines, ${info.history_count} archived
+        ${this._t("ui.inventory.dbSize", { total: this._formatBytes(info.total_bytes), history: this._formatBytes(info.history_bytes), share, wines: info.wines_count, archived: info.history_count })}
         ${heavy
-          ? html`<br /><small
-              >Home Assistant rewrites this whole file on every change —
-              clearing old history speeds up every edit.</small
-            >`
+          ? html`<br /><small>${this._t("ui.inventory.heavyHistoryHint")}</small>`
           : nothing}
       </div>
     `;
@@ -1489,9 +1481,9 @@ export class InventoryDialog extends LitElement {
         `wine-cellar-backup-${new Date().toISOString().slice(0, 10)}.json`,
         "application/json"
       );
-      this._statusMsg = `Backup saved — ${result.wines?.length || 0} wines, ${result.cabinets?.length || 0} racks, ${result.buy_list?.length || 0} buy list`;
+      this._statusMsg = this._t("ui.inventory.backupSaved", { wines: result.wines?.length || 0, cabinets: result.cabinets?.length || 0, buyList: result.buy_list?.length || 0 });
     } catch (err: any) {
-      this._statusMsg = `Backup failed: ${this._logStatus("local backup save failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.backupFailed", { error: this._logStatus("local backup save failed", err) });
     }
     this._backingUp = false;
   }
@@ -1516,12 +1508,12 @@ export class InventoryDialog extends LitElement {
     try {
       wines = this._parseCSV(await file.text());
     } catch (err: any) {
-      this._statusMsg = `Import failed: ${this._logStatus("CSV parse failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.importFailed", { error: this._logStatus("CSV parse failed", err) });
       return;
     }
 
     if (wines.length === 0) {
-      this._statusMsg = "No wines found in CSV file.";
+      this._statusMsg = this._t("ui.inventory.noWinesInCsv");
       return;
     }
 
@@ -1558,14 +1550,16 @@ export class InventoryDialog extends LitElement {
       const updated = result.updated || 0;
       const skipped = result.location_skipped || 0;
       const base = updated
-        ? `Updated ${updated} wines${added ? `, added ${added} new` : ""}.`
-        : `Imported ${added} wines successfully!`;
+        ? this._t("ui.inventory.importUpdated", { updated, addedPart: added ? this._t("ui.inventory.importAddedPart", { n: added }) : "" })
+        : this._t("ui.inventory.importSuccess", { n: added });
       this._statusMsg = skipped
-        ? `${base} ${skipped} row${skipped > 1 ? "s" : ""} kept their previous spot — the location given was unknown, out of range or already taken.`
+        ? `${base} ${skipped > 1
+            ? this._t("ui.inventory.importSkippedNoteMany", { skipped })
+            : this._t("ui.inventory.importSkippedNoteOne", { skipped })}`
         : base;
       this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
     } catch (err: any) {
-      this._statusMsg = `Import failed: ${this._logStatus("wine import failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.importFailed", { error: this._logStatus("wine import failed", err) });
     }
     this._importing = false;
   }
@@ -1731,18 +1725,18 @@ export class InventoryDialog extends LitElement {
       const data = JSON.parse(text);
 
       if (!data.wines || !Array.isArray(data.wines)) {
-        this._statusMsg = "Invalid backup file: missing wines array.";
+        this._statusMsg = this._t("ui.inventory.invalidBackupWines");
         return;
       }
       if (!data.cabinets || !Array.isArray(data.cabinets)) {
-        this._statusMsg = "Invalid backup file: missing cabinets array.";
+        this._statusMsg = this._t("ui.inventory.invalidBackupCabinets");
         return;
       }
 
       this._restoreData = data;
       this._confirmRestore = true;
     } catch (err: any) {
-      this._statusMsg = `Invalid JSON file: ${this._logStatus("invalid restore JSON", err)}`;
+      this._statusMsg = this._t("ui.inventory.invalidJsonFile", { error: this._logStatus("invalid restore JSON", err) });
     }
   }
 
@@ -1760,13 +1754,13 @@ export class InventoryDialog extends LitElement {
       });
 
       if (result.error) {
-        this._statusMsg = `Restore failed: ${result.error}`;
+        this._statusMsg = this._t("ui.inventory.restoreFailed", { error: result.error });
       } else {
-        this._statusMsg = `Restored ${result.wines} wines, ${result.cabinets} racks, ${result.buy_list} buy list items!`;
+        this._statusMsg = this._t("ui.inventory.restoredCount", { wines: result.wines, cabinets: result.cabinets, buyList: result.buy_list });
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
       }
     } catch (err: any) {
-      this._statusMsg = `Restore failed: ${this._logStatus("local restore failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.restoreFailed", { error: this._logStatus("local restore failed", err) });
     }
 
     this._restoring = false;
@@ -1777,20 +1771,20 @@ export class InventoryDialog extends LitElement {
 
   private async _serverBackupSave() {
     this._serverBackingUp = true;
-    this._serverBackupLabel = "Saving…";
+    this._serverBackupLabel = this._t("ui.inventory.savingEllipsis");
     this._statusMsg = "";
     try {
       const result = await this.hass.callWS({ type: "wine_cellar/server_backup_save" });
       if (result && result.error) {
-        this._statusMsg = `Server backup failed: ${result.error}`;
+        this._statusMsg = this._t("ui.inventory.serverBackupFailed", { error: result.error });
         this._serverBackupLabel = "";
       } else {
-        this._statusMsg = `Saved ${result?.wines ?? "?"} wines, ${result?.cabinets ?? "?"} racks to server`;
-        this._serverBackupLabel = "✅ Saved!";
+        this._statusMsg = this._t("ui.inventory.savedToServer", { wines: result?.wines ?? "?", cabinets: result?.cabinets ?? "?" });
+        this._serverBackupLabel = this._t("ui.inventory.savedCheckmark");
         setTimeout(() => { this._serverBackupLabel = ""; }, 4000);
       }
     } catch (err: any) {
-      this._statusMsg = `Server backup failed: ${this._logStatus("server backup save failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.serverBackupFailed", { error: this._logStatus("server backup save failed", err) });
       this._serverBackupLabel = "";
     }
     this._serverBackingUp = false;
@@ -1805,7 +1799,7 @@ export class InventoryDialog extends LitElement {
       if (typeof result?.keep === "number") this._backupKeep = result.keep;
       if (Array.isArray(result?.keep_choices)) this._backupKeepChoices = result.keep_choices;
     } catch (err: any) {
-      this._statusMsg = `Failed to list backups: ${this._logStatus("server backup list failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.listBackupsFailed", { error: this._logStatus("server backup list failed", err) });
       this._serverBackups = [];
     }
   }
@@ -1826,10 +1820,10 @@ export class InventoryDialog extends LitElement {
       });
       this._statusMsg =
         keep === 0
-          ? "Keeping every server backup."
-          : `Keeping the ${keep} most recent server backups.`;
+          ? this._t("ui.inventory.keepEveryBackup")
+          : this._t("ui.inventory.keepNBackups", { n: keep });
     } catch (err: any) {
-      this._statusMsg = `Could not save retention: ${this._logStatus("backup retention save failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.retentionSaveFailed", { error: this._logStatus("backup retention save failed", err) });
     }
   }
 
@@ -1840,13 +1834,13 @@ export class InventoryDialog extends LitElement {
         filename,
       });
       if (result?.error) {
-        this._statusMsg = `Delete failed: ${result.error}`;
+        this._statusMsg = this._t("ui.inventory.deleteFailed", { error: result.error });
         return;
       }
       this._serverBackups = this._serverBackups.filter((b: any) => b.filename !== filename);
-      this._statusMsg = `Deleted ${filename}`;
+      this._statusMsg = this._t("ui.inventory.deletedFile", { filename });
     } catch (err: any) {
-      this._statusMsg = `Delete failed: ${this._logStatus("server backup delete failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.deleteFailed", { error: this._logStatus("server backup delete failed", err) });
     }
   }
 
@@ -1865,13 +1859,13 @@ export class InventoryDialog extends LitElement {
     try {
       const result = await this.hass.callWS({ type: "wine_cellar/server_backup_restore", filename });
       if (result.error) {
-        this._statusMsg = `Restore failed: ${result.error}`;
+        this._statusMsg = this._t("ui.inventory.restoreFailed", { error: result.error });
       } else {
-        this._statusMsg = `Restored ${result.wines} wines, ${result.cabinets} racks from ${filename}`;
+        this._statusMsg = this._t("ui.inventory.restoredFromServer", { wines: result.wines, cabinets: result.cabinets, filename });
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
       }
     } catch (err: any) {
-      this._statusMsg = `Restore failed: ${this._logStatus("server backup restore failed", err)}`;
+      this._statusMsg = this._t("ui.inventory.restoreFailed", { error: this._logStatus("server backup restore failed", err) });
     }
     this._serverRestoring = false;
   }
@@ -1912,54 +1906,52 @@ export class InventoryDialog extends LitElement {
     return html`
       <div class="inv-filter-panel">
         <label class="inv-filter-field">
-          <span>Ready to drink</span>
+          <span>${this._t("ui.inventory.readyToDrink")}</span>
           <select
             @change=${(e: Event) => {
               this._dispositionFilter = (e.target as HTMLSelectElement).value;
               this._savePrefs();
             }}
           >
-            <option value="all" ?selected=${this._dispositionFilter === "all"}>Any</option>
-            <option value="D" ?selected=${this._dispositionFilter === "D"}>Drink now</option>
-            <option value="H" ?selected=${this._dispositionFilter === "H"}>Hold</option>
-            <option value="P" ?selected=${this._dispositionFilter === "P"}>Past peak</option>
+            <option value="all" ?selected=${this._dispositionFilter === "all"}>${this._t("ui.common.any")}</option>
+            <option value="D" ?selected=${this._dispositionFilter === "D"}>${this._t("ui.inventory.filterDrinkNow")}</option>
+            <option value="H" ?selected=${this._dispositionFilter === "H"}>${this._t("ui.inventory.filterHold")}</option>
+            <option value="P" ?selected=${this._dispositionFilter === "P"}>${this._t("ui.inventory.filterPastPeak")}</option>
             <option value="none" ?selected=${this._dispositionFilter === "none"}>
-              Not analyzed
+              ${this._t("ui.inventory.filterNotAnalyzed")}
             </option>
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Pairs with</span>
+          <span>${this._t("ui.inventory.pairsWith")}</span>
           <select
             @change=${(e: Event) => {
               this._foodFilter = (e.target as HTMLSelectElement).value;
               this._savePrefs();
             }}
           >
-            <option value="all" ?selected=${this._foodFilter === "all"}>Any food</option>
+            <option value="all" ?selected=${this._foodFilter === "all"}>${this._t("ui.inventory.anyFood")}</option>
             ${foodOptions.map(
               (f) => html`<option value=${f} ?selected=${this._foodFilter === f}>${f}</option>`
             )}
           </select>
           ${missingPairings
             ? html`<small class="inv-filter-hint"
-                >${missingPairings} wine${missingPairings > 1 ? "s have" : " has"} no pairing
-                data. Only Vivino supplies pairings — use “Fill from Vivino” below the
-                list.</small
+                >${missingPairings > 1 ? this._t("ui.inventory.missingPairingsHintMany", { n: missingPairings }) : this._t("ui.inventory.missingPairingsHintOne", { n: missingPairings })}</small
               >`
             : nothing}
         </label>
 
         <label class="inv-filter-field">
-          <span>Country</span>
+          <span>${this._t("ui.inventory.country")}</span>
           <select
             @change=${(e: Event) => {
               this._countryFilter = (e.target as HTMLSelectElement).value;
               this._savePrefs();
             }}
           >
-            <option value="all" ?selected=${this._countryFilter === "all"}>Any</option>
+            <option value="all" ?selected=${this._countryFilter === "all"}>${this._t("ui.common.any")}</option>
             ${countryOptions.map(
               (c) => html`<option value=${c} ?selected=${this._countryFilter === c}>${c}</option>`
             )}
@@ -1967,14 +1959,14 @@ export class InventoryDialog extends LitElement {
         </label>
 
         <label class="inv-filter-field">
-          <span>Grape</span>
+          <span>${this._t("ui.inventory.grape")}</span>
           <select
             @change=${(e: Event) => {
               this._grapeFilter = (e.target as HTMLSelectElement).value;
               this._savePrefs();
             }}
           >
-            <option value="all" ?selected=${this._grapeFilter === "all"}>Any</option>
+            <option value="all" ?selected=${this._grapeFilter === "all"}>${this._t("ui.common.any")}</option>
             ${grapeOptions.map(
               (g) => html`<option value=${g} ?selected=${this._grapeFilter === g}>${g}</option>`
             )}
@@ -1982,14 +1974,14 @@ export class InventoryDialog extends LitElement {
         </label>
 
         <label class="inv-filter-field">
-          <span>Cabinet</span>
+          <span>${this._t("ui.inventory.cabinet")}</span>
           <select
             @change=${(e: Event) => {
               this._cabinetFilter = (e.target as HTMLSelectElement).value;
               this._savePrefs();
             }}
           >
-            <option value="all" ?selected=${this._cabinetFilter === "all"}>Any</option>
+            <option value="all" ?selected=${this._cabinetFilter === "all"}>${this._t("ui.common.any")}</option>
             ${this.cabinets.map(
               (c) =>
                 html`<option value=${c.id} ?selected=${this._cabinetFilter === c.id}>
@@ -1997,13 +1989,13 @@ export class InventoryDialog extends LitElement {
                 </option>`
             )}
             <option value="unassigned" ?selected=${this._cabinetFilter === "unassigned"}>
-              Unassigned
+              ${this._t("wineLocation.unassigned")}
             </option>
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Min rating</span>
+          <span>${this._t("ui.inventory.minRating")}</span>
           <select
             @change=${(e: Event) => {
               this._minRating = Number((e.target as HTMLSelectElement).value);
@@ -2013,33 +2005,33 @@ export class InventoryDialog extends LitElement {
             ${[0, 3, 3.5, 4, 4.5].map(
               (r) =>
                 html`<option value=${r} ?selected=${this._minRating === r}>
-                  ${r === 0 ? "Any" : `★ ${r}+`}
+                  ${r === 0 ? this._t("ui.common.any") : `★ ${r}+`}
                 </option>`
             )}
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Max price</span>
+          <span>${this._t("ui.inventory.maxPrice")}</span>
           <input
             type="number"
             min="0"
-            placeholder="Any"
+            placeholder="${this._t("ui.common.any")}"
             .value=${this._maxPrice === null ? "" : String(this._maxPrice)}
             @change=${(e: Event) => {
               this._maxPrice = this._numberOrNull(e);
               this._savePrefs();
             }}
           />
-          <small class="inv-filter-hint">Priced wines only.</small>
+          <small class="inv-filter-hint">${this._t("ui.inventory.pricedOnly")}</small>
         </label>
 
         <label class="inv-filter-field">
-          <span>Vintage</span>
+          <span>${this._t("ui.inventory.vintage")}</span>
           <div class="inv-filter-range">
             <input
               type="number"
-              placeholder="From"
+              placeholder="${this._t("ui.inventory.fromPlaceholder")}"
               .value=${this._vintageMin === null ? "" : String(this._vintageMin)}
               @change=${(e: Event) => {
                 this._vintageMin = this._numberOrNull(e);
@@ -2048,7 +2040,7 @@ export class InventoryDialog extends LitElement {
             />
             <input
               type="number"
-              placeholder="To"
+              placeholder="${this._t("ui.inventory.toPlaceholder")}"
               .value=${this._vintageMax === null ? "" : String(this._vintageMax)}
               @change=${(e: Event) => {
                 this._vintageMax = this._numberOrNull(e);
@@ -2063,7 +2055,7 @@ export class InventoryDialog extends LitElement {
 
   private _renderWineItem(wine: Wine) {
     const typeColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
-    const location = getWineLocation(wine, this.cabinets).text;
+    const location = getWineLocation(wine, this.cabinets, this.hass?.language).text;
     // Sorting by drink-by is useless if the value stays invisible.
     const drinkBy = drinkByYear(wine);
     const displayPrice = wine.retail_price || wine.price;
@@ -2093,15 +2085,15 @@ export class InventoryDialog extends LitElement {
                           ? "#c62828"
                           : "inherit"}"
                     >${wine.disposition === "D"
-                      ? "Drink"
+                      ? this._t("ui.disposition.drink")
                       : wine.disposition === "H"
-                        ? "Hold"
+                        ? this._t("ui.disposition.hold")
                         : wine.disposition === "P"
-                          ? "Past Peak"
+                          ? this._t("ui.disposition.pastPeak")
                           : ""}</span
                   >`
               : nothing}${drinkBy
-              ? html` · <span class="inv-drink-by">by ${drinkBy}</span>`
+              ? html` · <span class="inv-drink-by">${this._t("ui.inventory.byYear", { year: drinkBy })}</span>`
               : nothing}
           </div>
         </div>
@@ -2125,44 +2117,44 @@ export class InventoryDialog extends LitElement {
     const missingPairings = this._winesWithoutPairings();
 
     const sortOptions: { value: SortField; label: string }[] = [
-      { value: "name", label: "Name" },
-      { value: "winery", label: "Winery" },
-      { value: "vintage", label: "Vintage" },
-      { value: "type", label: "Type" },
-      { value: "rating", label: "Rating" },
-      { value: "user_rating", label: "My Rating" },
-      { value: "price", label: "Price" },
-      { value: "drink_by", label: "Drink By" },
-      { value: "urgency", label: "Urgency" },
-      { value: "purchase_date", label: "Purchase Date" },
-      { value: "added_at", label: "Date Added" },
-      { value: "cabinet", label: "Cabinet" },
+      { value: "name", label: this._t("ui.inventory.sort.name") },
+      { value: "winery", label: this._t("ui.inventory.sort.winery") },
+      { value: "vintage", label: this._t("ui.inventory.sort.vintage") },
+      { value: "type", label: this._t("ui.inventory.sort.type") },
+      { value: "rating", label: this._t("ui.inventory.sort.rating") },
+      { value: "user_rating", label: this._t("ui.inventory.sort.myRating") },
+      { value: "price", label: this._t("ui.inventory.sort.price") },
+      { value: "drink_by", label: this._t("ui.inventory.sort.drinkBy") },
+      { value: "urgency", label: this._t("ui.inventory.sort.urgency") },
+      { value: "purchase_date", label: this._t("ui.inventory.sort.purchaseDate") },
+      { value: "added_at", label: this._t("ui.inventory.sort.dateAdded") },
+      { value: "cabinet", label: this._t("ui.inventory.sort.cabinet") },
     ];
 
     const presets: { id: Preset; label: string; hint: string }[] = [
-      { id: "all", label: "All", hint: "Every wine in the cellar" },
+      { id: "all", label: this._t("ui.inventory.preset.allLabel"), hint: this._t("ui.inventory.preset.allHint") },
       {
         id: "drink_this_year",
-        label: "Drink this year",
-        hint: `Drink-by year ${new Date().getFullYear()} or earlier, or marked "Drink now" with no year. Excludes past peak.`,
+        label: this._t("ui.inventory.preset.drinkThisYearLabel"),
+        hint: this._t("ui.inventory.preset.drinkThisYearHint", { year: new Date().getFullYear() }),
       },
-      { id: "past_peak", label: "Past peak", hint: 'Marked "Past peak" by the AI analysis' },
-      { id: "unrated", label: "Not rated", hint: "You have not given these a personal star rating" },
+      { id: "past_peak", label: this._t("ui.inventory.preset.pastPeakLabel"), hint: this._t("ui.inventory.preset.pastPeakHint") },
+      { id: "unrated", label: this._t("ui.inventory.preset.unratedLabel"), hint: this._t("ui.inventory.preset.unratedHint") },
       {
         id: "incomplete",
-        label: "Missing data",
-        hint: "Missing at least one of: food pairings, description, drink window, label photo",
+        label: this._t("ui.inventory.preset.incompleteLabel"),
+        hint: this._t("ui.inventory.preset.incompleteHint"),
       },
-      { id: "recent", label: "Added recently", hint: "Added to the cellar in the last 30 days" },
+      { id: "recent", label: this._t("ui.inventory.preset.recentLabel"), hint: this._t("ui.inventory.preset.recentHint") },
     ];
 
     const filters: { id: string; label: string }[] = [
-      { id: "all", label: "All" },
-      { id: "red", label: "Red" },
-      { id: "white", label: "White" },
-      { id: "rosé", label: "Rosé" },
-      { id: "sparkling", label: "Sparkling" },
-      { id: "dessert", label: "Dessert" },
+      { id: "all", label: this._t("ui.inventory.preset.allLabel") },
+      { id: "red", label: this._t("wineType.red") },
+      { id: "white", label: this._t("wineType.white") },
+      { id: "rosé", label: this._t("wineType.rosé") },
+      { id: "sparkling", label: this._t("wineType.sparkling") },
+      { id: "dessert", label: this._t("wineType.dessert") },
     ];
 
     const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;
@@ -2172,7 +2164,7 @@ export class InventoryDialog extends LitElement {
         <div class="dialog" style="max-width:800px;position:relative" @click=${(e: Event) => e.stopPropagation()}>
           <!-- Header -->
           <div class="inv-header">
-            <span class="inv-header-title">📦 Inventory</span>
+            <span class="inv-header-title">${this._t("ui.inventory.title")}</span>
             <button class="inv-close" @click=${this._close}>✕</button>
           </div>
 
@@ -2181,11 +2173,11 @@ export class InventoryDialog extends LitElement {
             <button
               class="${this._viewMode === "inventory" ? "active" : ""}"
               @click=${() => { this._viewMode = "inventory"; }}
-            >Inventory</button>
+            >${this._t("ui.inventory.tabInventory")}</button>
             <button
               class="${this._viewMode === "history" ? "active" : ""}"
               @click=${() => this._switchToHistory()}
-            >History</button>
+            >${this._t("ui.inventory.tabHistory")}</button>
           </div>
 
           ${this._viewMode === "history" ? this._renderHistory() : html`
@@ -2193,7 +2185,7 @@ export class InventoryDialog extends LitElement {
           <div class="inv-stats">
             <div class="stat">
               <span class="stat-value">${allStats.count}</span>
-              ${narrowed ? `of ${this.wines.length} bottles` : "bottles"}
+              ${narrowed ? this._t("ui.inventory.ofNBottles", { n: this.wines.length }) : this._t("ui.card.statBottles")}
             </div>
             ${allStats.totalValue
               ? html`
@@ -2201,7 +2193,7 @@ export class InventoryDialog extends LitElement {
                     <span class="stat-value"
                       >${this.currency} ${allStats.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span
                     >
-                    est. value
+                    ${this._t("ui.inventory.estValue")}
                   </div>
                 `
               : nothing}
@@ -2213,7 +2205,7 @@ export class InventoryDialog extends LitElement {
                     style="background:${WINE_TYPE_COLORS[type as WineType] || "#999"}"
                   ></span>
                   <span class="stat-value">${count}</span>
-                  ${WINE_TYPE_LABELS[type as WineType] || type}
+                  ${getWineTypeLabels(this.hass?.language)[type as WineType] || type}
                 </div>
               `
             )}
@@ -2225,7 +2217,7 @@ export class InventoryDialog extends LitElement {
               <span class="inv-search-icon">🔍</span>
               <input
                 type="text"
-                placeholder="Search wines..."
+                placeholder="${this._t('ui.inventory.searchPlaceholder')}"
                 .value=${this._searchQuery}
                 @input=${(e: InputEvent) => {
                   this._searchQuery = (e.target as HTMLInputElement).value;
@@ -2252,7 +2244,7 @@ export class InventoryDialog extends LitElement {
                   this._sortDir = this._sortDir === "asc" ? "desc" : "asc";
                   this._savePrefs();
                 }}
-                title="${this._sortDir === "asc" ? "Ascending" : "Descending"}"
+                title="${this._sortDir === "asc" ? this._t('ui.inventory.ascending') : this._t('ui.inventory.descending')}"
               >
                 ${this._sortDir === "asc" ? "↑" : "↓"}
               </button>
@@ -2261,9 +2253,9 @@ export class InventoryDialog extends LitElement {
                 @click=${() => {
                   this._showFilters = !this._showFilters;
                 }}
-                title="More filters"
+                title="${this._t('ui.inventory.moreFiltersTitle')}"
               >
-                ⚙︎ Filters${activeFilters
+                ${this._t('ui.inventory.filtersBtn')}${activeFilters
                   ? html`<span class="inv-filter-badge">${activeFilters}</span>`
                   : nothing}
               </button>
@@ -2311,12 +2303,12 @@ export class InventoryDialog extends LitElement {
             ? html`
                 <div class="inv-active-filters">
                   <span
-                    >${filteredWines.length} of ${this.wines.length} wines shown${activeFilters
-                      ? ` · ${activeFilters} filter${activeFilters > 1 ? "s" : ""} active`
+                    >${this._t("ui.inventory.winesShown", { shown: filteredWines.length, total: this.wines.length })}${activeFilters
+                      ? this._t("ui.inventory.filtersActive", { n: activeFilters, plural: activeFilters > 1 ? "s" : "" })
                       : ""}</span
                   >
                   <button class="inv-clear-filters" @click=${this._clearFilters}>
-                    Clear all
+                    ${this._t("ui.inventory.clearAll")}
                   </button>
                 </div>
               `
@@ -2327,7 +2319,7 @@ export class InventoryDialog extends LitElement {
           <!-- Wine List -->
           <div class="inv-list">
             ${filteredWines.length === 0
-              ? html`<div class="inv-empty">No wines match your search</div>`
+              ? html`<div class="inv-empty">${this._t("ui.card.noSearchResults")}</div>`
               : filteredWines.map((w) => this._renderWineItem(w))}
           </div>
 
@@ -2335,8 +2327,8 @@ export class InventoryDialog extends LitElement {
           <div class="inv-footer">
             <span class="inv-count">
               ${filteredWines.length === this.wines.length
-                ? `${filteredWines.length} wines`
-                : `${filteredWines.length} of ${this.wines.length} wines`}
+                ? this._t("ui.inventory.footerCountAll", { n: filteredWines.length })
+                : this._t("ui.inventory.footerCountFiltered", { shown: filteredWines.length, total: this.wines.length })}
             </span>
             ${this._statusMsg
               ? html`<div class="inv-status">${this._statusMsg}</div>`
@@ -2346,49 +2338,49 @@ export class InventoryDialog extends LitElement {
                 class="inv-btn"
                 @click=${this._serverBackupSave}
                 ?disabled=${busy}
-                title="Save timestamped backup to HA server"
+                title="${this._t('ui.inventory.saveServerBackupTitle')}"
               >
-                ${this._serverBackupLabel || "Server Backup"}
+                ${this._serverBackupLabel || this._t("ui.inventory.serverBackupBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._serverBackupShowRestore}
                 ?disabled=${busy}
-                title="Restore from a server backup"
+                title="${this._t('ui.inventory.restoreServerBackupTitle')}"
               >
-                ${this._serverRestoring ? "Restoring…" : "Server Restore"}
+                ${this._serverRestoring ? this._t("ui.inventory.restoringEllipsis") : this._t("ui.inventory.serverRestoreBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._backupJSON}
                 ?disabled=${busy}
-                title="Download full cellar backup as JSON"
+                title="${this._t('ui.inventory.downloadBackupTitle')}"
               >
-                ${this._backingUp ? "Saving…" : "Download"}
+                ${this._backingUp ? this._t("ui.inventory.savingEllipsis") : this._t("ui.inventory.downloadBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._triggerRestore}
                 ?disabled=${busy}
-                title="Restore cellar from a JSON backup file"
+                title="${this._t('ui.inventory.restoreFromFileTitle')}"
               >
-                ${this._restoring ? "Restoring…" : "Upload"}
+                ${this._restoring ? this._t("ui.inventory.restoringEllipsis") : this._t("ui.inventory.uploadBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._triggerImportCSV}
                 ?disabled=${busy}
-                title="Import wines from a CSV file"
+                title="${this._t('ui.inventory.importCsvTitle')}"
               >
-                ${this._importing ? "Importing…" : "Import CSV"}
+                ${this._importing ? this._t("ui.inventory.importingEllipsis") : this._t("ui.inventory.importCsvBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._exportCSV}
                 ?disabled=${busy}
-                title="Export wines as CSV"
+                title="${this._t('ui.inventory.exportCsvTitle')}"
               >
-                Export CSV
+                ${this._t("ui.inventory.exportCsvBtn")}
               </button>
             </div>
           </div>
@@ -2416,29 +2408,28 @@ export class InventoryDialog extends LitElement {
             ? html`
                 <div class="inv-confirm-overlay" @click=${() => (this._showServerRestore = false)}>
                   <div class="inv-confirm-box" style="max-width:420px" @click=${(e: Event) => e.stopPropagation()}>
-                    <h3>Server Backups</h3>
+                    <h3>${this._t("ui.inventory.serverBackupsTitle")}</h3>
                     <label class="inv-keep-row">
-                      <span>Keep the last</span>
+                      <span>${this._t("ui.inventory.keepTheLast")}</span>
                       <select
                         @change=${(e: Event) =>
                           this._setBackupKeep(Number((e.target as HTMLSelectElement).value))}
                       >
                         ${this._backupKeepChoices.map(
                           (n) => html`<option value=${n} ?selected=${this._backupKeep === n}>
-                            ${n === 0 ? "All (never delete)" : `${n} backups`}
+                            ${n === 0 ? this._t("ui.inventory.allNeverDelete") : this._t("ui.inventory.nBackups", { n })}
                           </option>`
                         )}
                       </select>
                     </label>
                     ${this._serverBackups.length === 0
-                      ? html`<p>No server backups found. Use "Server Backup" to create one.</p>`
+                      ? html`<p>${this._t("ui.inventory.noServerBackups")}</p>`
                       : html`
                         <p>
-                          Select a backup to restore — this will <strong>replace</strong> all
-                          current data. ${this._serverBackups.length} stored,
-                          ${this._formatBytes(
+                          ${this._t("ui.inventory.selectBackupToRestore1")} <strong>${this._t("ui.common.replace")}</strong>
+                          ${this._t("ui.inventory.selectBackupToRestore2", { n: this._serverBackups.length, size: this._formatBytes(
                             this._serverBackups.reduce((t: number, b: any) => t + (b.size || 0), 0)
-                          )} on disk.
+                          ) })}
                         </p>
                         <div class="inv-backup-list">
                           ${this._serverBackups.map(
@@ -2451,13 +2442,13 @@ export class InventoryDialog extends LitElement {
                                   <div>${b.timestamp ? new Date(b.timestamp).toLocaleString() : b.filename}</div>
                                   <div class="inv-backup-meta">
                                     ${b.error
-                                      ? "unreadable file"
-                                      : `${b.wines} wines, ${b.cabinets} racks · ${this._formatBytes(b.size || 0)}`}
+                                      ? this._t("ui.inventory.unreadableFile")
+                                      : this._t("ui.inventory.backupMeta", { wines: b.wines, cabinets: b.cabinets, size: this._formatBytes(b.size || 0) })}
                                   </div>
                                 </button>
                                 <button
                                   class="inv-backup-del"
-                                  title="Delete this backup"
+                                  title="${this._t('ui.inventory.deleteThisBackup')}"
                                   @click=${() => this._serverBackupDelete(b.filename)}
                                 >
                                   🗑
@@ -2469,7 +2460,7 @@ export class InventoryDialog extends LitElement {
                       `}
                     <div class="inv-confirm-btns">
                       <button class="inv-confirm-cancel" @click=${() => (this._showServerRestore = false)}>
-                        Close
+                        ${this._t("ui.common.close")}
                       </button>
                     </div>
                   </div>
@@ -2484,19 +2475,16 @@ export class InventoryDialog extends LitElement {
             ? html`
                 <div class="inv-confirm-overlay" @click=${() => (this._confirmImport = false)}>
                   <div class="inv-confirm-box" @click=${(e: Event) => e.stopPropagation()}>
-                    <h3>📄 Update existing wines?</h3>
+                    <h3>${this._t("ui.inventory.updateExistingQ")}</h3>
                     <p>
-                      This CSV looks like an edited export — some rows carry the ID of a
-                      wine already in your cellar.
+                      ${this._t("ui.inventory.csvEditedExportNote")}
                     </p>
                     <div class="inv-confirm-stats">
-                      <strong>${this._importMatches}</strong> row${this._importMatches > 1 ? "s" : ""}
-                      match existing wines ·
-                      <strong>${this._pendingImport.length - this._importMatches}</strong> new
+                      <strong>${this._importMatches}</strong> ${this._t("ui.inventory.rowsMatchExisting", { plural: this._importMatches > 1 ? "s" : "" })} ·
+                      <strong>${this._pendingImport.length - this._importMatches}</strong> ${this._t("ui.common.new", { plural: this._pendingImport.length - this._importMatches > 1 ? "x" : "" })}
                       <br />
                       <small>
-                        Updating only touches the columns present in the file; blank cells
-                        leave the stored value alone.
+                        ${this._t("ui.inventory.updateOnlyTouchesNote")}
                       </small>
                     </div>
                     <div class="inv-confirm-btns">
@@ -2504,13 +2492,13 @@ export class InventoryDialog extends LitElement {
                         class="inv-confirm-cancel"
                         @click=${() => this._runImport(this._pendingImport!, "add")}
                       >
-                        Add all as new
+                        ${this._t("ui.inventory.addAllAsNew")}
                       </button>
                       <button
                         class="inv-confirm-go"
                         @click=${() => this._runImport(this._pendingImport!, "update")}
                       >
-                        Update ${this._importMatches} wine${this._importMatches > 1 ? "s" : ""}
+                        ${this._t("ui.inventory.updateNWines", { n: this._importMatches, plural: this._importMatches > 1 ? "s" : "" })}
                       </button>
                     </div>
                   </div>
@@ -2523,26 +2511,25 @@ export class InventoryDialog extends LitElement {
             ? html`
                 <div class="inv-confirm-overlay" @click=${() => (this._confirmRestore = false)}>
                   <div class="inv-confirm-box" @click=${(e: Event) => e.stopPropagation()}>
-                    <h3>🔄 Restore Backup?</h3>
+                    <h3>${this._t("ui.inventory.restoreBackupQ")}</h3>
                     <p>
-                      This will <strong>replace</strong> all your current cellar data with the backup.
-                      This action cannot be undone.
+                      ${this._t("ui.inventory.restoreWillReplaceNote")}
                     </p>
                     <div class="inv-confirm-stats">
-                      Backup contains:<br />
-                      <strong>${this._restoreData.wines?.length || 0}</strong> wines ·
-                      <strong>${this._restoreData.cabinets?.length || 0}</strong> racks ·
-                      <strong>${this._restoreData.buy_list?.length || 0}</strong> buy list items
+                      ${this._t("ui.inventory.backupContains")}<br />
+                      <strong>${this._restoreData.wines?.length || 0}</strong> ${this._t("ui.inventory.winesWord")} ·
+                      <strong>${this._restoreData.cabinets?.length || 0}</strong> ${this._t("ui.inventory.racksWord")} ·
+                      <strong>${this._restoreData.buy_list?.length || 0}</strong> ${this._t("ui.inventory.buyListItemsWord")}
                       ${this._restoreData.timestamp
-                        ? html`<br /><small>Created: ${new Date(this._restoreData.timestamp).toLocaleString()}</small>`
+                        ? html`<br /><small>${this._t("ui.inventory.createdLabel", { date: new Date(this._restoreData.timestamp).toLocaleString() })}</small>`
                         : nothing}
                     </div>
                     <div class="inv-confirm-btns">
                       <button class="inv-confirm-cancel" @click=${() => (this._confirmRestore = false)}>
-                        Cancel
+                        ${this._t("ui.common.cancel")}
                       </button>
                       <button class="inv-confirm-go" @click=${this._executeRestore}>
-                        Restore Now
+                        ${this._t("ui.inventory.restoreNowBtn")}
                       </button>
                     </div>
                   </div>

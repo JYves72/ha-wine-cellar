@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { Wine, WineListItem, WineType, WINE_TYPE_COLORS, WINE_TYPE_LABELS } from "../models";
 import { sharedStyles } from "../styles";
+import { t } from "../i18n";
 import "./label-camera";
 import "./wine-detail-dialog";
 
@@ -351,6 +352,11 @@ export class WineListDialog extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   updated(changedProps: Map<string, unknown>) {
     if (changedProps.has("open") && this.open) {
       // Reset when opening
@@ -391,7 +397,7 @@ export class WineListDialog extends LitElement {
 
       const data = result;
       if (!data || !Array.isArray(data.wines)) {
-        this._error = "No wines found in the image. Try a clearer photo.";
+        this._error = this._t("ui.wineList.noWinesFoundImage");
         this._phase = "capture";
         return;
       }
@@ -417,7 +423,7 @@ export class WineListDialog extends LitElement {
       this._currency = data.currency || "USD";
       this._phase = "results";
     } catch (err: any) {
-      this._error = `Extraction failed: ${err?.message || err}`;
+      this._error = this._t("ui.wineList.extractionFailed", { error: err?.message || err });
       this._phase = "capture";
     }
   }
@@ -566,10 +572,10 @@ export class WineListDialog extends LitElement {
     const marketPrice = wine.vivino_price || wine.ai_estimated_price;
     if (!listPrice || !marketPrice) return null;
     const ratio = listPrice / marketPrice;
-    if (ratio <= 1.5) return { label: "Great Value", color: "#2e7d32" };
-    if (ratio <= 2.0) return { label: "Fair Price", color: "#558b2f" };
-    if (ratio <= 3.0) return { label: "Typical", color: "#f57f17" };
-    return { label: "Premium", color: "#c62828" };
+    if (ratio <= 1.5) return { label: this._t("ui.wineList.greatValue"), color: "#2e7d32" };
+    if (ratio <= 2.0) return { label: this._t("ui.wineList.fairPrice"), color: "#558b2f" };
+    if (ratio <= 3.0) return { label: this._t("ui.wineList.typical"), color: "#f57f17" };
+    return { label: this._t("ui.wineList.premium"), color: "#c62828" };
   }
 
   private _showWineDetail(wine: WineListItem) {
@@ -645,7 +651,7 @@ export class WineListDialog extends LitElement {
         <div class="wl-info">
           <div class="wl-name">
             ${wine.winery ? `${wine.winery} ` : ""}${wine.name}
-            ${cellarMatch ? html`<span class="wl-cellar-badge">IN CELLAR</span>` : nothing}
+            ${cellarMatch ? html`<span class="wl-cellar-badge">${this._t("ui.wineList.inCellarBadge")}</span>` : nothing}
           </div>
           <div class="wl-meta">
             ${wine.vintage || "NV"} ${wine.region ? `\u2022 ${wine.region}` : ""}
@@ -691,16 +697,16 @@ export class WineListDialog extends LitElement {
                     ? html`<div class="wl-detail-row" style="font-style:italic">${wine.ai_description}</div>`
                     : nothing}
                   ${wine.ai_drink_window
-                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">Drink window:</span>${wine.ai_drink_window}</div>`
+                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.drinkWindowLabel")}</span>${wine.ai_drink_window}</div>`
                     : nothing}
                   ${wine.glass_price
-                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">By the glass:</span>${this._formatPrice(wine.glass_price, this._currency)}</div>`
+                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.byTheGlassLabel")}</span>${this._formatPrice(wine.glass_price, this._currency)}</div>`
                     : nothing}
                   ${wine.bottle_size && wine.bottle_size !== "750ml"
-                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">Size:</span>${wine.bottle_size}</div>`
+                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.sizeLabel")}</span>${wine.bottle_size}</div>`
                     : nothing}
                   ${wine.vivino_rating
-                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">Vivino:</span>${wine.vivino_rating.toFixed(1)}${wine.vivino_ratings_count ? ` (${wine.vivino_ratings_count.toLocaleString()} ratings)` : ""}</div>`
+                    ? html`<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.vivinoLabel")}</span>${wine.vivino_rating.toFixed(1)}${wine.vivino_ratings_count ? this._t("ui.wineDetail.ratingsCountSuffix", { count: wine.vivino_ratings_count.toLocaleString() }) : ""}</div>`
                     : nothing}
                 </div>
               `
@@ -713,14 +719,14 @@ export class WineListDialog extends LitElement {
             ?disabled=${added}
             @click=${() => !added && this._addToCellar(wine)}
           >
-            ${added ? "\u2713" : "+ Add"}
+            ${added ? "\u2713" : this._t("ui.wineList.addBtn")}
           </button>
           <button
             class="wl-buy-btn ${this._buyListIndices.has(wine.index) ? "added" : ""}"
             ?disabled=${this._buyListIndices.has(wine.index)}
             @click=${() => !this._buyListIndices.has(wine.index) && this._addToBuyList(wine)}
           >
-            ${this._buyListIndices.has(wine.index) ? "\u2713" : "\uD83D\uDED2 Buy"}
+            ${this._buyListIndices.has(wine.index) ? "\u2713" : this._t("ui.wineList.buyBtn")}
           </button>
         </div>
       </div>
@@ -741,10 +747,10 @@ export class WineListDialog extends LitElement {
           <div class="header">
             <span class="header-title">
               ${this._phase === "capture"
-                ? "\uD83C\uDF7D\uFE0F Scan List"
+                ? this._t("ui.wineList.scanTitle")
                 : this._restaurantName
                   ? `\uD83C\uDF7D\uFE0F ${this._restaurantName}`
-                  : "\uD83C\uDF7D\uFE0F Scanned List"}
+                  : this._t("ui.wineList.scannedListTitle")}
             </span>
             <button class="close-btn" @click=${this._close}>\u2715</button>
           </div>
@@ -755,16 +761,18 @@ export class WineListDialog extends LitElement {
                   ? html`<div class="error-msg">${this._error}</div>`
                   : nothing}
                 ${this._wines.length > 0
-                  ? html`<div class="header-subtitle">${this._wines.length} wines already scanned. Take another photo to add more.</div>`
-                  : html`<div class="header-subtitle">Take a photo of a wine list or receipt to see ratings, scores, and value.</div>`}
+                  ? html`<div class="header-subtitle">${this._wines.length > 1
+                      ? this._t("ui.wineList.alreadyScannedHintMany", { n: this._wines.length })
+                      : this._t("ui.wineList.alreadyScannedHintOne", { n: this._wines.length })}</div>`
+                  : html`<div class="header-subtitle">${this._t("ui.wineList.captureSubtitle")}</div>`}
                 <div style="padding: 0 16px 16px">
-                  <label-camera .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
+                  <label-camera .hass=${this.hass} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
                 </div>
                 ${this._wines.length > 0
                   ? html`
                       <div class="footer-actions">
                         <button class="btn btn-primary" @click=${() => (this._phase = "results")}>
-                          Back to Results (${this._wines.length})
+                          ${this._t("ui.wineList.backToResults", { n: this._wines.length })}
                         </button>
                       </div>
                     `
@@ -776,9 +784,9 @@ export class WineListDialog extends LitElement {
             ? html`
                 <div class="extracting">
                   <div class="spinner"></div>
-                  <div>Analyzing list...</div>
-                  <div style="font-size:0.85em">Gemini is reading wines and scoring them</div>
-                  <div style="font-size:0.78em; color: var(--secondary-text-color); margin-top: 8px;">Long lists may take up to 3 minutes</div>
+                  <div>${this._t("ui.wineList.analyzingList")}</div>
+                  <div style="font-size:0.85em">${this._t("ui.wineList.geminiReading")}</div>
+                  <div style="font-size:0.78em; color: var(--secondary-text-color); margin-top: 8px;">${this._t("ui.wineList.longListsHint")}</div>
                 </div>
               `
             : nothing}
@@ -786,8 +794,10 @@ export class WineListDialog extends LitElement {
           ${this._phase === "results"
             ? html`
                 <div class="header-subtitle">
-                  ${total} wine${total !== 1 ? "s" : ""} found
-                  ${this._currency !== "USD" ? ` \u2022 Prices in ${this._currency}` : ""}
+                  ${total === 1
+                    ? this._t("ui.wineList.winesFoundOne", { n: total })
+                    : this._t("ui.wineList.winesFoundMany", { n: total })}
+                  ${this._currency !== "USD" ? this._t("ui.wineList.pricesInCurrency", { currency: this._currency }) : ""}
                 </div>
 
                 <!-- Vivino enrichment progress -->
@@ -817,7 +827,7 @@ export class WineListDialog extends LitElement {
                           style="background:#8e24aa"
                           @click=${this._startVivinoEnrichment}
                         >
-                          \uD83C\uDF47 Get Vivino Scores
+                          ${this._t("ui.wineList.getVivinoScoresBtn")}
                         </button>
                       `
                     : nothing}
@@ -826,7 +836,7 @@ export class WineListDialog extends LitElement {
                     style="background:#00695c"
                     @click=${this._scanAnotherPage}
                   >
-                    \uD83D\uDCF7 Scan Another Page
+                    ${this._t("ui.wineList.scanAnotherPageBtn")}
                   </button>
                 </div>
               `

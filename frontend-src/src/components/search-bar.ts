@@ -1,9 +1,11 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "../styles";
+import { t } from "../i18n";
 
 @customElement("wine-search-bar")
 export class WineSearchBar extends LitElement {
+  @property({ attribute: false }) hass: any;
   @property({ type: String }) value = "";
   @property({ type: String }) filter = "all";
 
@@ -133,6 +135,11 @@ export class WineSearchBar extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   private _onInput(e: InputEvent) {
     const value = (e.target as HTMLInputElement).value;
     this.dispatchEvent(
@@ -175,12 +182,12 @@ export class WineSearchBar extends LitElement {
 
   render() {
     const filters = [
-      { id: "all", label: "All" },
-      { id: "red", label: "Red" },
-      { id: "white", label: "White" },
-      { id: "rosé", label: "Rosé" },
-      { id: "sparkling", label: "Sparkling" },
-      { id: "dessert", label: "Dessert" },
+      { id: "all", label: this._t("ui.inventory.preset.allLabel") },
+      { id: "red", label: this._t("wineType.red") },
+      { id: "white", label: this._t("wineType.white") },
+      { id: "rosé", label: this._t("wineType.rosé") },
+      { id: "sparkling", label: this._t("wineType.sparkling") },
+      { id: "dessert", label: this._t("wineType.dessert") },
     ];
 
     return html`
@@ -189,7 +196,7 @@ export class WineSearchBar extends LitElement {
           <span class="search-icon">🔍</span>
           <input
             type="search"
-            placeholder="Search wines..."
+            placeholder="${this._t('ui.inventory.searchPlaceholder')}"
             enterkeyhint="search"
             autocomplete="off"
             autocorrect="off"
@@ -200,7 +207,7 @@ export class WineSearchBar extends LitElement {
           />
           ${this.value
             ? html`
-                <button class="search-clear" title="Clear search" aria-label="Clear search" @click=${this._clear}>
+                <button class="search-clear" title="${this._t('ui.common.clearSearch')}" aria-label="${this._t('ui.common.clearSearch')}" @click=${this._clear}>
                   ✕
                 </button>
               `

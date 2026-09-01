@@ -2,9 +2,11 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "../styles";
 import { cameraBlockedReason, describeCameraError } from "../utils/camera";
+import { t } from "../i18n";
 
 @customElement("label-camera")
 export class LabelCamera extends LitElement {
+  @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) active = false;
 
   @state() private _stream: MediaStream | null = null;
@@ -140,6 +142,11 @@ export class LabelCamera extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   updated(changedProps: Map<string, unknown>) {
     if (changedProps.has("active")) {
       if (this.active && !this._captured) {
@@ -162,7 +169,7 @@ export class LabelCamera extends LitElement {
     // Ask why before asking for the camera: over http:// there is nothing to
     // ask, and a TypeError from a missing navigator.mediaDevices would read as
     // a generic failure.
-    const blocked = cameraBlockedReason();
+    const blocked = cameraBlockedReason(this.hass?.language);
     if (blocked) {
       this._error = blocked;
       return;
@@ -183,7 +190,7 @@ export class LabelCamera extends LitElement {
         video.srcObject = this._stream;
       }
     } catch (err: any) {
-      this._error = describeCameraError(err);
+      this._error = describeCameraError(err, this.hass?.language);
     }
   }
 
@@ -292,7 +299,7 @@ export class LabelCamera extends LitElement {
         ? html`
             <div class="error-message">${this._error}</div>
             <div class="hint">
-              The button below opens your device's own camera, which works either way.
+              ${this._t("ui.camera.fallbackHint")}
             </div>
           `
         : html`
@@ -300,14 +307,14 @@ export class LabelCamera extends LitElement {
               <video autoplay playsinline muted></video>
             </div>
             <div class="capture-btn-area">
-              <button class="capture-btn" @click=${this._capture} title="Take photo"></button>
+              <button class="capture-btn" @click=${this._capture} title="${this._t('ui.camera.takePhotoTitle')}"></button>
             </div>
-            <div class="hint">Point the camera at the wine label</div>
+            <div class="hint">${this._t("ui.camera.pointAtLabel")}</div>
           `}
 
       <div class="fallback-area">
         <label class="file-input-label">
-          ${this._error ? "📷 Take a photo" : "📁 Upload from gallery"}
+          ${this._error ? this._t("ui.camera.takePhotoBtn") : this._t("ui.camera.uploadGalleryBtn")}
           <input type="file" accept="image/*" capture="environment" @change=${this._onFileSelected} />
         </label>
       </div>

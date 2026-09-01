@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "./styles";
 import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation } from "./models";
+import { t } from "./i18n";
 import { matchesQuery } from "./utils/search";
 import { Finding, analyzeArrangement } from "./utils/arrange";
 
@@ -621,6 +622,13 @@ export class WineCellarCard extends LitElement {
     return wines;
   }
 
+  // Shorthand for t(key, this.hass?.language, params) — every call site in
+  // this file needs the current display language, so this saves repeating
+  // `this.hass?.language` at every t() call.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   private _showToast(message: string) {
     this._toast = message;
     // Each toast gets its own full 2.5s: the previous timer would otherwise
@@ -801,7 +809,7 @@ export class WineCellarCard extends LitElement {
     // If we have a copied wine, paste it in this zone instead of opening panel
     if (this._copiedWine) {
       if (!hasRoom) {
-        this._showToast(`"${storageRow.name || "Zone"}" is full — cannot paste here.`);
+        this._showToast(this._t("toast.zoneFull", { zone: storageRow.name || "Zone" }));
         return;
       }
       this._pasteWine(cabinet.id, null, null, nextDepth, zone);
@@ -811,7 +819,7 @@ export class WineCellarCard extends LitElement {
     // If moving wine, drop it in this zone instead of opening panel
     if (this._movingWine) {
       if (!hasRoom) {
-        this._showToast(`"${storageRow.name || "Zone"}" is full — cannot move here.`);
+        this._showToast(this._t("toast.zoneFullMove", { zone: storageRow.name || "Zone" }));
         return;
       }
       this._executeMoveWine(cabinet.id, null, null, zone);
@@ -819,7 +827,7 @@ export class WineCellarCard extends LitElement {
     }
     if (this._movingBuyListItem) {
       if (!hasRoom) {
-        this._showToast(`"${storageRow.name || "Zone"}" is full — cannot move here.`);
+        this._showToast(this._t("toast.zoneFullMove", { zone: storageRow.name || "Zone" }));
         return;
       }
       this._executeMoveTocellar(cabinet.id, null, null, zone);
@@ -881,7 +889,7 @@ export class WineCellarCard extends LitElement {
       await this._loadData();
     } catch (err) {
       console.error("Failed to resize zone:", err);
-      this._showToast("Failed to resize zone");
+      this._showToast(this._t("toast.zoneResizeFailed"));
     }
   }
 
@@ -906,8 +914,8 @@ export class WineCellarCard extends LitElement {
     if (!this._zonePanelCabinet || !this._zonePanelStorageRow) return;
     const wineAtSlot = this._zonePanelWines[slotIndex];
     const warning = wineAtSlot
-      ? `Delete Slot ${slotIndex + 1}? "${wineAtSlot.name}" will be moved to Unassigned.`
-      : `Delete Slot ${slotIndex + 1}?`;
+      ? this._t("toast.deleteSlotConfirmNamed", { n: slotIndex + 1, name: wineAtSlot.name })
+      : this._t("toast.deleteSlotConfirm", { n: slotIndex + 1 });
     if (!window.confirm(warning)) return;
 
     try {
@@ -948,10 +956,10 @@ export class WineCellarCard extends LitElement {
       } else {
         await this._updateStorageRow({ capacity: Math.max(0, (this._zonePanelStorageRow.capacity || 1) - 1) });
       }
-      this._showToast(wineAtSlot ? "Slot deleted, wine unassigned" : "Slot deleted");
+      this._showToast(wineAtSlot ? this._t("toast.slotDeletedUnassigned") : this._t("toast.slotDeleted"));
     } catch (err) {
       console.error("Failed to delete slot:", err);
-      this._showToast("Failed to delete slot");
+      this._showToast(this._t("toast.deleteSlotFailed"));
     }
   }
 
@@ -1030,11 +1038,11 @@ export class WineCellarCard extends LitElement {
         this._zonePanelZone,
         wines.map((w) => w.id)
       );
-      this._showToast("Wine reordered");
+      this._showToast(this._t("toast.wineReordered"));
       await this._loadData();
     } catch (err) {
       console.error("Failed to reorder wine:", err);
-      this._showToast("Failed to reorder wine");
+      this._showToast(this._t("toast.reorderFailed"));
     }
   }
 
@@ -1065,11 +1073,11 @@ export class WineCellarCard extends LitElement {
           depth: draggedWine.depth || 0,
         });
       }
-      this._showToast("Wine reordered");
+      this._showToast(this._t("toast.wineReordered"));
       await this._loadData();
     } catch (err) {
       console.error("Failed to reorder wine:", err);
-      this._showToast("Failed to reorder wine");
+      this._showToast(this._t("toast.reorderFailed"));
     }
   }
 
@@ -1104,25 +1112,25 @@ export class WineCellarCard extends LitElement {
         this._zonePanelZone,
         ordered.map((w) => w.id)
       );
-      this._showToast(direction === "newest" ? "Newest bottles first" : "Oldest bottles first");
+      this._showToast(direction === "newest" ? this._t("toast.newestFirstToast") : this._t("toast.oldestFirstToast"));
       await this._loadData();
     } catch (err) {
       console.error("Failed to sort zone:", err);
-      this._showToast("Failed to sort");
+      this._showToast(this._t("toast.sortFailed"));
     }
     this._zoneSorting = false;
   }
 
   private _getZoneSlotLabel(_type: StorageRowType, index: number): string {
-    return `Slot ${index + 1}`;
+    return this._t("ui.card.slot", { n: index + 1 });
   }
 
   // Opens the right side panel for a wine's location and highlights its slot,
   // both in the panel and on the rack drawing.
   private _locateWine(wine: Wine) {
-    const loc = getWineLocation(wine, this._cabinets);
+    const loc = getWineLocation(wine, this._cabinets, this.hass?.language);
     if (!loc.cabinet) {
-      this._showToast("This wine is unassigned");
+      this._showToast(this._t("toast.wineUnassigned"));
       return;
     }
 
@@ -1144,7 +1152,7 @@ export class WineCellarCard extends LitElement {
     } else if (loc.zone && loc.zone !== "bottom" && loc.storageRow) {
       this._openZonePanel(loc.cabinet, loc.zone, loc.storageRow);
     } else {
-      this._showToast(`In ${loc.text}`);
+      this._showToast(this._t("toast.inLocation", { location: loc.text }));
     }
 
     this.updateComplete.then(async () => {
@@ -1225,7 +1233,7 @@ export class WineCellarCard extends LitElement {
       await this._loadData();
     } catch (err) {
       console.error("Failed to resize rack:", err);
-      this._showToast("Failed to resize rack");
+      this._showToast(this._t("toast.rackResizeFailed"));
     }
   }
 
@@ -1242,13 +1250,13 @@ export class WineCellarCard extends LitElement {
     if (!this._rackPanelCabinet) return;
     const { rows, cols } = this._rackPanelCabinet;
     if (rows <= 1 && cols <= 1) {
-      this._showToast("Rack can't get any smaller");
+      this._showToast(this._t("toast.rackTooSmall"));
       return;
     }
     const wine = this._rackPanelWines.find((w) => w.row === row && w.col === col);
     const warning = wine
-      ? `Delete this slot? "${wine.name}" will be moved to Unassigned.`
-      : "Delete this slot?";
+      ? this._t("toast.deleteThisSlotConfirmNamed", { name: wine.name })
+      : this._t("toast.deleteThisSlotConfirm");
     if (!window.confirm(warning)) return;
 
     try {
@@ -1264,10 +1272,10 @@ export class WineCellarCard extends LitElement {
       } else {
         await this._resizeRack({ rows: rows - 1 });
       }
-      this._showToast(wine ? "Slot deleted, wine unassigned" : "Slot deleted");
+      this._showToast(wine ? this._t("toast.slotDeletedUnassigned") : this._t("toast.slotDeleted"));
     } catch (err) {
       console.error("Failed to delete slot:", err);
-      this._showToast("Failed to delete slot");
+      this._showToast(this._t("toast.deleteSlotFailed"));
     }
   }
 
@@ -1362,11 +1370,11 @@ export class WineCellarCard extends LitElement {
           zone: "",
         });
       }
-      this._showToast("Wine reordered");
+      this._showToast(this._t("toast.wineReordered"));
       await this._loadData();
     } catch (err) {
       console.error("Failed to reorder wine:", err);
-      this._showToast("Failed to reorder wine");
+      this._showToast(this._t("toast.reorderFailed"));
     }
   }
 
@@ -1385,12 +1393,12 @@ export class WineCellarCard extends LitElement {
         ...(col !== null ? { col } : {}),
       });
       if (zone) await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
-      this._showToast(`Moved "${this._movingWine.name}"`);
+      this._showToast(this._t("toast.wineMoved", { name: this._movingWine.name }));
       this._movingWine = null;
       await this._loadData();
     } catch (err) {
       console.error("Failed to move wine:", err);
-      this._showToast("Failed to move wine");
+      this._showToast(this._t("toast.moveFailed"));
     }
   }
 
@@ -1428,11 +1436,11 @@ export class WineCellarCard extends LitElement {
           zone: d.targetZone,
           wine_ids: zoneWines.map((w) => w.id),
         });
-        this._showToast("Wine reordered");
+        this._showToast(this._t("toast.wineReordered"));
         await this._loadData();
       } catch (err) {
         console.error("Failed to reorder wine:", err);
-        this._showToast("Failed to reorder wine");
+        this._showToast(this._t("toast.reorderFailed"));
       }
       return;
     }
@@ -1497,7 +1505,7 @@ export class WineCellarCard extends LitElement {
         const capacity = storageRow?.capacity || 20;
         targetDepth = this._firstFreeDepth(d.targetCabinetId, d.targetZone, d.wineId);
         if (storageRow && (occupants.length >= capacity || targetDepth >= capacity)) {
-          this._showToast(`"${storageRow.name || "Zone"}" is full — cannot move here.`);
+          this._showToast(this._t("toast.zoneFullMove", { zone: storageRow.name || "Zone" }));
           return;
         }
       }
@@ -1523,7 +1531,7 @@ export class WineCellarCard extends LitElement {
       // Same container (rack/bin/box) = reordering; a different one = an
       // actual move between containers.
       const sameContainer = d.sourceCabinetId === d.targetCabinetId;
-      this._showToast(sameContainer ? "Wine reordered" : targetWine ? "Swapped wines" : "Wine moved");
+      this._showToast(sameContainer ? this._t("toast.wineReordered") : targetWine ? this._t("toast.wineSwapped") : this._t("toast.wineMovedShort"));
       await this._loadData();
     } catch (err) {
       console.error("Failed to move wine:", err);
@@ -1532,19 +1540,19 @@ export class WineCellarCard extends LitElement {
           await swappedBack();
         } catch (undoErr) {
           console.error("Failed to undo half-completed swap:", undoErr);
-          this._showToast("Move failed and could not be undone — check both slots");
+          this._showToast(this._t("toast.moveUndoFailed"));
           await this._loadData();
           return;
         }
       }
-      this._showToast("Failed to move wine");
+      this._showToast(this._t("toast.moveFailed"));
       await this._loadData();
     }
   }
 
   private _copyWine(wine: Wine) {
     this._copiedWine = wine;
-    this._showToast(`Copied "${wine.name}" — tap empty cells or bulk/box zones to paste`);
+    this._showToast(this._t("toast.wineCopied", { name: wine.name }));
     this._showDetail = false;
     // Close any open side panel and show every rack, so the whole cellar is reachable to paste into.
     this._zonePanelOpen = false;
@@ -1599,10 +1607,10 @@ export class WineCellarCard extends LitElement {
       });
       const pasted = result?.wine?.id;
       if (zone && pasted) await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
-      this._showToast("Wine pasted! Tap more empty cells or click ✕ to stop.");
+      this._showToast(this._t("toast.winePasted"));
       await this._loadData();
     } catch {
-      this._showToast("Failed to paste wine.");
+      this._showToast(this._t("toast.pasteFailed"));
     }
   }
 
@@ -1618,21 +1626,21 @@ export class WineCellarCard extends LitElement {
   private async _runBatchAnalyzeWines() {
     this._showBatchAiConfirm = false;
     this._analyzing = true;
-    this._showToast("Running full AI analysis on all wines...");
+    this._showToast(this._t("toast.aiBatchRunning"));
     try {
       const result = await this.hass.callWS({
         type: "wine_cellar/batch_analyze_wines",
       });
       if (result.error) {
-        this._showToast(`AI Batch failed: ${result.error}`);
+        this._showToast(this._t("toast.aiBatchFailedError", { error: result.error }));
       } else {
-        const parts = [`AI Batch complete! ${result.updated}/${result.total} updated`];
-        if (result.errors > 0) parts.push(`(${result.errors} errors)`);
+        const parts = [this._t("toast.aiBatchComplete", { updated: result.updated, total: result.total })];
+        if (result.errors > 0) parts.push(this._t("toast.errorsCount", { n: result.errors }));
         this._showToast(parts.join(" "));
         await this._loadData();
       }
     } catch (err: any) {
-      this._showToast("AI Batch analysis failed.");
+      this._showToast(this._t("toast.aiBatchFailed"));
     }
     this._analyzing = false;
   }
@@ -1682,7 +1690,7 @@ export class WineCellarCard extends LitElement {
       });
     } catch (err) {
       this._dismissedArrangements = previous;
-      this._showToast("Failed to dismiss the suggestion");
+      this._showToast(this._t("toast.dismissSuggestionFailed"));
     }
   }
 
@@ -1698,7 +1706,7 @@ export class WineCellarCard extends LitElement {
       });
     } catch (err) {
       this._metadataLanguage = previous;
-      this._showToast("Failed to change language");
+      this._showToast(this._t("toast.changeLanguageFailed"));
     }
   }
 
@@ -1713,7 +1721,7 @@ export class WineCellarCard extends LitElement {
       });
     } catch (err) {
       this._metadataCurrency = previous;
-      this._showToast("Failed to change currency");
+      this._showToast(this._t("toast.changeCurrencyFailed"));
     }
   }
 
@@ -1728,7 +1736,7 @@ export class WineCellarCard extends LitElement {
       });
     } catch (err) {
       this._aiFallbackAlways = previous;
-      this._showToast("Failed to change AI fallback setting");
+      this._showToast(this._t("toast.changeAiFallbackFailed"));
     }
   }
 
@@ -1741,7 +1749,7 @@ export class WineCellarCard extends LitElement {
   private async _runBatchVivino(photoMode: "keep" | "replace") {
     this._showBatchVivinoConfirm = false;
     this._batchVivino = true;
-    this._showToast("Refreshing all wines from Vivino...");
+    this._showToast(this._t("toast.vivinoRefreshing"));
     try {
       const result = await this.hass.callWS({
         type: "wine_cellar/batch_refresh_vivino",
@@ -1749,20 +1757,20 @@ export class WineCellarCard extends LitElement {
         ai_fallback: this._batchAiFallback ? "use" : "skip",
       });
       if (result.error) {
-        this._showToast(`Vivino Batch failed: ${result.error}`);
+        this._showToast(this._t("toast.vivinoBatchFailedError", { error: result.error }));
       } else {
-        const parts = [`Vivino Batch complete! ${result.updated}/${result.total} updated`];
-        if (result.photos_updated) parts.push(`${result.photos_updated} photos updated`);
-        if (result.photos_kept) parts.push(`${result.photos_kept} kept`);
-        if (result.ai_fallback_used) parts.push(`${result.ai_fallback_used} used AI instead`);
+        const parts = [this._t("toast.vivinoBatchComplete", { updated: result.updated, total: result.total })];
+        if (result.photos_updated) parts.push(this._t("toast.vivinoPhotosUpdated", { n: result.photos_updated }));
+        if (result.photos_kept) parts.push(this._t("toast.vivinoPhotosKept", { n: result.photos_kept }));
+        if (result.ai_fallback_used) parts.push(this._t("toast.vivinoAiFallbackUsed", { n: result.ai_fallback_used }));
         const unresolvedMismatch = (result.mismatched || 0) - (result.ai_fallback_used || 0);
-        if (unresolvedMismatch > 0) parts.push(`${unresolvedMismatch} no match at all`);
-        if (result.errors > 0) parts.push(`(${result.errors} errors)`);
+        if (unresolvedMismatch > 0) parts.push(this._t("toast.vivinoNoMatch", { n: unresolvedMismatch }));
+        if (result.errors > 0) parts.push(this._t("toast.errorsCount", { n: result.errors }));
         this._showToast(parts.join(", "));
         await this._loadData();
       }
     } catch (err: any) {
-      this._showToast("Vivino Batch refresh failed.");
+      this._showToast(this._t("toast.vivinoBatchRefreshFailed"));
     }
     this._batchVivino = false;
   }
@@ -1770,25 +1778,27 @@ export class WineCellarCard extends LitElement {
   // --- Vivino Account Sync ---
   private async _syncVivino() {
     this._vivinoSyncing = true;
-    this._showToast("Syncing your Vivino cellar & wishlist...");
+    this._showToast(this._t("toast.vivinoSyncing"));
     try {
       const result = await this.hass.callWS({
         type: "wine_cellar/sync_vivino",
       });
       if (result.error) {
-        this._showToast(`Vivino sync failed: ${result.error}`);
+        this._showToast(this._t("toast.vivinoSyncFailedError", { error: result.error }));
       } else {
         const bottles = (result.cellar_imported || 0) + (result.my_wines_imported || 0);
         const parts = [
-          `Vivino sync complete! ${bottles} bottle${bottles === 1 ? "" : "s"} imported`,
+          bottles === 1
+            ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
+            : this._t("toast.vivinoSyncCompleteMany", { n: bottles }),
         ];
-        if (result.wishlist_imported > 0) parts.push(`+ ${result.wishlist_imported} to buy list`);
-        if (result.errors?.length) parts.push(`(${result.errors.length} errors)`);
+        if (result.wishlist_imported > 0) parts.push(this._t("toast.vivinoWishlistAdded", { n: result.wishlist_imported }));
+        if (result.errors?.length) parts.push(this._t("toast.errorsCount", { n: result.errors.length }));
         this._showToast(parts.join(" "));
         await this._loadData();
       }
     } catch (err: any) {
-      this._showToast("Vivino sync failed.");
+      this._showToast(this._t("toast.vivinoSyncFailed"));
     }
     this._vivinoSyncing = false;
   }
@@ -1806,18 +1816,18 @@ export class WineCellarCard extends LitElement {
         type: "wine_cellar/remove_from_buy_list",
         item_id: itemId,
       });
-      this._showToast("Removed from buy list");
+      this._showToast(this._t("toast.removedFromBuyList"));
       await this._loadData();
     } catch (err) {
       console.error("Failed to remove from buy list", err);
-      this._showToast("Failed to remove from buy list");
+      this._showToast(this._t("toast.removeFromBuyListFailed"));
     }
   }
 
   private _startMoveBuyListItem(item: Wine) {
     this._movingBuyListItem = item;
     this._activeTab = "all";
-    this._showToast(`Tap a cell to place "${item.name}"`);
+    this._showToast(this._t("toast.tapToPlace", { name: item.name }));
   }
 
   private async _executeMoveTocellar(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0) {
@@ -1834,12 +1844,12 @@ export class WineCellarCard extends LitElement {
       });
       const moved = result?.wine?.id;
       if (zone && moved) await this._placeOnTopOfBin(cabinetId, zone, [moved]);
-      this._showToast(`Moved "${this._movingBuyListItem.name}" to cellar`);
+      this._showToast(this._t("toast.movedToCellar", { name: this._movingBuyListItem.name }));
       this._movingBuyListItem = null;
       await this._loadData();
     } catch (err) {
       console.error("Failed to move to cellar:", err);
-      this._showToast("Failed to move to cellar");
+      this._showToast(this._t("toast.moveToCellarFailed"));
     }
   }
 
@@ -1878,7 +1888,7 @@ export class WineCellarCard extends LitElement {
     if (this._loading) {
       return html`
         <ha-card>
-          <div class="loading">Loading wine cellar...</div>
+          <div class="loading">${this._t("ui.card.loading")}</div>
         </ha-card>
       `;
     }
@@ -1898,7 +1908,7 @@ export class WineCellarCard extends LitElement {
             <span class="title-icon">🍷</span>
             <div class="title-text">
               <div>${title}</div>
-              <div class="title-credit">originally created by @BaconWappedBitcoin</div>
+              <div class="title-credit">${this._t("ui.card.titleCredit")}</div>
             </div>
           </div>
           <div class="header-actions">
@@ -1907,30 +1917,30 @@ export class WineCellarCard extends LitElement {
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #1565c0;"
                 @click=${this._batchAnalyzeWines}
-                title="Full AI analysis on all wines (disposition, ratings, price, description)"
+                title="${this._t("ui.card.fullAiAnalysisTitle")}"
                 ?disabled=${this._analyzing || this._batchVivino}
               >
-                ${this._analyzing ? "AI Scanning..." : "🤖 AI Batch Scan"}
+                ${this._analyzing ? this._t("ui.card.aiScanning") : this._t("ui.card.aiBatchScanBtn")}
               </button>
             ` : nothing}
             <button
               class="btn btn-primary"
               style="font-size: 0.8em; padding: 5px 10px; background: #8e24aa;"
               @click=${this._batchRefreshVivino}
-              title="Refresh all wines from Vivino (ratings, price, description)"
+              title="${this._t("ui.card.refreshVivinoTitle")}"
               ?disabled=${this._batchVivino || this._analyzing}
             >
-              ${this._batchVivino ? "Vivino Scanning..." : "🍇 Vivino Batch Scan"}
+              ${this._batchVivino ? this._t("ui.card.vivinoScanning") : this._t("ui.card.vivinoBatchScanBtn")}
             </button>
             ${this._hasVivinoAccount ? html`
               <button
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #b71c1c;"
                 @click=${this._syncVivino}
-                title="Import your Vivino cellar and wishlist into Cork Dork"
+                title="${this._t("ui.card.importVivinoTitle")}"
                 ?disabled=${this._vivinoSyncing || this._batchVivino || this._analyzing}
               >
-                ${this._vivinoSyncing ? "Vivino Syncing..." : "🔄 Vivino Sync"}
+                ${this._vivinoSyncing ? this._t("ui.card.vivinoSyncing") : this._t("ui.card.vivinoSyncBtn")}
               </button>
             ` : nothing}
             ${this._hasGemini ? html`
@@ -1938,18 +1948,18 @@ export class WineCellarCard extends LitElement {
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #00695c;"
                 @click=${() => (this._showWineList = true)}
-                title="Scan a wine list or receipt for ratings and value"
+                title="${this._t("ui.card.scanListTitle")}"
               >
-                🍽️ Scan List
+                ${this._t("ui.card.scanListBtn")}
               </button>
             ` : nothing}
             <button
               class="btn btn-primary"
               style="font-size: 0.8em; padding: 5px 10px; background: #37474f;"
               @click=${() => (this._showInventory = true)}
-              title="Browse full cellar inventory"
+              title="${this._t("ui.card.inventoryTitle")}"
             >
-              📦 Inventory
+              ${this._t("ui.card.inventoryBtn")}
             </button>
             <button
               class="btn btn-primary"
@@ -1958,7 +1968,7 @@ export class WineCellarCard extends LitElement {
                 this._showAddDialog = true;
               }}
             >
-              + Add Wine
+              ${this._t("ui.card.addWineBtn")}
             </button>
           </div>
         </div>
@@ -1967,8 +1977,8 @@ export class WineCellarCard extends LitElement {
         ${this._copiedWine
           ? html`
               <div class="copy-banner">
-                <span>📋 Copying "${this._copiedWine.name}" — tap empty cells or bulk/box zones to place copies</span>
-                <button @click=${() => (this._copiedWine = null)}>✕ Done</button>
+                <span>📋 ${this._t("ui.card.copyBannerText", { name: this._copiedWine.name })}</span>
+                <button @click=${() => (this._copiedWine = null)}>✕ ${this._t("ui.card.doneBtn")}</button>
               </div>
             `
           : nothing}
@@ -1977,8 +1987,8 @@ export class WineCellarCard extends LitElement {
         ${this._movingWine
           ? html`
               <div class="copy-banner">
-                <span>📦 Moving "${this._movingWine.name}" — tap a cell to place it</span>
-                <button @click=${() => (this._movingWine = null)}>✕ Cancel</button>
+                <span>📦 ${this._t("ui.card.moveBannerText", { name: this._movingWine.name })}</span>
+                <button @click=${() => (this._movingWine = null)}>✕ ${this._t("ui.common.cancel")}</button>
               </div>
             `
           : nothing}
@@ -1987,8 +1997,8 @@ export class WineCellarCard extends LitElement {
         ${this._movingBuyListItem
           ? html`
               <div class="buy-list-banner">
-                <span>🛒 Placing "${this._movingBuyListItem.name}" — tap a cell in your cellar</span>
-                <button @click=${() => (this._movingBuyListItem = null)}>✕ Cancel</button>
+                <span>🛒 ${this._t("ui.card.buyListMoveBannerText", { name: this._movingBuyListItem.name })}</span>
+                <button @click=${() => (this._movingBuyListItem = null)}>✕ ${this._t("ui.common.cancel")}</button>
               </div>
             `
           : nothing}
@@ -1999,21 +2009,21 @@ export class WineCellarCard extends LitElement {
               <div class="stats-bar">
                 <div class="stat">
                   <span class="stat-value">${this._stats.total_bottles}</span>
-                  bottles
+                  ${this._t("ui.card.statBottles")}
                 </div>
                 <div class="stat">
                   <span class="stat-value">${this._stats.total_capacity}</span>
-                  capacity
+                  ${this._t("ui.card.statCapacity")}
                 </div>
                 <div class="stat">
                   <span class="stat-value">${this._stats.available_slots}</span>
-                  available
+                  ${this._t("ui.card.statAvailable")}
                 </div>
                 ${this._stats.unplaced_bottles > 0
                   ? html`
-                      <div class="stat" title="Bottles in Unassigned, not yet placed on a rack">
+                      <div class="stat" title="${this._t("ui.card.unplacedTitle")}">
                         <span class="stat-value" style="color:#e65100">${this._stats.unplaced_bottles}</span>
-                        unplaced
+                        ${this._t("ui.card.statUnplaced")}
                       </div>
                     `
                   : nothing}
@@ -2021,11 +2031,11 @@ export class WineCellarCard extends LitElement {
                   ? html`
                       <div
                         class="stat stat-action"
-                        title="Suggestions read from where your bottles already are"
+                        title="${this._t("ui.card.suggestionsTitle")}"
                         @click=${() => (this._showArrangement = true)}
                       >
                         <span class="stat-value">🧹 ${this._arrangementFindings.length}</span>
-                        ${this._arrangementFindings.length === 1 ? "tidy-up" : "tidy-ups"}
+                        ${this._arrangementFindings.length === 1 ? this._t("ui.card.tidyUp") : this._t("ui.card.tidyUps")}
                       </div>
                     `
                   : nothing}
@@ -2033,7 +2043,7 @@ export class WineCellarCard extends LitElement {
                   ? html`
                       <div class="stat">
                         <span class="stat-value">${this._metadataCurrency} ${this._stats.total_value.toLocaleString()}</span>
-                        value
+                        ${this._t("ui.card.statValue")}
                         ${this._stats.total_cost
                           ? html`<span style="font-size:0.75em;color:${this._stats.total_value - this._stats.total_cost >= 0 ? '#2e7d32' : '#c62828'}">${this._stats.total_value - this._stats.total_cost >= 0 ? '+' : ''}${this._metadataCurrency} ${(this._stats.total_value - this._stats.total_cost).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>`
                           : nothing}
@@ -2050,7 +2060,7 @@ export class WineCellarCard extends LitElement {
             class="tab ${this._activeTab === "all" ? "active" : ""}"
             @click=${() => (this._activeTab = "all")}
           >
-            All Sections
+            ${this._t("ui.card.allSections")}
           </button>
           ${this._cabinets.map(
             (cab) => html`
@@ -2070,7 +2080,7 @@ export class WineCellarCard extends LitElement {
                   @click=${() => (this._activeTab = "unassigned")}
                   style="${this._activeTab !== "unassigned" ? "border-color: #e65100; color: #e65100;" : ""}"
                 >
-                  Unassigned (${unassignedWines.length})
+                  ${this._t("ui.card.unassignedTab", { n: unassignedWines.length })}
                 </button>
               `
             : nothing}
@@ -2079,24 +2089,25 @@ export class WineCellarCard extends LitElement {
             @click=${() => (this._activeTab = "buy-list")}
             style="${this._activeTab === "buy-list" ? "border-color: #e65100; color: #e65100;" : ""}"
           >
-            Buy List (${this._buyList.length})
+            ${this._t("ui.card.buyListTab", { n: this._buyList.length })}
           </button>
           <button
             class="tab manage-racks-btn"
             @click=${() => (this._showRackSettings = true)}
           >
-            Manage Racks
+            ${this._t("ui.card.manageRacks")}
           </button>
           <button
             class="tab settings-tab-btn"
             @click=${() => (this._showVivinoAiSettings = true)}
           >
-            ⚙️ Vivino/AI Settings
+            ${this._t("ui.card.vivinoAiSettings")}
           </button>
         </div>
 
         <!-- Search bar -->
         <wine-search-bar
+          .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
           @search-change=${this._onSearch}
@@ -2120,7 +2131,7 @@ export class WineCellarCard extends LitElement {
                           @wine-drop=${this._onWineDrop}
                           @wine-longpress=${(e: CustomEvent) => {
                             this._movingWine = e.detail.wine;
-                            this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+                            this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
                           }}
                         ></cabinet-grid>
                       `
@@ -2141,7 +2152,7 @@ export class WineCellarCard extends LitElement {
                             @wine-longpress=${(e: CustomEvent) => {
                               this._activeTab = "all";
                               this._movingWine = e.detail.wine;
-                              this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+                              this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
                             }}
                           ></cabinet-grid>
                         `
@@ -2151,7 +2162,7 @@ export class WineCellarCard extends LitElement {
                 ? html`
                     <div style="padding: 8px 16px 2px">
                       <div style="font-size: 0.9em; font-weight: 600; color: var(--wc-text-secondary); margin-bottom: 4px">
-                        📦 Unassigned (${unassignedWines.length})
+                        ${this._t("ui.card.unassignedSectionHeader", { n: unassignedWines.length })}
                       </div>
                     </div>
                     <div class="wine-list" style="border-top: 1px solid var(--wc-border)">
@@ -2176,7 +2187,7 @@ export class WineCellarCard extends LitElement {
                                   ${wine.rating ? ` · ★${wine.rating}` : ""}
                                 </div>
                               </div>
-                              <div class="wine-list-location" style="color:#e65100">Unassigned</div>
+                              <div class="wine-list-location" style="color:#e65100">${this._t("wineLocation.unassigned")}</div>
                             </div>
                           `;
                         })}
@@ -2195,10 +2206,10 @@ export class WineCellarCard extends LitElement {
                       <div class="empty-state">
                         <div class="empty-state-icon">🛒</div>
                         <div style="font-weight: 500; margin-bottom: 4px">
-                          Your buy list is empty
+                          ${this._t("ui.card.buyListEmpty")}
                         </div>
                         <div style="font-size: 0.9em">
-                          Use 🛒 Buy List in Add Wine, or 🛒 Buy in the list scanner
+                          ${this._t("ui.card.buyListEmptyHint")}
                         </div>
                       </div>
                     `
@@ -2226,14 +2237,14 @@ export class WineCellarCard extends LitElement {
                             <button
                               class="bl-cellar-btn"
                               @click=${(e: Event) => { e.stopPropagation(); this._startMoveBuyListItem(item); }}
-                              title="Move to cellar"
+                              title="${this._t("ui.card.moveToCellar")}"
                             >
-                              + Cellar
+                              ${this._t("ui.card.addToCellarBtn")}
                             </button>
                             <button
                               class="bl-remove-btn"
                               @click=${(e: Event) => { e.stopPropagation(); this._removeBuyListItem(item.id); }}
-                              title="Remove from buy list"
+                              title="${this._t("ui.card.removeFromBuyList")}"
                             >
                               ✕
                             </button>
@@ -2250,7 +2261,7 @@ export class WineCellarCard extends LitElement {
           ? html`
               <div class="wine-list">
                 <div style="padding: 12px 16px 4px; font-size: 0.85em; color: var(--wc-text-secondary)">
-                  These wines are not assigned to any rack. Tap a wine to view details, then use Move to place it.
+                  ${this._t("ui.card.unassignedHint")}
                 </div>
                 ${unassignedWines.map((wine) => {
                     const typeColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
@@ -2278,14 +2289,14 @@ export class WineCellarCard extends LitElement {
                                   wine.disposition === "H" ? "#1565c0" :
                                   wine.disposition === "P" ? "#c62828" : "inherit"
                                 }">${
-                                  wine.disposition === "D" ? "Drink" :
-                                  wine.disposition === "H" ? "Hold" :
-                                  wine.disposition === "P" ? "Past Peak" : ""
+                                  wine.disposition === "D" ? this._t("ui.disposition.drink") :
+                                  wine.disposition === "H" ? this._t("ui.disposition.hold") :
+                                  wine.disposition === "P" ? this._t("ui.disposition.pastPeak") : ""
                                 }</span>`
                               : nothing}
                           </div>
                         </div>
-                        <div class="wine-list-location">Unassigned</div>
+                        <div class="wine-list-location">${this._t("wineLocation.unassigned")}</div>
                       </div>
                     `;
                   })}
@@ -2300,7 +2311,7 @@ export class WineCellarCard extends LitElement {
                 ${filteredWines.length === 0
                   ? html`
                       <div class="empty-state">
-                        <div>No wines match your search</div>
+                        <div>${this._t("ui.card.noSearchResults")}</div>
                       </div>
                     `
                   : filteredWines.map((wine) => {
@@ -2343,9 +2354,9 @@ export class WineCellarCard extends LitElement {
                                     wine.disposition === "H" ? "#1565c0" :
                                     wine.disposition === "P" ? "#c62828" : "inherit"
                                   }">${
-                                    wine.disposition === "D" ? "Drink" :
-                                    wine.disposition === "H" ? "Hold" :
-                                    wine.disposition === "P" ? "Past Peak" : ""
+                                    wine.disposition === "D" ? this._t("ui.disposition.drink") :
+                                    wine.disposition === "H" ? this._t("ui.disposition.hold") :
+                                    wine.disposition === "P" ? this._t("ui.disposition.pastPeak") : ""
                                   }</span>`
                                 : nothing}
                             </div>
@@ -2364,10 +2375,10 @@ export class WineCellarCard extends LitElement {
               <div class="empty-state">
                 <div class="empty-state-icon">🍾</div>
                 <div style="font-weight: 500; margin-bottom: 4px">
-                  Your cellar is empty
+                  ${this._t("ui.card.cellarEmpty")}
                 </div>
                 <div style="font-size: 0.9em">
-                  Tap "Add Wine" to start building your collection
+                  ${this._t("ui.card.cellarEmptyHint")}
                 </div>
               </div>
             `
@@ -2377,9 +2388,9 @@ export class WineCellarCard extends LitElement {
         ${this._showBatchVivinoConfirm ? html`
           <div class="dialog-overlay" @click=${() => (this._showBatchVivinoConfirm = false)}>
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
-              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Vivino Batch Scan</h3>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.vivinoBatchScanTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                Some wines already have a photo. What should happen to those photos?
+                ${this._t("ui.card.somePhotosQuestion")}
               </p>
               ${this._hasGemini ? html`
                 <label style="display:flex;align-items:center;gap:6px;justify-content:center;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
@@ -2388,21 +2399,21 @@ export class WineCellarCard extends LitElement {
                     .checked=${this._batchAiFallback}
                     @change=${(e: Event) => (this._batchAiFallback = (e.target as HTMLInputElement).checked)}
                   />
-                  Try AI for wines with no confident Vivino match
+                  ${this._t("ui.card.tryAiNoMatch")}
                 </label>
               ` : nothing}
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#8e24aa" @click=${() => this._runBatchVivino("keep")}>
-                  Keep My Existing Photos
+                  ${this._t("ui.card.keepExistingPhotos")}
                 </button>
                 <button
                   style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                   @click=${() => this._runBatchVivino("replace")}
-                >Replace With Vivino Photos</button>
+                >${this._t("ui.card.replaceWithVivinoPhotos")}</button>
                 <button
                   style="margin-top:4px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                   @click=${() => (this._showBatchVivinoConfirm = false)}
-                >Cancel</button>
+                >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
           </div>
@@ -2412,18 +2423,18 @@ export class WineCellarCard extends LitElement {
         ${this._showBatchAiConfirm ? html`
           <div class="dialog-overlay" @click=${() => (this._showBatchAiConfirm = false)}>
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
-              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Run AI Batch Scan?</h3>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.runAiBatchTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                This will run a full AI analysis on all ${this._wines.length} wines, one API call per bottle. It may take a while and use significant AI quota.
+                ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
               </p>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
-                  Run on ${this._wines.length} Wines
+                  ${this._t("ui.card.runOnNWines", { n: this._wines.length })}
                 </button>
                 <button
                   style="margin-top:4px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                   @click=${() => (this._showBatchAiConfirm = false)}
-                >Cancel</button>
+                >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
           </div>
@@ -2458,7 +2469,7 @@ export class WineCellarCard extends LitElement {
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
-            this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+            this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
           }}
         ></wine-detail-dialog>
 
@@ -2527,7 +2538,7 @@ export class WineCellarCard extends LitElement {
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
-            this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+            this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
           }}
           @remove-wine=${this._onRemoveWine}
         ></inventory-dialog>
@@ -2544,6 +2555,7 @@ export class WineCellarCard extends LitElement {
 
         <vivino-ai-settings-dialog
           .open=${this._showVivinoAiSettings}
+          .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
@@ -2562,9 +2574,9 @@ export class WineCellarCard extends LitElement {
               <div class="depth-panel open">
                 <div class="depth-panel-header">
                   <span class="depth-panel-title">
-                    Row ${(this._depthPanelRow ?? 0) + 1}, Col ${(this._depthPanelCol ?? 0) + 1}
+                    ${this._t("ui.card.depthPanelRowCol", { row: (this._depthPanelRow ?? 0) + 1, col: (this._depthPanelCol ?? 0) + 1 })}
                     <span class="depth-panel-subtitle">
-                      ${this._depthPanelWines.length}/${this._depthPanelMaxDepth} deep
+                      ${this._t("ui.card.depthPanelDeepCount", { n: this._depthPanelWines.length, max: this._depthPanelMaxDepth })}
                     </span>
                   </span>
                   <button class="depth-panel-close" @click=${this._closeDepthPanel}>✕</button>
@@ -2603,7 +2615,7 @@ export class WineCellarCard extends LitElement {
                           : html`
                               <div class="depth-slot-empty">
                                 <span class="depth-slot-plus">+</span>
-                                <span>Empty</span>
+                                <span>${this._t("ui.common.empty")}</span>
                               </div>
                             `}
                       </div>
@@ -2627,7 +2639,7 @@ export class WineCellarCard extends LitElement {
                     ${this._zonePanelName}
                     <span class="depth-panel-subtitle">
                       ${this._zonePanelWines.length}/${this._zonePanelCapacity}
-                      ${this._zonePanelType === "box" ? "bottles" : "stored"}
+                      ${this._zonePanelType === "box" ? this._t("ui.card.statBottles") : this._t("ui.card.panelStored")}
                     </span>
                   </span>
                   <span class="depth-panel-actions">
@@ -2635,7 +2647,7 @@ export class WineCellarCard extends LitElement {
                       ? html`<button
                           class="depth-panel-sort"
                           ?disabled=${this._zoneSorting}
-                          title="Renumber the slots to match when bottles were added"
+                          title="${this._t("ui.card.renumberTitle")}"
                           @click=${() => (this._confirmZoneSort = true)}
                         >
                           ${this._zoneSorting ? "Sorting…" : "↕ Sort by date"}
@@ -2647,26 +2659,24 @@ export class WineCellarCard extends LitElement {
                 ${this._confirmZoneSort
                   ? html`
                       <div class="depth-panel-confirm">
-                        <strong>Reorder by date added?</strong>
+                        <strong>${this._t("ui.card.reorderByDateTitle")}</strong>
                         <span>
-                          Every bottle in ${this._zonePanelName} moves to a slot matching when
-                          it was added. Any order you arranged by hand is lost. Slot 1 is the
-                          most accessible position.
+                          ${this._t("ui.card.reorderByDateBody", { zone: this._zonePanelName })}
                         </span>
                         <span class="depth-panel-confirm-btns">
-                          <button @click=${() => (this._confirmZoneSort = false)}>Cancel</button>
+                          <button @click=${() => (this._confirmZoneSort = false)}>${this._t("ui.common.cancel")}</button>
                           <button
-                            title="Slot 1 holds the bottle that has been in this bin longest — for a bin you fill in a row"
+                            title="${this._t("ui.card.oldestFirstTitle")}"
                             @click=${() => this._sortZoneByDateAdded("oldest")}
                           >
-                            Oldest first
+                            ${this._t("ui.card.oldestFirst")}
                           </button>
                           <button
                             class="primary"
-                            title="Slot 1 holds the bottle you added last — for a bin you stack, where the newest sits on top"
+                            title="${this._t("ui.card.newestFirstTitle")}"
                             @click=${() => this._sortZoneByDateAdded("newest")}
                           >
-                            Newest first
+                            ${this._t("ui.card.newestFirst")}
                           </button>
                         </span>
                       </div>
@@ -2697,10 +2707,10 @@ export class WineCellarCard extends LitElement {
                             >
                               <span
                                 class="depth-slot-delete"
-                                title="Delete this slot"
+                                title="${this._t("ui.card.deleteThisSlot")}"
                                 @click=${(e: Event) => { e.stopPropagation(); this._deleteZoneSlot(slotIdx); }}
                               >✕</span>
-                              <div class="depth-slot-label">Slot ${slotIdx + 1}</div>
+                              <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotIdx + 1 })}</div>
                               ${wine
                                 ? html`
                                     <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
@@ -2723,14 +2733,14 @@ export class WineCellarCard extends LitElement {
                                 : html`
                                     <div class="depth-slot-empty">
                                       <span class="depth-slot-plus">+</span>
-                                      <span>Empty</span>
+                                      <span>${this._t("ui.common.empty")}</span>
                                     </div>
                                   `}
                             </div>
                           `;
                         })}
                         <div class="depth-panel-grow" @click=${this._addBulkSlot}>
-                          <span class="depth-slot-plus">+</span> Add Slot
+                          <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                         </div>
                       `
                     : html`
@@ -2744,7 +2754,7 @@ export class WineCellarCard extends LitElement {
                             return html`
                               ${boxes.length > 1
                                 ? html`<div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${bi > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
-                                    Box ${bi + 1} (${boxSize}-pack)
+                                    ${this._t("ui.card.boxHeader", { n: bi + 1, size: boxSize })}
                                   </div>`
                                 : nothing}
                               ${Array.from({ length: boxSize }, (_, slotInBox) => {
@@ -2769,10 +2779,10 @@ export class WineCellarCard extends LitElement {
                                   >
                                     <span
                                       class="depth-slot-delete"
-                                      title="Delete this slot"
+                                      title="${this._t("ui.card.deleteThisSlot")}"
                                       @click=${(e: Event) => { e.stopPropagation(); this._deleteZoneSlot(depthIdx); }}
                                     >✕</span>
-                                    <div class="depth-slot-label">Slot ${slotInBox + 1}</div>
+                                    <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInBox + 1 })}</div>
                                     ${wine
                                       ? html`
                                           <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
@@ -2795,7 +2805,7 @@ export class WineCellarCard extends LitElement {
                                       : html`
                                           <div class="depth-slot-empty">
                                             <span class="depth-slot-plus">+</span>
-                                            <span>Empty</span>
+                                            <span>${this._t("ui.common.empty")}</span>
                                           </div>
                                         `}
                                   </div>
@@ -2812,7 +2822,7 @@ export class WineCellarCard extends LitElement {
                             ${BOX_SIZES.map((s) => html`<option value=${s} ?selected=${s === this._zonePanelNewBoxSize}>${s}-pk</option>`)}
                           </select>
                           <div class="depth-panel-grow" @click=${this._addBoxSlot}>
-                            <span class="depth-slot-plus">+</span> Add Box
+                            <span class="depth-slot-plus">+</span> ${this._t("ui.card.addBox")}
                           </div>
                         </div>
                       `}
@@ -2830,7 +2840,7 @@ export class WineCellarCard extends LitElement {
                   <span class="depth-panel-title">
                     ${this._rackPanelCabinet?.name}
                     <span class="depth-panel-subtitle">
-                      ${this._rackPanelWines.length}/${this._getRackSlots().length} bottles
+                      ${this._t("ui.card.rackPanelBottlesCount", { n: this._rackPanelWines.length, max: this._getRackSlots().length })}
                     </span>
                   </span>
                   <button class="depth-panel-close" @click=${this._closeRackPanel}>✕</button>
@@ -2860,12 +2870,12 @@ export class WineCellarCard extends LitElement {
                           ? html`
                               <span
                                 class="depth-slot-delete"
-                                title="Delete this slot"
+                                title="${this._t("ui.card.deleteThisSlot")}"
                                 @click=${(e: Event) => { e.stopPropagation(); this._deleteRackSlot(row, col); }}
                               >✕</span>
                             `
                           : nothing}
-                        <div class="depth-slot-label">Slot ${slotIdx + 1}</div>
+                        <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotIdx + 1 })}</div>
                         ${wine
                           ? html`
                               <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
@@ -2880,7 +2890,7 @@ export class WineCellarCard extends LitElement {
                                   <div class="depth-slot-meta">
                                     ${wine.vintage || "NV"}
                                     ${wine.rating ? html` · ★${wine.rating}` : nothing}
-                                    ${wines.length > 1 ? html` · ${wines.length} deep` : nothing}
+                                    ${wines.length > 1 ? html` · ${this._t("ui.card.deepSuffix", { n: wines.length })}` : nothing}
                                   </div>
                                 </div>
                               </div>
@@ -2888,14 +2898,14 @@ export class WineCellarCard extends LitElement {
                           : html`
                               <div class="depth-slot-empty">
                                 <span class="depth-slot-plus">+</span>
-                                <span>Empty</span>
+                                <span>${this._t("ui.common.empty")}</span>
                               </div>
                             `}
                       </div>
                     `;
                   })}
                   <div class="depth-panel-grow" @click=${this._addRackSlot}>
-                    <span class="depth-slot-plus">+</span> Add Slot
+                    <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                   </div>
                 </div>
               </div>

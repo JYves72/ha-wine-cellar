@@ -1,8 +1,9 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Wine, Cabinet, TastingNotes, WINE_TYPE_LABELS, WINE_TYPE_COLORS, WineType, REMOVAL_REASONS, getWineLocation } from "../models";
+import { Wine, Cabinet, TastingNotes, getWineTypeLabels, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation } from "../models";
 import { sharedStyles } from "../styles";
 import { resizeImageForStorage } from "../utils/image";
+import { t } from "../i18n";
 import "./star-rating";
 import "./label-camera";
 
@@ -568,6 +569,11 @@ export class WineDetailDialog extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   updated(changedProps: Map<string, unknown>) {
     if (changedProps.has("wine") && this.wine) {
       this._userRating = this.wine.user_rating ?? 0;
@@ -668,7 +674,7 @@ export class WineDetailDialog extends LitElement {
           );
           if (duplicates.length > 0) {
             propagateNotes = window.confirm(
-              `Apply this note to your other ${duplicates.length} bottle${duplicates.length > 1 ? "s" : ""} of ${this.wine.name} too?`
+              this._t("ui.wineDetail.applyNoteConfirm", { count: duplicates.length, plural: duplicates.length > 1 ? "s" : "", name: this.wine.name })
             );
           }
         }
@@ -925,7 +931,7 @@ export class WineDetailDialog extends LitElement {
   private _onDeletePhoto() {
     const field = this._photoSide === "back" ? "back_image_url" : "image_url";
     if (!this.wine?.[field]) return;
-    if (!window.confirm(this._photoSide === "back" ? "Delete this bottle's back label photo?" : "Delete this bottle's photo?")) return;
+    if (!window.confirm(this._photoSide === "back" ? this._t("ui.wineDetail.deleteBackPhotoConfirm") : this._t("ui.wineDetail.deletePhotoConfirm"))) return;
     this._updatePhoto("", field);
   }
 
@@ -978,7 +984,7 @@ export class WineDetailDialog extends LitElement {
       }
       const r = result.result;
       if (!r) {
-        alert("Could not identify the label. Try a clearer photo.");
+        alert(this._t("ui.wineDetail.couldNotIdentifyLabel"));
         return;
       }
       const thumbUrl = await resizeImageForStorage(raw);
@@ -1002,7 +1008,7 @@ export class WineDetailDialog extends LitElement {
       this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
     } catch (err) {
       console.error("Label scan failed", err);
-      alert("Label scan failed. Please try again.");
+      alert(this._t("ui.wineDetail.labelScanFailed"));
     }
     this._scanningLabel = false;
   }
@@ -1035,11 +1041,13 @@ export class WineDetailDialog extends LitElement {
   // having tried at all.
   private _renderSourceDates(updatedAt: string | null, checkedAt: string | null) {
     if (!updatedAt) {
-      return html`nothing found · checked ${this._formatUpdatedAt(checkedAt)}`;
+      return html`${this._t("ui.wineDetail.nothingFoundChecked", { date: this._formatUpdatedAt(checkedAt) })}`;
     }
     if (checkedAt && checkedAt > updatedAt) {
-      return html`${this._formatUpdatedAt(updatedAt)} · rechecked
-        ${this._formatUpdatedAt(checkedAt)}, nothing new`;
+      return html`${this._t("ui.wineDetail.recheckedNothingNew", {
+        date1: this._formatUpdatedAt(updatedAt),
+        date2: this._formatUpdatedAt(checkedAt),
+      })}`;
     }
     return html`${this._formatUpdatedAt(updatedAt)}`;
   }
@@ -1059,19 +1067,19 @@ export class WineDetailDialog extends LitElement {
     return html`
       <div class="edit-form">
         <div class="form-group">
-          <label>Wine Name</label>
+          <label>${this._t("ui.wineDetail.wineNameLabel")}</label>
           <input type="text" .value=${d.name}
             @input=${(e: Event) => this._updateEditField("name", (e.target as HTMLInputElement).value)} />
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Winery</label>
+            <label>${this._t("ui.wineDetail.wineryLabel")}</label>
             <input type="text" .value=${d.winery}
               @input=${(e: Event) => this._updateEditField("winery", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
-            <label>Vintage</label>
+            <label>${this._t("ui.wineDetail.vintageLabel")}</label>
             <input type="number" .value=${d.vintage?.toString() || ""}
               @input=${(e: Event) => this._updateEditField("vintage", (e.target as HTMLInputElement).value)} />
           </div>
@@ -1079,16 +1087,16 @@ export class WineDetailDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Type</label>
+            <label>${this._t("ui.wineDetail.typeLabel")}</label>
             <select .value=${d.type}
               @change=${(e: Event) => this._updateEditField("type", (e.target as HTMLSelectElement).value)}>
-              ${(Object.entries(WINE_TYPE_LABELS) as [WineType, string][]).map(
+              ${(Object.entries(getWineTypeLabels(this.hass?.language)) as [WineType, string][]).map(
                 ([value, label]) => html`<option value=${value} ?selected=${d.type === value}>${label}</option>`
               )}
             </select>
           </div>
           <div class="form-group">
-            <label>Purchase Price</label>
+            <label>${this._t("ui.wineDetail.purchasePriceLabel")}</label>
             <input type="number" step="0.01" .value=${d.price?.toString() || ""}
               @input=${(e: Event) => this._updateEditField("price", (e.target as HTMLInputElement).value)} />
           </div>
@@ -1096,12 +1104,12 @@ export class WineDetailDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Current Value</label>
+            <label>${this._t("ui.wineDetail.currentValueLabel")}</label>
             <input type="number" step="0.01" .value=${d.retail_price?.toString() || ""}
               @input=${(e: Event) => this._updateEditField("retail_price", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
-            <label>Region</label>
+            <label>${this._t("ui.wineDetail.regionLabel")}</label>
             <input type="text" .value=${d.region}
               @input=${(e: Event) => this._updateEditField("region", (e.target as HTMLInputElement).value)} />
           </div>
@@ -1109,46 +1117,46 @@ export class WineDetailDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Country</label>
+            <label>${this._t("ui.wineDetail.countryLabel")}</label>
             <input type="text" .value=${d.country}
               @input=${(e: Event) => this._updateEditField("country", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
-            <label>Grape Variety</label>
+            <label>${this._t("ui.wineDetail.grapeVarietyLabel")}</label>
             <input type="text" .value=${d.grape_variety}
               @input=${(e: Event) => this._updateEditField("grape_variety", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
-            <label>Alcohol</label>
-            <input type="text" .value=${d.alcohol} placeholder="e.g. 13.5%"
+            <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
+            <input type="text" .value=${d.alcohol} placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
               @input=${(e: Event) => this._updateEditField("alcohol", (e.target as HTMLInputElement).value)} />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Purchase Date</label>
+            <label>${this._t("ui.wineDetail.purchaseDateLabel")}</label>
             <input type="date" .value=${d.purchase_date}
               @input=${(e: Event) => this._updateEditField("purchase_date", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
-            <label>Drink By</label>
-            <input type="text" placeholder="e.g. 2030" .value=${d.drink_by}
+            <label>${this._t("ui.wineDetail.drinkByLabel")}</label>
+            <input type="text" placeholder="${this._t('ui.wineDetail.drinkByPlaceholder')}" .value=${d.drink_by}
               @input=${(e: Event) => this._updateEditField("drink_by", (e.target as HTMLInputElement).value)} />
           </div>
         </div>
 
         <div class="form-group">
-          <label>Notes</label>
+          <label>${this._t("ui.wineDetail.notesLabel")}</label>
           <textarea .value=${d.notes}
             @input=${(e: Event) => this._updateEditField("notes", (e.target as HTMLTextAreaElement).value)}></textarea>
         </div>
       </div>
 
       <div class="edit-actions">
-        <button class="btn btn-outline" @click=${this._cancelEditingFields}>Cancel</button>
+        <button class="btn btn-outline" @click=${this._cancelEditingFields}>${this._t("ui.common.cancel")}</button>
         <button class="btn btn-primary" ?disabled=${this._saving} @click=${this._saveFields}>
-          ${this._saving ? "Saving..." : "Save"}
+          ${this._saving ? this._t("ui.wineDetail.saving") : this._t("ui.wineDetail.save")}
         </button>
       </div>
     `;
@@ -1159,7 +1167,7 @@ export class WineDetailDialog extends LitElement {
 
     const wine = this.wine;
     const typeColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
-    const typeLabel = WINE_TYPE_LABELS[wine.type as WineType] || wine.type;
+    const typeLabel = getWineTypeLabels(this.hass?.language)[wine.type as WineType] || wine.type;
     const showingBack = this._photoSide === "back";
     const currentImageUrl = showingBack ? wine.back_image_url : wine.image_url;
 
@@ -1168,9 +1176,9 @@ export class WineDetailDialog extends LitElement {
         <div class="dialog" style="position:relative" @click=${(e: Event) => e.stopPropagation()}>
           <div class="dialog-top-bar">
             ${this.mode !== "winelist"
-              ? html`<button class="icon-btn" title="Edit" @click=${this._startEditingFields}>✏️</button>`
+              ? html`<button class="icon-btn" title="${this._t('ui.common.edit')}" @click=${this._startEditingFields}>✏️</button>`
               : nothing}
-            <button class="icon-btn close-btn" title="Close" @click=${this._close}>✕</button>
+            <button class="icon-btn close-btn" title="${this._t('ui.common.close')}" @click=${this._close}>✕</button>
           </div>
           <div class="wine-header">
             <div class="wine-image-col">
@@ -1180,22 +1188,22 @@ export class WineDetailDialog extends LitElement {
                 @pointerup=${this._onImageSwipeEnd}
               >
                 ${currentImageUrl
-                  ? html`<img class="wine-image" src="${currentImageUrl}" alt="${wine.name}${showingBack ? " (back label)" : ""}" />`
+                  ? html`<img class="wine-image" src="${currentImageUrl}" alt="${wine.name}${showingBack ? this._t('ui.wineDetail.backLabelSuffix') : ""}" />`
                   : html`
                       <div class="wine-image-placeholder" style="background: ${typeColor}">
                         🍷
                       </div>
                     `}
-                ${showingBack ? html`<div class="photo-side-badge">Back label</div>` : nothing}
+                ${showingBack ? html`<div class="photo-side-badge">${this._t('ui.wineDetail.backLabelBadge')}</div>` : nothing}
                 <div class="photo-dots">
                   <span
                     class="photo-dot ${this._photoSide === "front" ? "active" : ""}"
-                    title="Front label"
+                    title="${this._t('ui.wineDetail.frontLabelTitle')}"
                     @click=${() => (this._photoSide = "front")}
                   ></span>
                   <span
                     class="photo-dot ${showingBack ? "active" : ""}"
-                    title="Back label"
+                    title="${this._t('ui.wineDetail.backLabelBadge')}"
                     @click=${() => (this._photoSide = "back")}
                   ></span>
                 </div>
@@ -1204,14 +1212,14 @@ export class WineDetailDialog extends LitElement {
                       <div class="photo-actions">
                         <button
                           class="photo-action-btn"
-                          title="Replace ${showingBack ? "back label " : ""}photo"
+                          title="${showingBack ? this._t('ui.wineDetail.replaceBackPhotoTitle') : this._t('ui.wineDetail.replacePhotoTitle')}"
                           ?disabled=${this._photoBusy}
                           @click=${() => (this._showPhotoCamera = true)}
                         >📷</button>
                         ${currentImageUrl
                           ? html`<button
                               class="photo-action-btn"
-                              title="Delete ${showingBack ? "back label " : ""}photo"
+                              title="${showingBack ? this._t('ui.wineDetail.deleteBackPhotoTitle') : this._t('ui.wineDetail.deletePhotoTitle')}"
                               ?disabled=${this._photoBusy}
                               @click=${this._onDeletePhoto}
                             >🗑️</button>`
@@ -1222,8 +1230,8 @@ export class WineDetailDialog extends LitElement {
               </div>
               ${this.mode === "cellar"
                 ? html`
-                    <div class="wine-location" title="Tap to locate" @click=${this._onLocate}>
-                      📍 ${getWineLocation(wine, this.cabinets).text}
+                    <div class="wine-location" title="${this._t('ui.wineDetail.tapToLocate')}" @click=${this._onLocate}>
+                      📍 ${getWineLocation(wine, this.cabinets, this.hass?.language).text}
                     </div>
                   `
                 : nothing}
@@ -1241,9 +1249,9 @@ export class WineDetailDialog extends LitElement {
                       wine.disposition === "H" ? "#1565c0" :
                       wine.disposition === "P" ? "#c62828" : "#666"
                     }">${
-                      wine.disposition === "D" ? "Drink Now" :
-                      wine.disposition === "H" ? "Hold" :
-                      wine.disposition === "P" ? "Past Peak" : wine.disposition
+                      wine.disposition === "D" ? this._t("ui.disposition.drinkNow") :
+                      wine.disposition === "H" ? this._t("ui.disposition.hold") :
+                      wine.disposition === "P" ? this._t("ui.disposition.pastPeak") : wine.disposition
                     }</span>`
                   : nothing}
               </div>
@@ -1253,7 +1261,7 @@ export class WineDetailDialog extends LitElement {
                       <span class="rating-star">★</span>
                       ${wine.rating.toFixed(1)}
                       <span style="font-size:0.8em;color:var(--wc-text-secondary)">
-                        Vivino${wine.ratings_count ? ` (${wine.ratings_count.toLocaleString()} ratings)` : ""}
+                        Vivino${wine.ratings_count ? this._t('ui.wineDetail.ratingsCountSuffix', { count: wine.ratings_count.toLocaleString() }) : ""}
                       </span>
                     </div>
                   `
@@ -1261,7 +1269,7 @@ export class WineDetailDialog extends LitElement {
               ${this.mode !== "winelist"
                 ? html`
                     <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
-                      <span style="font-size:0.8em;color:var(--wc-text-secondary)">My Rating</span>
+                      <span style="font-size:0.8em;color:var(--wc-text-secondary)">${this._t('ui.wineDetail.myRating')}</span>
                       <star-rating
                         .value=${this._userRating}
                         .readonly=${!this._editing}
@@ -1269,10 +1277,10 @@ export class WineDetailDialog extends LitElement {
                         @rating-change=${this._onRatingChange}
                       ></star-rating>
                       ${!this._editing && this._userRating === 0
-                        ? html`<span class="no-rating" style="font-size:0.8em">Not rated</span>`
+                        ? html`<span class="no-rating" style="font-size:0.8em">${this._t('ui.common.notRated')}</span>`
                         : nothing}
                       <button class="edit-toggle" style="font-size:0.75em;padding:2px 6px" @click=${() => (this._editing = !this._editing)}>
-                        ${this._editing ? "Cancel" : "Edit"}
+                        ${this._editing ? this._t('ui.common.cancel') : this._t('ui.common.edit')}
                       </button>
                     </div>
                   `
@@ -1290,25 +1298,25 @@ export class WineDetailDialog extends LitElement {
                   ${this.hasGemini
                     ? html`<button class="btn btn-primary" style="background:#1565c0"
                         ?disabled=${this._analyzing} @click=${this._analyzeWithAI}>
-                        ${this._analyzing ? "..." : "🤖 AI Scan"}
+                        ${this._analyzing ? "..." : `🤖 ${this._t("ui.wineDetail.aiScanBtn")}`}
                       </button>
                       <button class="btn btn-primary" style="background:#2e7d32"
                         ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
-                        title="Take a fresh photo of the label to update this bottle's photo and details">
-                        ${this._scanningLabel ? "..." : "📷 Scan Label"}
+                        title="${this._t('ui.wineDetail.scanLabelTitle')}">
+                        ${this._scanningLabel ? "..." : `📷 ${this._t("ui.wineDetail.scanLabelBtn")}`}
                       </button>`
                     : nothing}
                   ${this.mode === "cellar"
                     ? html`
-                        <button class="btn btn-primary" style="background:#546e7a" @click=${this._onCopy}>📋 Copy</button>
-                        <button class="btn btn-primary" style="background:#6d4c41" @click=${this._onMove}>↔ Move</button>
+                        <button class="btn btn-primary" style="background:#546e7a" @click=${this._onCopy}>📋 ${this._t("ui.wineDetail.copyBtn")}</button>
+                        <button class="btn btn-primary" style="background:#6d4c41" @click=${this._onMove}>↔ ${this._t("ui.wineDetail.moveBtn")}</button>
                         ${wine.cabinet_id
-                          ? html`<button class="btn btn-primary" style="background:#ef6c00" @click=${this._moveToUnassigned}>📦 Unassign</button>`
+                          ? html`<button class="btn btn-primary" style="background:#ef6c00" @click=${this._moveToUnassigned}>📦 ${this._t("ui.wineDetail.unassignBtn")}</button>`
                           : nothing}
                       `
                     : nothing}
                   <button class="btn btn-primary" style="background:#c62828"
-                    @click=${this._onRemove}>✕ Remove</button>
+                    @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                   ? html`
@@ -1322,7 +1330,7 @@ export class WineDetailDialog extends LitElement {
                                   style="color:inherit;text-decoration:underline"
                                   @click=${(e: Event) => e.stopPropagation()}
                                 >Vivino</a>`
-                              : html`Vivino`}: ${this._renderSourceDates(
+                              : html`Vivino`}${this._t("ui.common.colonSep")}${this._renderSourceDates(
                                 wine.vivino_updated_at,
                                 wine.vivino_checked_at
                               )}`
@@ -1332,7 +1340,7 @@ export class WineDetailDialog extends LitElement {
                           ? " · "
                           : nothing}
                         ${wine.ai_checked_at || wine.ai_updated_at
-                          ? html`AI: ${this._renderSourceDates(wine.ai_updated_at, wine.ai_checked_at)}`
+                          ? html`${this._t("ui.wineDetail.aiLabel")}${this._t("ui.common.colonSep")}${this._renderSourceDates(wine.ai_updated_at, wine.ai_checked_at)}`
                           : nothing}
                       </div>
                     `
@@ -1348,10 +1356,10 @@ export class WineDetailDialog extends LitElement {
                   ? html`
                       <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''}">
                         ${wine.disposition === "D"
-                          ? (wine.drink_window ? `Drink now \u2022 ${wine.drink_window}` : "Drink now")
+                          ? (wine.drink_window ? this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.drinkNowPlain"))
                           : wine.disposition === "H"
-                            ? (wine.drink_window ? `Hold \u2022 drink ${wine.drink_window}` : wine.drink_by ? `Hold until ${wine.drink_by}` : "Hold")
-                            : (wine.drink_window ? `Past peak \u2022 was ${wine.drink_window}` : "Past peak")}
+                            ? (wine.drink_window ? this._t("ui.wineDetail.holdWithWindow", { window: wine.drink_window }) : wine.drink_by ? this._t("ui.wineDetail.holdUntil", { date: wine.drink_by }) : this._t("ui.wineDetail.holdPlain"))
+                            : (wine.drink_window ? this._t("ui.wineDetail.pastPeakWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.pastPeakPlain"))}
                       </div>
                     `
                   : nothing}
@@ -1394,43 +1402,43 @@ export class WineDetailDialog extends LitElement {
 
                 <!-- Drink window (shown when no disposition banner) -->
                 ${!(wine.disposition) && wine.drink_window
-                  ? html`<div class="drink-window">Drink window: ${wine.drink_window}</div>`
+                  ? html`<div class="drink-window">${this._t("ui.wineDetail.drinkWindowPrefix", { window: wine.drink_window })}</div>`
                   : nothing}
 
                 <div class="details-grid">
                   ${wine.vintage
-                    ? html`<div class="detail-item"><span class="detail-label">Vintage</span><span class="detail-value">${wine.vintage}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.vintageLabel")}</span><span class="detail-value">${wine.vintage}</span></div>`
                     : nothing}
                   ${wine.region
-                    ? html`<div class="detail-item"><span class="detail-label">Region</span><span class="detail-value">${wine.region}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.regionLabel")}</span><span class="detail-value">${wine.region}</span></div>`
                     : nothing}
                   ${wine.country
-                    ? html`<div class="detail-item"><span class="detail-label">Country</span><span class="detail-value">${wine.country}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                     : nothing}
                   ${wine.grape_variety
-                    ? html`<div class="detail-item"><span class="detail-label">Grape</span><span class="detail-value">${wine.grape_variety}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.grapeLabel")}</span><span class="detail-value">${wine.grape_variety}</span></div>`
                     : nothing}
                   ${wine.price
-                    ? html`<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? "Price" : "Purchase Price"}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                     : nothing}
                   ${wine.retail_price
-                    ? html`<div class="detail-item"><span class="detail-label">Current Value</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
                     : nothing}
                   ${wine.purchase_date && this.mode === "cellar"
-                    ? html`<div class="detail-item"><span class="detail-label">Purchased</span><span class="detail-value">${wine.purchase_date}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${wine.purchase_date}</span></div>`
                     : nothing}
                   ${wine.drink_by
-                    ? html`<div class="detail-item"><span class="detail-label">Drink By</span><span class="detail-value">${wine.drink_by}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.drinkByLabel")}</span><span class="detail-value">${wine.drink_by}</span></div>`
                     : nothing}
                   ${wine.barcode && this.mode === "cellar"
-                    ? html`<div class="detail-item"><span class="detail-label">Barcode</span><span class="detail-value">${wine.barcode}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.barcodeLabel")}</span><span class="detail-value">${wine.barcode}</span></div>`
                     : nothing}
                 </div>
 
                 ${wine.notes
                   ? html`
                       <div class="wine-notes">
-                        <div class="detail-label" style="margin-bottom: 4px">Notes</div>
+                        <div class="detail-label" style="margin-bottom: 4px">${this._t("ui.wineDetail.notesLabel")}</div>
                         <div class="wine-notes-text">${wine.notes}</div>
                       </div>
                     `
@@ -1442,40 +1450,40 @@ export class WineDetailDialog extends LitElement {
                 <!-- Tasting Notes section -->
                 <div class="section">
                   <div class="section-header">
-                    <span class="section-title">Tasting Notes</span>
+                    <span class="section-title">${this._t("ui.wineDetail.tastingNotesTitle")}</span>
                   </div>
                   ${this._editing
                     ? html`
                         <div class="tasting-grid">
                           <div class="tasting-field">
-                            <label>Aroma</label>
+                            <label>${this._t("ui.wineDetail.aromaLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.aroma}
-                              placeholder="Berries, oak, vanilla..."
+                              placeholder="${this._t('ui.wineDetail.aromaPlaceholder')}"
                               @input=${(e: Event) => this._onTastingChange("aroma", e)}
                             ></textarea>
                           </div>
                           <div class="tasting-field">
-                            <label>Taste</label>
+                            <label>${this._t("ui.wineDetail.tasteLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.taste}
-                              placeholder="Full-bodied, tannic..."
+                              placeholder="${this._t('ui.wineDetail.tastePlaceholder')}"
                               @input=${(e: Event) => this._onTastingChange("taste", e)}
                             ></textarea>
                           </div>
                           <div class="tasting-field">
-                            <label>Finish</label>
+                            <label>${this._t("ui.wineDetail.finishLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.finish}
-                              placeholder="Long, smooth..."
+                              placeholder="${this._t('ui.wineDetail.finishPlaceholder')}"
                               @input=${(e: Event) => this._onTastingChange("finish", e)}
                             ></textarea>
                           </div>
                           <div class="tasting-field">
-                            <label>Overall</label>
+                            <label>${this._t("ui.wineDetail.overallLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.overall}
-                              placeholder="Overall impression..."
+                              placeholder="${this._t('ui.wineDetail.overallPlaceholder')}"
                               @input=${(e: Event) => this._onTastingChange("overall", e)}
                             ></textarea>
                           </div>
@@ -1486,7 +1494,7 @@ export class WineDetailDialog extends LitElement {
                             ?disabled=${this._saving}
                             @click=${this._saveRating}
                           >
-                            ${this._saving ? "Saving..." : "Save"}
+                            ${this._saving ? this._t("ui.wineDetail.saving") : this._t("ui.wineDetail.save")}
                           </button>
                         </div>
                       `
@@ -1494,20 +1502,20 @@ export class WineDetailDialog extends LitElement {
                       ? html`
                           <div class="tasting-grid">
                             ${this._tastingNotes.aroma
-                              ? html`<div class="tasting-field"><label>Aroma</label><div class="tasting-value">${this._tastingNotes.aroma}</div></div>`
+                              ? html`<div class="tasting-field"><label>${this._t("ui.wineDetail.aromaLabel")}</label><div class="tasting-value">${this._tastingNotes.aroma}</div></div>`
                               : nothing}
                             ${this._tastingNotes.taste
-                              ? html`<div class="tasting-field"><label>Taste</label><div class="tasting-value">${this._tastingNotes.taste}</div></div>`
+                              ? html`<div class="tasting-field"><label>${this._t("ui.wineDetail.tasteLabel")}</label><div class="tasting-value">${this._tastingNotes.taste}</div></div>`
                               : nothing}
                             ${this._tastingNotes.finish
-                              ? html`<div class="tasting-field"><label>Finish</label><div class="tasting-value">${this._tastingNotes.finish}</div></div>`
+                              ? html`<div class="tasting-field"><label>${this._t("ui.wineDetail.finishLabel")}</label><div class="tasting-value">${this._tastingNotes.finish}</div></div>`
                               : nothing}
                             ${this._tastingNotes.overall
-                              ? html`<div class="tasting-field full-width"><label>Overall</label><div class="tasting-value">${this._tastingNotes.overall}</div></div>`
+                              ? html`<div class="tasting-field full-width"><label>${this._t("ui.wineDetail.overallLabel")}</label><div class="tasting-value">${this._tastingNotes.overall}</div></div>`
                               : nothing}
                           </div>
                         `
-                      : html`<div class="no-rating">No tasting notes yet. Tap Edit to add your thoughts.</div>`
+                      : html`<div class="no-rating">${this._t("ui.wineDetail.noTastingNotes")}</div>`
                   }
                 </div>
                 ` : nothing}
@@ -1516,10 +1524,10 @@ export class WineDetailDialog extends LitElement {
           ${this._showRemoveConfirm ? html`
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
-                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Remove Wine</h3>
-                <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">Why are you removing this bottle?</p>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.removeWineTitle")}</h3>
+                <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.removeWineQuestion")}</p>
                 <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
-                  ${REMOVAL_REASONS.map(r => html`
+                  ${getRemovalReasons(this.hass?.language).map(r => html`
                     <button
                       style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em;transition:all 0.15s"
                       @click=${() => this._confirmRemove(r.id)}
@@ -1529,19 +1537,19 @@ export class WineDetailDialog extends LitElement {
                 <button
                   style="margin-top:12px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                   @click=${() => (this._showRemoveConfirm = false)}
-                >Cancel</button>
+                >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
           ` : nothing}
           ${this._pendingVivinoImage ? html`
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
-                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Vivino Photo Available</h3>
-                <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">Vivino found a different bottle photo. Keep your current photo or use Vivino's?</p>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.vivinoPhotoAvailableTitle")}</h3>
+                <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.vivinoPhotoAvailableBody")}</p>
                 <div style="display:flex;gap:12px;justify-content:center;margin-bottom:16px">
                   <div style="text-align:center">
                     <img src="${wine.image_url}" style="width:70px;height:100px;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.2)" />
-                    <div style="font-size:0.7em;color:var(--wc-text-secondary);margin-top:4px">Current</div>
+                    <div style="font-size:0.7em;color:var(--wc-text-secondary);margin-top:4px">${this._t("ui.wineDetail.currentPhotoLabel")}</div>
                   </div>
                   <div style="text-align:center">
                     <img src="${this._pendingVivinoImage}" style="width:70px;height:100px;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.2)" />
@@ -1552,8 +1560,8 @@ export class WineDetailDialog extends LitElement {
                   <button
                     style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                     @click=${this._dismissVivinoPhoto}
-                  >Keep My Photo</button>
-                  <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>Use Vivino's</button>
+                  >${this._t("ui.wineDetail.keepMyPhotoBtn")}</button>
+                  <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
               </div>
             </div>
@@ -1564,12 +1572,12 @@ export class WineDetailDialog extends LitElement {
               @click=${() => (this._showPhotoCamera = false)}
             >
               <div style="width:100%" @click=${(e: Event) => e.stopPropagation()}>
-                <label-camera .active=${this._showPhotoCamera} @photo-captured=${this._onPhotoReplaced}></label-camera>
+                <label-camera .hass=${this.hass} .active=${this._showPhotoCamera} @photo-captured=${this._onPhotoReplaced}></label-camera>
                 <div style="text-align:center;margin-top:12px">
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._showPhotoCamera = false)}
-                  >Cancel</button>
+                  >${this._t("ui.common.cancel")}</button>
                 </div>
               </div>
             </div>
@@ -1580,12 +1588,12 @@ export class WineDetailDialog extends LitElement {
               @click=${() => (this._showLabelCamera = false)}
             >
               <div style="width:100%" @click=${(e: Event) => e.stopPropagation()}>
-                <label-camera .active=${this._showLabelCamera} @photo-captured=${this._onLabelPhotoScanned}></label-camera>
+                <label-camera .hass=${this.hass} .active=${this._showLabelCamera} @photo-captured=${this._onLabelPhotoScanned}></label-camera>
                 <div style="text-align:center;margin-top:12px">
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._showLabelCamera = false)}
-                  >Cancel</button>
+                  >${this._t("ui.common.cancel")}</button>
                 </div>
               </div>
             </div>
@@ -1593,20 +1601,20 @@ export class WineDetailDialog extends LitElement {
           ${this._aiFallbackReason ? html`
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
-                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._aiFallbackReason === "no_match" ? "No Vivino Match" : "No Price Found"}</h3>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._aiFallbackReason === "no_match" ? this._t("ui.wineDetail.noVivinoMatchTitle") : this._t("ui.wineDetail.noPriceFoundTitle")}</h3>
                 <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">${this._aiFallbackReason === "no_match"
-                  ? "Vivino couldn't find a confident match for this wine. Try AI instead?"
-                  : "Vivino has no price for this wine in the selected currency. Estimate it with AI?"}</p>
+                  ? this._t("ui.wineDetail.vivinoNoMatchBody")
+                  : this._t("ui.wineDetail.vivinoNoPriceBody")}</p>
                 <div style="display:flex;flex-direction:column;gap:8px">
-                  <button class="btn btn-primary" style="background:#1565c0" @click=${() => this._confirmAiFallback(false)}>Use AI Once</button>
+                  <button class="btn btn-primary" style="background:#1565c0" @click=${() => this._confirmAiFallback(false)}>${this._t("ui.wineDetail.useAiOnceBtn")}</button>
                   <button
                     style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                     @click=${() => this._confirmAiFallback(true)}
-                  >Always Use AI Automatically</button>
+                  >${this._t("ui.wineDetail.alwaysUseAiBtn")}</button>
                   <button
                     style="margin-top:4px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                     @click=${this._dismissAiFallback}
-                  >Cancel</button>
+                  >${this._t("ui.common.cancel")}</button>
                 </div>
               </div>
             </div>

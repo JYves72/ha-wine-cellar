@@ -15,6 +15,20 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def _bottle_unit(hass: HomeAssistant | None) -> str:
+    """Localized unit label for a bottle-count sensor.
+
+    None of these sensors declare a state_class, so HA never records long-term
+    statistics for them (only raw state history) — there is no "unit of
+    measurement changed" repair to trigger, unlike sensors with state_class
+    where changing the unit string affects the statistics table. Reads the
+    instance-wide HA language (Settings > System > General), not any single
+    frontend viewer's language — a sensor state has no per-viewer context.
+    """
+    lang = getattr(hass.config, "language", "en") if hass else "en"
+    return "bouteilles" if lang == "fr" else "bottles"
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -47,13 +61,17 @@ class WineCellarTotalSensor(SensorEntity):
     """Sensor for total wine bottle count."""
 
     _attr_icon = "mdi:bottle-wine"
-    _attr_native_unit_of_measurement = "bottles"
 
     def __init__(self, storage, entry: ConfigEntry) -> None:
         """Initialize sensor."""
         self._storage = storage
         self._attr_unique_id = f"{entry.entry_id}_total_bottles"
         self._attr_name = "Cork Dork Total Bottles"
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the localized bottle unit."""
+        return _bottle_unit(self.hass)
 
     @property
     def native_value(self) -> int:
@@ -106,13 +124,17 @@ class WineCellarVivinoSyncSensor(SensorEntity):
     """Sensor reporting the last Vivino account sync."""
 
     _attr_icon = "mdi:cloud-sync"
-    _attr_native_unit_of_measurement = "bottles"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize sensor."""
         self._hass = hass
         self._attr_unique_id = f"{entry.entry_id}_vivino_sync"
         self._attr_name = "Cork Dork Vivino Cellar"
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the localized bottle unit."""
+        return _bottle_unit(self._hass)
 
     def _status(self) -> dict[str, Any] | None:
         domain_data = self._hass.data.get(DOMAIN, {})
@@ -165,7 +187,6 @@ class WineCellarCabinetSensor(SensorEntity):
     """Sensor for per-cabinet wine count."""
 
     _attr_icon = "mdi:cupboard"
-    _attr_native_unit_of_measurement = "bottles"
 
     def __init__(self, storage, entry: ConfigEntry, cabinet: dict[str, Any]) -> None:
         """Initialize sensor."""
@@ -173,6 +194,11 @@ class WineCellarCabinetSensor(SensorEntity):
         self._cabinet_id = cabinet["id"]
         self._attr_unique_id = f"{entry.entry_id}_{cabinet['id']}_count"
         self._attr_name = f"Cork Dork {cabinet['name']}"
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Return the localized bottle unit."""
+        return _bottle_unit(self.hass)
 
     @property
     def native_value(self) -> int:

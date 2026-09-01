@@ -1,9 +1,11 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { sharedStyles } from "../styles";
+import { t } from "../i18n";
 
 @customElement("vivino-ai-settings-dialog")
 export class VivinoAiSettingsDialog extends LitElement {
+  @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: String }) metadataLanguage = "en";
@@ -101,6 +103,11 @@ export class VivinoAiSettingsDialog extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   private _close() {
     this.dispatchEvent(new CustomEvent("close"));
   }
@@ -124,8 +131,8 @@ export class VivinoAiSettingsDialog extends LitElement {
       <div class="dialog-overlay" @click=${this._close}>
         <div class="dialog" style="max-width:420px;padding:20px 24px" @click=${(e: Event) => e.stopPropagation()}>
           <div class="dialog-top-bar" style="justify-content:space-between;padding:0 0 8px">
-            <span style="font-weight:600;color:var(--wc-text)">Vivino / AI Settings</span>
-            <button class="icon-btn close-btn" title="Close" @click=${this._close}>✕</button>
+            <span style="font-weight:600;color:var(--wc-text)">${this._t("ui.vivinoAiSettings.title")}</span>
+            <button class="icon-btn close-btn" title="${this._t('ui.common.close')}" @click=${this._close}>✕</button>
           </div>
 
           <div class="settings-row">
@@ -135,12 +142,12 @@ export class VivinoAiSettingsDialog extends LitElement {
                 .checked=${this.aiFallbackAlways}
                 @change=${(e: Event) => this._setFallback((e.target as HTMLInputElement).checked)}
               />
-              Always try AI when Vivino finds no match
+              ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
             </label>
           </div>
 
           <div class="settings-row">
-            <span class="settings-label">Vivino/AI language</span>
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
             <div class="pill-group">
               ${this.supportedLanguages.map((lang) => html`
                 <button
@@ -152,7 +159,7 @@ export class VivinoAiSettingsDialog extends LitElement {
           </div>
 
           <div class="settings-row">
-            <span class="settings-label">Currency</span>
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
             <div class="pill-group">
               ${this.supportedCurrencies.map((cur) => html`
                 <button
@@ -164,33 +171,38 @@ export class VivinoAiSettingsDialog extends LitElement {
           </div>
 
           <div class="info-section">
-            <h3 class="info-title">🍇 Vivino vs 🤖 AI — What Each Provides</h3>
+            <h3 class="info-title">🍇🤖 ${this._t("ui.vivinoAiSettings.infoTitle")}</h3>
 
             <div class="info-block">
-              <div class="info-block-title">🍇 Vivino provides:</div>
+              <div class="info-block-title">🍇 ${this._t("ui.vivinoAiSettings.vivinoProvidesTitle")}</div>
               <ul>
-                <li>Bottle photo</li>
-                <li>Community rating (★) and number of ratings</li>
-                <li>Market price</li>
-                <li>Food pairings</li>
-                <li>Alcohol %</li>
-                <li>Grape variety, region, country, type (when found)</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoBottlePhoto")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoCommunityRating")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoMarketPrice")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoFoodPairings")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoAlcohol")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoGrapeInfo")}</li>
               </ul>
             </div>
 
             <div class="info-block">
-              <div class="info-block-title">🤖 AI provides:</div>
+              <div class="info-block-title">🤖 ${this._t("ui.vivinoAiSettings.aiProvidesTitle")}</div>
               <ul>
-                <li>Estimated price (only fills in when Vivino has none)</li>
-                <li>Tasting description</li>
-                <li>Critic scores (Wine Spectator, Robert Parker, Jeb Dunnuck, Antonio Galloni)</li>
-                <li>Drink Now / Hold / Past Peak + drinking window</li>
-                <li>Grape variety, region, country, type — only when scanning a label photo, not on a refresh</li>
+                <li>${this._t("ui.vivinoAiSettings.aiEstimatedPrice")}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiTastingDescription")}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiCriticScores")}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiDispositionInfo", {
+                  drinkNow: this._t("ui.disposition.drinkNow"),
+                  hold: this._t("ui.disposition.hold"),
+                  pastPeak: this._t("ui.disposition.pastPeak"),
+                  window: this._t("ui.vivinoAiSettings.drinkingWindow"),
+                })}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiGrapeInfo")}</li>
               </ul>
             </div>
 
             <p class="info-note">
-              AI never provides a photo, a Vivino community rating, or food pairings — when Vivino can't find a confident match, AI fills in what it can (mainly price, description, and critic scores), not everything Vivino would have.
+              ${this._t("ui.vivinoAiSettings.infoNote")}
             </p>
           </div>
         </div>

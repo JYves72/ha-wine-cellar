@@ -140,11 +140,28 @@ export function compareNullable<T>(
 // Comma-separated fields (grape varieties, food pairings) are exploded into
 // individual values so the filter menus only ever offer what the cellar
 // actually contains.
+//
+// A plain split(",") breaks on every comma, including ones inside a
+// parenthetical aside — "Game (deer, venison)" became the two fragments
+// "Game (deer" and "venison)" in the filter menu. Commas inside parentheses
+// don't separate values, so depth-tracking skips them.
 export function splitMulti(value: string): string[] {
-  return (value || "")
-    .split(",")
-    .map((v) => v.trim())
-    .filter(Boolean);
+  const source = value || "";
+  const parts: string[] = [];
+  let current = "";
+  let depth = 0;
+  for (const ch of source) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    if (ch === "," && depth === 0) {
+      parts.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  parts.push(current);
+  return parts.map((v) => v.trim()).filter(Boolean);
 }
 
 export function collectFacet(

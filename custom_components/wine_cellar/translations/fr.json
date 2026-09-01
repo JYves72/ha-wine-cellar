@@ -1,0 +1,60 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Cork Dork",
+        "description": "Configuration de Cork Dork. Cela va créer un inventaire de vins avec des sections de cave par défaut. Vous pourrez personnaliser la disposition après la configuration.",
+        "data": {}
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Cork Dork est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de Cork Dork",
+        "description": "Pour synchroniser votre cave Vivino, collez l'URL de la page de votre cave ainsi que votre cookie de session Vivino (voir la documentation : docs/vivino-import.md). Le cookie est vérifié par rapport à votre cave lors de l'enregistrement.",
+        "data": {
+          "default_wine_type": "Type de vin par défaut pour les nouvelles entrées",
+          "ai_provider": "Fournisseur IA",
+          "gemini_api_key": "Clé API Google Gemini (utilisée si le fournisseur est Google Gemini)",
+          "gemini_model": "Nom du modèle Gemini",
+          "ai_base_url": "URL de base de l'IA (utilisée si le fournisseur est compatible OpenAI)",
+          "ai_api_key": "Clé API de l'IA (jeton Bearer)",
+          "ai_model": "Nom du modèle IA",
+          "vivino_cellar_url": "URL de la page de la cave Vivino",
+          "vivino_session_cookie": "Cookie de session Vivino (depuis votre navigateur connecté)",
+          "vivino_auto_sync": "Synchroniser automatiquement la cave Vivino deux fois par jour"
+        },
+        "data_description": {
+          "gemini_model": "Format : gemini-2.5-flash",
+          "ai_base_url": "Format : https://host ou https://host/votre-chemin — avec ou sans /v1/chat/completions final, les deux fonctionnent",
+          "ai_api_key": "Envoyée dans l'en-tête : Authorization: Bearer {key}",
+          "ai_model": "Format : le nom exact du modèle attendu par votre fournisseur, par ex. gemini-2.5-flash",
+          "vivino_cellar_url": "Ouvrez votre cave dans un navigateur et copiez l'adresse depuis la barre d'adresse. Elle se termine par /cellars/ suivi de votre numéro de cave."
+        }
+      }
+    },
+    "error": {
+      "ai_provider_incomplete": "L'URL de base, la clé API et le modèle sont tous requis pour un fournisseur compatible OpenAI.",
+      "ai_provider_invalid_auth": "La clé API de l'IA a été rejetée par le point de terminaison (endpoint).",
+      "ai_provider_cannot_connect": "Impossible de se connecter à l'URL de base de l'IA. Vérifiez l'adresse et réessayez.",
+      "vivino_invalid_auth": "Vivino a rejeté le cookie de session — il est peut-être expiré ou incorrect. Collez-en un nouveau depuis votre navigateur connecté.",
+      "vivino_cannot_connect": "Impossible de joindre Vivino — vérifiez votre connexion réseau et réessayez.",
+      "vivino_incomplete": "Renseignez à la fois l'URL de la cave et le cookie de session, ou laissez les deux vides pour désactiver la connexion."
+    }
+  },
+  "selector": {
+    "wine_type": {
+      "options": {
+        "red": "Rouge",
+        "white": "Blanc",
+        "rosé": "Rosé",
+        "sparkling": "Pétillant",
+        "dessert": "Sucré"
+      }
+    }
+  }
+}

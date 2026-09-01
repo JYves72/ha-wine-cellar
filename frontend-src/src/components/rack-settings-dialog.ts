@@ -1,7 +1,8 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, StorageRowType, STORAGE_ROW_TYPE_LABELS, BOX_SIZES } from "../models";
+import { Cabinet, Wine, StorageRow, StorageRowType, getStorageRowTypeLabels, BOX_SIZES } from "../models";
 import { sharedStyles } from "../styles";
+import { t } from "../i18n";
 
 type Mode = "list" | "add" | "edit" | "delete-confirm";
 
@@ -440,6 +441,11 @@ export class RackSettingsDialog extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   updated(changedProps: Map<string, unknown>) {
     if (changedProps.has("open") && this.open) {
       this._mode = "list";
@@ -550,7 +556,7 @@ export class RackSettingsDialog extends LitElement {
       const defaultCapacity = isBox ? 12 : 20;
       const newRow: StorageRow = {
         row,
-        name: existing?.name || STORAGE_ROW_TYPE_LABELS[type],
+        name: existing?.name || getStorageRowTypeLabels(this.hass?.language)[type],
         type,
         capacity: defaultCapacity,
         ...(isBox ? { boxes: [12] } : {}),
@@ -666,7 +672,7 @@ export class RackSettingsDialog extends LitElement {
       this._notifyUpdate();
       this._mode = "list";
     } catch {
-      this._error = "Failed to add rack.";
+      this._error = this._t("ui.rack.failedToAddRack");
     }
     this._loading = false;
   }
@@ -712,7 +718,7 @@ export class RackSettingsDialog extends LitElement {
       this._notifyUpdate();
       this._mode = "list";
     } catch {
-      this._error = "Failed to update rack.";
+      this._error = this._t("ui.rack.failedToUpdateRack");
     }
     this._loading = false;
   }
@@ -730,7 +736,7 @@ export class RackSettingsDialog extends LitElement {
       this._mode = "list";
       this._deleteCabinet = null;
     } catch {
-      this._error = "Failed to delete rack.";
+      this._error = this._t("ui.rack.failedToDeleteRack");
     }
     this._loading = false;
   }
@@ -755,7 +761,7 @@ export class RackSettingsDialog extends LitElement {
       ]);
       this._notifyUpdate();
     } catch {
-      this._error = "Failed to reorder racks.";
+      this._error = this._t("ui.rack.failedToReorderRacks");
     }
   }
 
@@ -779,7 +785,7 @@ export class RackSettingsDialog extends LitElement {
       ]);
       this._notifyUpdate();
     } catch {
-      this._error = "Failed to reorder racks.";
+      this._error = this._t("ui.rack.failedToReorderRacks");
     }
   }
 
@@ -796,9 +802,9 @@ export class RackSettingsDialog extends LitElement {
                   <div class="rack-info">
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
-                      ${cab.rows} × ${cab.cols} grid${(cab.depth || 1) > 1 ? ` × ${cab.depth} deep` : ""}
-                      · ${this._winesInCabinet(cab.id)} bottles
-                      ${storageCount > 0 ? ` · ${storageCount} storage` : ""}
+                      ${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}
+                      ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id) })}
+                      ${storageCount > 0 ? this._t("ui.rack.storageCountSuffix", { n: storageCount }) : ""}
                     </div>
                   </div>
                   <div class="rack-actions">
@@ -806,22 +812,22 @@ export class RackSettingsDialog extends LitElement {
                       class="small-btn"
                       @click=${() => this._moveUp(cab)}
                       ?disabled=${idx === 0}
-                      title="Move up"
+                      title="${this._t('ui.rack.moveUpTitle')}"
                     >↑</button>
                     <button
                       class="small-btn"
                       @click=${() => this._moveDown(cab)}
                       ?disabled=${idx === sorted.length - 1}
-                      title="Move down"
+                      title="${this._t('ui.rack.moveDownTitle')}"
                     >↓</button>
                     <button
                       class="small-btn"
                       @click=${() => this._startEdit(cab)}
-                    >Edit</button>
+                    >${this._t("ui.common.edit")}</button>
                     <button
                       class="small-btn danger"
                       @click=${() => this._startDelete(cab)}
-                    >Del</button>
+                    >${this._t("ui.rack.delBtn")}</button>
                   </div>
                 </div>
               `;
@@ -829,12 +835,12 @@ export class RackSettingsDialog extends LitElement {
           )}
 
           <button class="add-rack-btn" @click=${this._startAdd}>
-            + Add Rack
+            ${this._t("ui.rack.addRackBtn")}
           </button>
         </div>
       </div>
       <div class="dialog-footer">
-        <button class="btn btn-outline" @click=${this._close}>Close</button>
+        <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.close")}</button>
       </div>
     `;
   }
@@ -851,7 +857,7 @@ export class RackSettingsDialog extends LitElement {
     return html`
       <div class="dialog-body">
         <div class="form-group">
-          <label>Rack Name</label>
+          <label>${this._t("ui.rack.rackNameLabel")}</label>
           <input
             type="text"
             .value=${this._editCabinet.name || ""}
@@ -865,12 +871,12 @@ export class RackSettingsDialog extends LitElement {
 
         <!-- Grid Editor -->
         <div class="grid-editor">
-          <div class="grid-editor-title">Grid Layout</div>
+          <div class="grid-editor-title">${this._t("ui.rack.gridLayoutTitle")}</div>
 
           <!-- Stepper controls -->
           <div class="stepper-row">
             <div class="stepper-wrap">
-              <div class="stepper-label">Rows</div>
+              <div class="stepper-label">${this._t("ui.rack.rowsLabel")}</div>
               <div class="stepper">
                 <button class="stepper-btn" @click=${this._removeRow} ?disabled=${numRows <= 1}>−</button>
                 <span class="stepper-value">${numRows}</span>
@@ -878,7 +884,7 @@ export class RackSettingsDialog extends LitElement {
               </div>
             </div>
             <div class="stepper-wrap">
-              <div class="stepper-label">Columns</div>
+              <div class="stepper-label">${this._t("ui.rack.columnsLabel")}</div>
               <div class="stepper">
                 <button class="stepper-btn" @click=${this._removeCol} ?disabled=${numCols <= 1}>−</button>
                 <span class="stepper-value">${numCols}</span>
@@ -886,7 +892,7 @@ export class RackSettingsDialog extends LitElement {
               </div>
             </div>
             <div class="stepper-wrap">
-              <div class="stepper-label">Depth</div>
+              <div class="stepper-label">${this._t("ui.rack.depthLabel")}</div>
               <div class="stepper">
                 <button class="stepper-btn" @click=${this._removeDepth} ?disabled=${numDepth <= 1}>−</button>
                 <span class="stepper-value">${numDepth}</span>
@@ -905,7 +911,7 @@ export class RackSettingsDialog extends LitElement {
                 <div class="grid-preview-row ${isStorage ? "storage" : ""}">
                   <span class="grid-preview-label">R${row + 1}</span>
                   ${isStorage
-                    ? html`<div class="grid-preview-cell"></div><span class="grid-preview-storage-label">${typeIcon} ${sr?.name || "Storage"}</span>`
+                    ? html`<div class="grid-preview-cell"></div><span class="grid-preview-storage-label">${typeIcon} ${sr?.name || this._t("wineLocation.storage")}</span>`
                     : Array.from({ length: Math.min(numCols, 15) }, () =>
                         html`<div class="grid-preview-cell"></div>`
                       )}
@@ -934,9 +940,9 @@ export class RackSettingsDialog extends LitElement {
                     }}
                     @click=${(e: Event) => e.stopPropagation()}
                   >
-                    <option value="slots" ?selected=${!isStorage}>Slots</option>
-                    <option value="bulk" ?selected=${currentType === "bulk"}>Bulk Bin</option>
-                    <option value="box" ?selected=${currentType === "box"}>Wine Box</option>
+                    <option value="slots" ?selected=${!isStorage}>${this._t("ui.rack.slotsOption")}</option>
+                    <option value="bulk" ?selected=${currentType === "bulk"}>${getStorageRowTypeLabels(this.hass?.language).bulk}</option>
+                    <option value="box" ?selected=${currentType === "box"}>${getStorageRowTypeLabels(this.hass?.language).box}</option>
                   </select>
                   ${isStorage
                     ? html`
@@ -947,7 +953,7 @@ export class RackSettingsDialog extends LitElement {
                           @input=${(e: InputEvent) =>
                             this._updateStorageRowName(row, (e.target as HTMLInputElement).value)}
                           @click=${(e: Event) => e.stopPropagation()}
-                          placeholder="Zone name"
+                          placeholder="${this._t('ui.rack.zoneNamePlaceholder')}"
                         />
                         ${sr?.type === "box"
                           ? html`
@@ -964,7 +970,7 @@ export class RackSettingsDialog extends LitElement {
                                       this._updateBoxSize(row, bi, parseInt((e.target as HTMLSelectElement).value))}
                                     @click=${(e: Event) => e.stopPropagation()}
                                   >
-                                    ${BOX_SIZES.map((s) => html`<option value=${s} ?selected=${boxSize === s}>${s}-pk</option>`)}
+                                    ${BOX_SIZES.map((s) => html`<option value=${s} ?selected=${boxSize === s}>${this._t('ui.rack.boxSizeOption', { s })}</option>`)}
                                   </select>
                                 `)}
                                 <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${sr?.capacity || 12}</span>
@@ -978,7 +984,7 @@ export class RackSettingsDialog extends LitElement {
                               </div>
                             `}
                       `
-                    : html`<span class="row-type-info">${numCols} col${numCols !== 1 ? "s" : ""}${numDepth > 1 ? ` × ${numDepth} deep` : ""}</span>`}
+                    : html`<span class="row-type-info">${this._t('ui.rack.colsCount', { n: numCols, plural: numCols !== 1 ? "s" : "" })}${numDepth > 1 ? this._t('ui.rack.gridDeepSuffix', { depth: numDepth }) : ""}</span>`}
                 </div>
               `;
             })}
@@ -989,17 +995,19 @@ export class RackSettingsDialog extends LitElement {
         ${displaced.length > 0
           ? html`
               <div class="warning-msg">
-                This leaves ${displaced.length}
-                bottle${displaced.length > 1 ? "s" : ""} without a slot.
-                ${displaced.length > 1 ? "They" : "It"} will be moved to
-                <strong>Unassigned</strong> — nothing is deleted, and you can put
-                ${displaced.length > 1 ? "them" : "it"} back anywhere.
+                ${displaced.length > 1
+                  ? this._t("ui.rack.warningBeforeMany", { n: displaced.length })
+                  : this._t("ui.rack.warningBeforeOne")}
+                <strong>${this._t("wineLocation.unassigned")}</strong>
+                ${displaced.length > 1
+                  ? this._t("ui.rack.warningAfterMany")
+                  : this._t("ui.rack.warningAfterOne")}
                 <div class="warning-list">
                   ${displaced.slice(0, 6).map(
-                    (w) => html`<div>${w.name || "Unnamed wine"}</div>`
+                    (w) => html`<div>${w.name || this._t("ui.rack.unnamedWine")}</div>`
                   )}
                   ${displaced.length > 6
-                    ? html`<div>…and ${displaced.length - 6} more</div>`
+                    ? html`<div>${this._t("ui.rack.andNMore", { n: displaced.length - 6 })}</div>`
                     : nothing}
                 </div>
               </div>
@@ -1013,14 +1021,14 @@ export class RackSettingsDialog extends LitElement {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => (this._mode = "list")}>
-          Cancel
+          ${this._t("ui.common.cancel")}
         </button>
         <button
           class="btn btn-primary"
           @click=${isEdit ? this._saveEdit : this._saveAdd}
           ?disabled=${this._loading}
         >
-          ${this._loading ? "Saving..." : "Save"}
+          ${this._loading ? this._t("ui.wineDetail.saving") : this._t("ui.wineDetail.save")}
         </button>
       </div>
     `;
@@ -1033,11 +1041,10 @@ export class RackSettingsDialog extends LitElement {
     return html`
       <div class="dialog-body">
         <div class="delete-info">
-          Are you sure you want to delete
-          <strong>"${this._deleteCabinet.name}"</strong>?
+          ${this._t("ui.rack.deleteConfirmQuestion", { name: this._deleteCabinet.name })}
           ${count > 0
             ? html`<br /><span class="delete-count"
-                >${count} wine${count > 1 ? "s" : ""} will be unassigned.</span
+                >${count > 1 ? this._t("ui.rack.deleteWinesUnassignedMany", { count }) : this._t("ui.rack.deleteWinesUnassignedOne")}</span
               >`
             : nothing}
         </div>
@@ -1047,7 +1054,7 @@ export class RackSettingsDialog extends LitElement {
       </div>
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => (this._mode = "list")}>
-          Cancel
+          ${this._t("ui.common.cancel")}
         </button>
         <button
           class="btn btn-primary"
@@ -1055,7 +1062,7 @@ export class RackSettingsDialog extends LitElement {
           @click=${this._confirmDelete}
           ?disabled=${this._loading}
         >
-          ${this._loading ? "Deleting..." : "Delete"}
+          ${this._loading ? this._t("ui.rack.deletingBtn") : this._t("ui.rack.deleteBtn")}
         </button>
       </div>
     `;
@@ -1065,10 +1072,10 @@ export class RackSettingsDialog extends LitElement {
     if (!this.open) return nothing;
 
     const titles: Record<Mode, string> = {
-      list: "Manage Racks",
-      add: "Add Rack",
-      edit: "Edit Rack",
-      "delete-confirm": "Delete Rack?",
+      list: this._t("ui.rack.dialogTitleManage"),
+      add: this._t("ui.rack.dialogTitleAdd"),
+      edit: this._t("ui.rack.dialogTitleEdit"),
+      "delete-confirm": this._t("ui.rack.dialogTitleDeleteConfirm"),
     };
 
     return html`

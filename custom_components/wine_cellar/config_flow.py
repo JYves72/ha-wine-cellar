@@ -16,6 +16,11 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
     AI_PROVIDERS,
@@ -31,6 +36,7 @@ from .const import (
     DEFAULT_AI_PROVIDER,
     DEFAULT_GEMINI_MODEL,
     DOMAIN,
+    WINE_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -94,7 +100,13 @@ class WineCellarOptionsFlow(OptionsFlow):
                     vol.Optional(
                         "default_wine_type",
                         default=current.get("default_wine_type", "red"),
-                    ): vol.In(["red", "white", "rosé", "sparkling", "dessert"]),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=WINE_TYPES,
+                            translation_key="wine_type",
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Optional(
                         CONF_AI_PROVIDER,
                         default=current.get(CONF_AI_PROVIDER, DEFAULT_AI_PROVIDER),
