@@ -45,5 +45,16 @@
       "vivino_cannot_connect": "Could not reach Vivino — check your network connection and try again.",
       "vivino_incomplete": "Enter both the cellar URL and the session cookie, or leave both empty to disable the connection."
     }
+  },
+  "selector": {
+    "wine_type": {
+      "options": {
+        "red": "Red",
+        "white": "White",
+        "rosé": "Rosé",
+        "sparkling": "Sparkling",
+        "dessert": "Dessert"
+      }
+    }
   }
 }

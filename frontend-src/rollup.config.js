@@ -1,4 +1,5 @@
 import resolve from "@rollup/plugin-node-resolve";
+import json from "@rollup/plugin-json";
 import typescript from "@rollup/plugin-typescript";
 import terser from "@rollup/plugin-terser";
 import serve from "rollup-plugin-serve";
@@ -15,6 +16,11 @@ export default {
   },
   plugins: [
     resolve(),
+    // Inlines src/i18n/*.json (imported directly by src/i18n/index.ts) into
+    // the bundle as plain objects — needs to run before typescript() so the
+    // .ts files' `import en from "./en.json"` resolves to real data rather
+    // than being left for the TS compiler, which only type-checks it.
+    json(),
     typescript(),
     isProd && terser(),
     isDev &&

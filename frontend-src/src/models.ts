@@ -1,3 +1,5 @@
+import { tGroup } from "./i18n";
+
 export interface TastingNotes {
   aroma: string;
   taste: string;
@@ -60,6 +62,13 @@ export const STORAGE_ROW_TYPE_LABELS: Record<StorageRowType, string> = {
   bulk: "Bulk Bin",
   box: "Wine Box",
 };
+
+// Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
+// — falls back to the English STORAGE_ROW_TYPE_LABELS above for a language
+// with no catalog yet.
+export function getStorageRowTypeLabels(language?: string): Record<StorageRowType, string> {
+  return tGroup("storageRowType", language) as Record<StorageRowType, string>;
+}
 
 export const BOX_SIZES = [1, 3, 6, 12, 24] as const;
 
@@ -174,6 +183,14 @@ export const REMOVAL_REASONS = [
   { id: "other", label: "Other" },
 ] as const;
 
+// Same reasons, translated per HA's display language — `id` (the stored
+// value) is never translated, only `label`. Falls back to the English
+// label above for any reason not yet translated into the target language.
+export function getRemovalReasons(language?: string): { id: string; label: string }[] {
+  const labels = tGroup("removalReason", language);
+  return REMOVAL_REASONS.map((r) => ({ id: r.id, label: labels[r.id] || r.label }));
+}
+
 export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert";
 
 export const WINE_TYPE_COLORS: Record<WineType, string> = {
@@ -191,6 +208,14 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
   sparkling: "Sparkling",
   dessert: "Dessert",
 };
+
+// Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
+// — falls back to the English WINE_TYPE_LABELS above for a language with
+// no catalog yet, or for any type not yet translated within one that
+// exists.
+export function getWineTypeLabels(language?: string): Record<WineType, string> {
+  return tGroup("wineType", language) as Record<WineType, string>;
+}
 
 // Every physical (row, col) grid slot in a cabinet, in display order,
 // skipping rows configured as bulk/box storage zones.
@@ -214,25 +239,26 @@ export interface WineLocation {
 // A precise, human-readable location for a wine: cabinet name, plus the
 // zone name and slot number when it's in a bulk bin or wine box, or the
 // rack's linear slot number when it's in a grid cell.
-export function getWineLocation(wine: Wine, cabinets: Cabinet[]): WineLocation {
+export function getWineLocation(wine: Wine, cabinets: Cabinet[], language?: string): WineLocation {
+  const loc = tGroup("wineLocation", language);
   const cabinet = wine.cabinet_id ? cabinets.find((c) => c.id === wine.cabinet_id) || null : null;
-  if (!cabinet) return { text: "Unassigned", cabinet: null, zone: "", storageRow: null };
+  if (!cabinet) return { text: loc.unassigned, cabinet: null, zone: "", storageRow: null };
 
   if (wine.row !== null && wine.col !== null) {
     const slotIdx = getRackSlots(cabinet).findIndex((s) => s.row === wine.row && s.col === wine.col);
-    const slotLabel = slotIdx >= 0 ? `Slot ${slotIdx + 1}` : `R${wine.row + 1}C${wine.col + 1}`;
+    const slotLabel = slotIdx >= 0 ? `${loc.slot} ${slotIdx + 1}` : `R${wine.row + 1}C${wine.col + 1}`;
     return { text: `${cabinet.name} · ${slotLabel}`, cabinet, zone: "", storageRow: null };
   }
 
   if (wine.zone && wine.zone !== "bottom") {
     const rowIdx = parseInt(wine.zone.replace("storage-", ""), 10);
     const storageRow = (cabinet.storage_rows || []).find((sr) => sr.row === rowIdx) || null;
-    const zoneName = storageRow?.name || "Storage";
-    return { text: `${cabinet.name} · ${zoneName} · Slot ${(wine.depth || 0) + 1}`, cabinet, zone: wine.zone, storageRow };
+    const zoneName = storageRow?.name || loc.storage;
+    return { text: `${cabinet.name} · ${zoneName} · ${loc.slot} ${(wine.depth || 0) + 1}`, cabinet, zone: wine.zone, storageRow };
   }
 
   if (wine.zone === "bottom") {
-    return { text: `${cabinet.name} · ${cabinet.bottom_zone_name || "Storage"}`, cabinet, zone: "bottom", storageRow: null };
+    return { text: `${cabinet.name} · ${cabinet.bottom_zone_name || loc.storage}`, cabinet, zone: "bottom", storageRow: null };
   }
 
   return { text: cabinet.name, cabinet, zone: "", storageRow: null };

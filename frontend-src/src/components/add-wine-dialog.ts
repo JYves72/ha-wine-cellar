@@ -6,9 +6,10 @@ import {
   BarcodeLookupResult,
   StorageRow,
   WineType,
-  WINE_TYPE_LABELS,
+  getWineTypeLabels,
 } from "../models";
 import { sharedStyles } from "../styles";
+import { t } from "../i18n";
 import { resizeImageForStorage } from "../utils/image";
 import {
   Container,
@@ -673,12 +674,12 @@ export class AddWineDialog extends LitElement {
         this._step = "details";
       } else {
         this._wineData = { ...this._wineData, barcode: this._barcode.trim() };
-        this._onBarcodeLookupFailed("No match for this barcode.");
+        this._onBarcodeLookupFailed(this._t("ui.addWine.noBarcodeMatch"));
       }
     } catch (err) {
       if (session !== this._session) return;
       this._wineData = { ...this._wineData, barcode: this._barcode.trim() };
-      this._onBarcodeLookupFailed("Barcode lookup failed.");
+      this._onBarcodeLookupFailed(this._t("ui.addWine.barcodeLookupFailed"));
     }
 
     this._loading = false;
@@ -694,9 +695,9 @@ export class AddWineDialog extends LitElement {
       this._showBackPrompt = false;
       this._captureStage = "front";
       this._frontImageRaw = "";
-      this._error = `${reason} Take a photo of the label instead.`;
+      this._error = this._t("ui.addWine.takePhotoInstead", { reason });
     } else {
-      this._error = `${reason} You can enter details manually.`;
+      this._error = this._t("ui.addWine.enterManually", { reason });
     }
   }
 
@@ -721,10 +722,10 @@ export class AddWineDialog extends LitElement {
       if (result.results && result.results.length > 0) {
         this._searchResults = result.results;
       } else {
-        this._error = "No results found. You can enter details manually.";
+        this._error = this._t("ui.addWine.noResultsFound");
       }
     } catch {
-      this._error = "Search failed. You can enter details manually.";
+      this._error = this._t("ui.addWine.searchFailed");
     }
 
     this._loading = false;
@@ -818,18 +819,23 @@ export class AddWineDialog extends LitElement {
         this._frontImageRaw = "";
       } else {
         // Show specific error from backend if available
-        const errorDetail = result.error || "Unknown error";
-        this._error = `Label recognition failed: ${errorDetail}`;
+        const errorDetail = result.error || this._t("ui.addWine.unknownError");
+        this._error = this._t("ui.addWine.labelRecognitionFailed", { error: errorDetail });
         console.error("Wine Cellar: label recognition failed:", errorDetail);
       }
     } catch (err: any) {
       if (session !== this._session) return;
       const msg = err?.message || String(err);
       console.error("Wine Cellar: label recognition error:", msg);
-      this._error = `Label recognition error: ${msg}`;
+      this._error = this._t("ui.addWine.labelRecognitionError", { msg });
     }
 
     this._labelLoading = false;
+  }
+
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
   }
 
   private _goToStep(step: Step) {
@@ -857,9 +863,9 @@ export class AddWineDialog extends LitElement {
     // growing it beyond its configured capacity. Refuse instead, the way
     // drag-and-drop and paste already do.
     const { used, capacity, nextDepth, full } = this._zoneUsage(sr);
-    const label = sr.name || (sr.type === "box" ? "This box" : "This bin");
+    const label = sr.name || (sr.type === "box" ? this._t("ui.addWine.thisBox") : this._t("ui.addWine.thisBin"));
     if (full) {
-      this._error = `${label} is full (${used}/${capacity}). Free a slot, or raise its capacity in Manage Racks.`;
+      this._error = this._t("ui.addWine.zoneFull", { label, used, capacity });
       return;
     }
     this._error = "";
@@ -878,7 +884,7 @@ export class AddWineDialog extends LitElement {
     const cabinet = this.cabinets.find((cab) => cab.id === c.cabinetId);
     const patch = placementIn(c, cabinet, this.wines);
     if (!patch) {
-      this._error = `${containerLabel(c, this.cabinets)} is full. Free a slot, or raise its capacity in Manage Racks.`;
+      this._error = this._t("ui.addWine.containerFull", { label: containerLabel(c, this.cabinets) });
       return;
     }
     this._error = "";
@@ -915,7 +921,7 @@ export class AddWineDialog extends LitElement {
       } else {
         const slots = this._planSlots(this._quantity);
         if (!slots.length) {
-          this._error = "No free slot left at that destination.";
+          this._error = this._t("ui.addWine.noFreeSlot");
           this._loading = false;
           return;
         }
@@ -949,7 +955,7 @@ export class AddWineDialog extends LitElement {
       }
       this._close();
     } catch (err) {
-      this._error = this.buyListMode ? "Failed to add to buy list." : "Failed to add wine.";
+      this._error = this.buyListMode ? this._t("ui.addWine.addToBuyListFailed") : this._t("ui.addWine.addWineFailed");
     }
     this._addProgress = 0;
     this._loading = false;
@@ -968,7 +974,7 @@ export class AddWineDialog extends LitElement {
       );
       this._close();
     } catch (err) {
-      this._error = "Failed to add to buy list.";
+      this._error = this._t("ui.addWine.addToBuyListFailed");
     }
     this._loading = false;
   }
@@ -999,15 +1005,15 @@ export class AddWineDialog extends LitElement {
             @scanner-error=${(e: CustomEvent) => { this._error = e.detail.error; this._scanMode = "idle"; }}
           ></barcode-scanner>
           ${this._loading
-            ? html`<div class="label-loading"><span class="loading-spinner"></span><div style="margin-top: 8px">Looking up barcode...</div></div>`
+            ? html`<div class="label-loading"><span class="loading-spinner"></span><div style="margin-top: 8px">${this._t("ui.addWine.lookingUpBarcode")}</div></div>`
             : nothing}
           ${this._error ? html`<div class="error-msg">${this._error}</div>` : nothing}
           <div class="camera-actions">
-            <button class="btn btn-outline" @click=${() => { this._scanMode = "idle"; this._error = ""; }}>Cancel Scan</button>
+            <button class="btn btn-outline" @click=${() => { this._scanMode = "idle"; this._error = ""; }}>${this._t("ui.addWine.cancelScan")}</button>
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="btn btn-outline" @click=${this._close}>Cancel</button>
+          <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.cancel")}</button>
         </div>
       `;
     }
@@ -1020,28 +1026,29 @@ export class AddWineDialog extends LitElement {
             ? html`
                 <div class="label-loading">
                   <span class="loading-spinner"></span>
-                  <div style="margin-top: 8px">Analyzing label with AI...</div>
+                  <div style="margin-top: 8px">${this._t("ui.addWine.analyzingLabel")}</div>
                 </div>
               `
             : this._showBackPrompt
               ? html`
                   <div style="text-align:center;padding:24px 12px">
                     <div style="font-size:2em;margin-bottom:8px">✅</div>
-                    <div style="margin-bottom:12px;font-weight:500">Front label captured</div>
+                    <div style="margin-bottom:12px;font-weight:500">${this._t("ui.addWine.frontLabelCaptured")}</div>
                     <p style="font-size:0.85em;color:var(--wc-text-secondary);margin-bottom:16px">
-                      Add a photo of the back label too? It often has the vintage year (and sometimes a barcode).
+                      ${this._t("ui.addWine.addBackPhotoQuestion")}
                     </p>
                     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-                      <button class="btn btn-primary" @click=${() => { this._showBackPrompt = false; this._captureStage = "back"; }}>📷 Add Back Photo</button>
-                      <button class="btn btn-outline" @click=${() => this._finishLabelScan()}>Skip, Use Front Only</button>
+                      <button class="btn btn-primary" @click=${() => { this._showBackPrompt = false; this._captureStage = "back"; }}>${this._t("ui.addWine.addBackPhotoBtn")}</button>
+                      <button class="btn btn-outline" @click=${() => this._finishLabelScan()}>${this._t("ui.addWine.skipUseFrontOnly")}</button>
                     </div>
                   </div>
                 `
               : html`
                   ${this._captureStage === "back"
-                    ? html`<div class="hint" style="text-align:center;margin-bottom:6px">Now photograph the back label</div>`
+                    ? html`<div class="hint" style="text-align:center;margin-bottom:6px">${this._t("ui.addWine.photographBackLabel")}</div>`
                     : nothing}
                   <label-camera
+                    .hass=${this.hass}
                     .active=${true}
                     @photo-captured=${this._onLabelPhotoCaptured}
                   ></label-camera>
@@ -1055,11 +1062,11 @@ export class AddWineDialog extends LitElement {
               this._showBackPrompt = false;
               this._captureStage = "front";
               this._frontImageRaw = "";
-            }}>Cancel</button>
+            }}>${this._t("ui.common.cancel")}</button>
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="btn btn-outline" @click=${this._close}>Cancel</button>
+          <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.cancel")}</button>
         </div>
       `;
     }
@@ -1071,34 +1078,34 @@ export class AddWineDialog extends LitElement {
           <button class="scan-option" @click=${() => { this._scanMode = "barcode"; this._error = ""; }}>
             <span class="scan-option-icon">📷</span>
             <div class="scan-option-text">
-              <div class="scan-option-title">Scan Barcode</div>
-              <div class="scan-option-desc">Point camera at wine bottle barcode</div>
+              <div class="scan-option-title">${this._t("ui.addWine.scanBarcodeTitle")}</div>
+              <div class="scan-option-desc">${this._t("ui.addWine.scanBarcodeDesc")}</div>
             </div>
           </button>
 
           <button
             class="scan-option ${this._hasGemini ? "" : "disabled"}"
             @click=${() => this._hasGemini && (() => { this._scanMode = "label"; this._error = ""; })()}
-            title=${this._hasGemini ? "" : "Configure Gemini API key in integration settings"}
+            title=${this._hasGemini ? "" : this._t("ui.addWine.configureGeminiTitle")}
           >
             <span class="scan-option-icon">🤖</span>
             <div class="scan-option-text">
-              <div class="scan-option-title">Recognize Label</div>
+              <div class="scan-option-title">${this._t("ui.addWine.recognizeLabelTitle")}</div>
               <div class="scan-option-desc">
                 ${this._hasGemini
-                  ? "Take a photo of the wine label"
-                  : "Requires Gemini API key in settings"}
+                  ? this._t("ui.addWine.takePhotoOfLabel")
+                  : this._t("ui.addWine.requiresGeminiKey")}
               </div>
             </div>
           </button>
         </div>
 
-        <div class="or-divider">or enter manually</div>
+        <div class="or-divider">${this._t("ui.addWine.orEnterManually")}</div>
 
         <div class="barcode-input-row">
           <input
             type="text"
-            placeholder="Enter barcode..."
+            placeholder="${this._t('ui.addWine.barcodePlaceholder')}"
             .value=${this._barcode}
             @input=${(e: InputEvent) =>
               (this._barcode = (e.target as HTMLInputElement).value)}
@@ -1108,7 +1115,7 @@ export class AddWineDialog extends LitElement {
           <button class="btn btn-primary" @click=${this._lookupBarcode}>
             ${this._loading
               ? html`<span class="loading-spinner"></span>`
-              : "Look Up"}
+              : this._t("ui.addWine.lookUpBtn")}
           </button>
         </div>
 
@@ -1126,20 +1133,20 @@ export class AddWineDialog extends LitElement {
             `
           : nothing}
 
-        <div class="or-divider">or search by name</div>
+        <div class="or-divider">${this._t("ui.addWine.orSearchByName")}</div>
 
         <div class="barcode-input-row">
           <input
             class="search-input"
             type="text"
-            placeholder="Search wine name..."
+            placeholder="${this._t('ui.addWine.searchNamePlaceholder')}"
             @keypress=${(e: KeyboardEvent) =>
               e.key === "Enter" && this._searchWine()}
           />
           <button class="btn btn-outline" @click=${this._searchWine}>
             ${this._loading
               ? html`<span class="loading-spinner"></span>`
-              : "Search"}
+              : this._t("ui.addWine.searchBtn")}
           </button>
         </div>
 
@@ -1147,7 +1154,7 @@ export class AddWineDialog extends LitElement {
           ? html`
               <div class="search-results">
                 <div class="search-results-label">
-                  ${this._searchResults.length} result${this._searchResults.length > 1 ? "s" : ""} — tap to select
+                  ${this._t("ui.addWine.resultsCount", { n: this._searchResults.length, plural: this._searchResults.length > 1 ? "s" : "" })}
                 </div>
                 ${this._searchResults.map(
                   (item) => html`
@@ -1159,7 +1166,7 @@ export class AddWineDialog extends LitElement {
                         ? html`<img class="search-result-thumb" src="${item.image_url}" alt="" />`
                         : html`<div class="search-result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.2em;">🍷</div>`}
                       <div class="search-result-info">
-                        <div class="search-result-name">${item.name || "Unknown"}</div>
+                        <div class="search-result-name">${item.name || this._t("ui.addWine.unknownName")}</div>
                         <div class="search-result-meta">
                           ${item.winery || ""}${item.vintage ? ` · ${item.vintage}` : ""}${item.region ? ` · ${item.region}` : ""}
                         </div>
@@ -1180,12 +1187,12 @@ export class AddWineDialog extends LitElement {
       </div>
 
       <div class="dialog-footer">
-        <button class="btn btn-outline" @click=${this._close}>Cancel</button>
+        <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.cancel")}</button>
         <button
           class="btn btn-outline"
           @click=${() => this._goToStep("details")}
         >
-          Skip → Manual Entry
+          ${this._t("ui.addWine.skipManualEntry")}
         </button>
       </div>
     `;
@@ -1195,7 +1202,7 @@ export class AddWineDialog extends LitElement {
     return html`
       <div class="dialog-body">
         <div class="form-group">
-          <label>Wine Name *</label>
+          <label>${this._t("ui.addWine.wineNameLabel")}</label>
           <input
             type="text"
             .value=${this._wineData.name || ""}
@@ -1206,7 +1213,7 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Winery</label>
+            <label>${this._t("ui.addWine.wineryLabel")}</label>
             <input
               type="text"
               .value=${this._wineData.winery || ""}
@@ -1215,7 +1222,7 @@ export class AddWineDialog extends LitElement {
             />
           </div>
           <div class="form-group">
-            <label>Vintage</label>
+            <label>${this._t("ui.addWine.vintageLabel")}</label>
             <input
               type="number"
               .value=${this._wineData.vintage?.toString() || ""}
@@ -1227,19 +1234,19 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Type</label>
+            <label>${this._t("ui.addWine.typeLabel")}</label>
             <select
               @change=${(e: Event) =>
                 this._updateField("type", (e.target as HTMLSelectElement).value)}
             >
-              ${(Object.entries(WINE_TYPE_LABELS) as [WineType, string][]).map(
+              ${(Object.entries(getWineTypeLabels(this.hass?.language)) as [WineType, string][]).map(
                 ([value, label]) =>
                   html`<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`
               )}
             </select>
           </div>
           <div class="form-group">
-            <label>Purchase Price</label>
+            <label>${this._t("ui.addWine.purchasePriceLabel")}</label>
             <input
               type="number"
               step="0.01"
@@ -1252,7 +1259,7 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Current Value</label>
+            <label>${this._t("ui.addWine.currentValueLabel")}</label>
             <input
               type="number"
               step="0.01"
@@ -1262,7 +1269,7 @@ export class AddWineDialog extends LitElement {
             />
           </div>
           <div class="form-group">
-            <label>Region</label>
+            <label>${this._t("ui.addWine.regionLabel")}</label>
             <input
               type="text"
               .value=${this._wineData.region || ""}
@@ -1274,7 +1281,7 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Country</label>
+            <label>${this._t("ui.addWine.countryLabel")}</label>
             <input
               type="text"
               .value=${this._wineData.country || ""}
@@ -1285,7 +1292,7 @@ export class AddWineDialog extends LitElement {
         </div>
 
         <div class="form-group">
-          <label>Grape Variety</label>
+          <label>${this._t("ui.addWine.grapeVarietyLabel")}</label>
           <input
             type="text"
             .value=${this._wineData.grape_variety || ""}
@@ -1296,7 +1303,7 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Purchase Date</label>
+            <label>${this._t("ui.addWine.purchaseDateLabel")}</label>
             <input
               type="date"
               .value=${this._wineData.purchase_date || ""}
@@ -1305,10 +1312,10 @@ export class AddWineDialog extends LitElement {
             />
           </div>
           <div class="form-group">
-            <label>Drink By</label>
+            <label>${this._t("ui.addWine.drinkByLabel")}</label>
             <input
               type="text"
-              placeholder="e.g. 2030"
+              placeholder="${this._t('ui.addWine.drinkByPlaceholder')}"
               .value=${this._wineData.drink_by || ""}
               @input=${(e: InputEvent) =>
                 this._updateField("drink_by", (e.target as HTMLInputElement).value)}
@@ -1317,7 +1324,7 @@ export class AddWineDialog extends LitElement {
         </div>
 
         <div class="form-group">
-          <label>Notes</label>
+          <label>${this._t("ui.addWine.notesLabel")}</label>
           <textarea
             .value=${this._wineData.notes || ""}
             @input=${(e: InputEvent) =>
@@ -1326,7 +1333,7 @@ export class AddWineDialog extends LitElement {
         </div>
 
         <div class="rating-section">
-          <div class="rating-label">My Rating</div>
+          <div class="rating-label">${this._t("ui.addWine.myRatingLabel")}</div>
           <star-rating
             .value=${this._wineData.user_rating || 0}
             @rating-change=${(e: CustomEvent) =>
@@ -1337,7 +1344,7 @@ export class AddWineDialog extends LitElement {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => this._goToStep("scan")}>
-          ← Back
+          ${this._t("ui.addWine.back")}
         </button>
         ${!this.buyListMode
           ? html`
@@ -1346,9 +1353,9 @@ export class AddWineDialog extends LitElement {
                 style="background: #e65100;"
                 @click=${this._quickAddToBuyList}
                 ?disabled=${!this._wineData.name || this._loading}
-                title="Save to buy list instead of cellar"
+                title="${this._t('ui.addWine.buyListBtnTitle')}"
               >
-                ${this._loading ? html`<span class="loading-spinner"></span>` : "🛒 Buy List"}
+                ${this._loading ? html`<span class="loading-spinner"></span>` : this._t("ui.addWine.buyListBtn")}
               </button>
             `
           : nothing}
@@ -1357,7 +1364,7 @@ export class AddWineDialog extends LitElement {
           @click=${() => this._goToStep(this.buyListMode ? "confirm" : "location")}
           ?disabled=${!this._wineData.name}
         >
-          Next →
+          ${this._t("ui.addWine.next")}
         </button>
       </div>
     `;
@@ -1372,14 +1379,14 @@ export class AddWineDialog extends LitElement {
     const current = containerOf(this._wineData as Wine);
 
     const spaceText = (s: Suggestion) => {
-      if (s.usage.full) return `Full · ${s.usage.used}/${s.usage.capacity}`;
-      if (!Number.isFinite(s.usage.free)) return "Room";
-      return s.usage.free === 1 ? "1 free" : `${s.usage.free} free`;
+      if (s.usage.full) return this._t("ui.addWine.fullUsage", { used: s.usage.used, capacity: s.usage.capacity });
+      if (!Number.isFinite(s.usage.free)) return this._t("ui.addWine.room");
+      return s.usage.free === 1 ? this._t("ui.addWine.oneFree") : this._t("ui.addWine.nFree", { n: s.usage.free });
     };
 
     return html`
       <div class="suggest-strip">
-        <div class="suggest-title">Suggested — where its relatives are</div>
+        <div class="suggest-title">${this._t("ui.addWine.suggestedTitle")}</div>
         ${suggestions.map((s) => {
           const selected = !!current && sameContainer(current, s.container);
           return html`
@@ -1397,12 +1404,11 @@ export class AddWineDialog extends LitElement {
             ${s.alternative
               ? html`
                   <div class="suggest-alt">
-                    No room left there — split the series into
+                    ${this._t("ui.addWine.noRoomSplit")}
                     <button @click=${() => this._applyContainer(s.alternative!.container)}>
                       ${s.alternative.label}
                     </button>
-                    (${s.alternative.free === 1 ? "1 free" : `${s.alternative.free} free`}), or free a
-                    slot first.
+                    (${s.alternative.free === 1 ? this._t("ui.addWine.oneFree") : this._t("ui.addWine.nFree", { n: s.alternative.free })})${this._t("ui.addWine.orFreeSlotFirst")}
                   </div>
                 `
               : nothing}
@@ -1419,9 +1425,9 @@ export class AddWineDialog extends LitElement {
 
     return html`
       <div class="dialog-body">
-        <div style="font-weight: 500; margin-bottom: 8px">Choose Location</div>
+        <div style="font-weight: 500; margin-bottom: 8px">${this._t("ui.addWine.chooseLocation")}</div>
         <div style="font-size: 0.85em; color: var(--wc-text-secondary); margin-bottom: 12px">
-          Select a cabinet and position for this bottle
+          ${this._t("ui.addWine.selectCabinetHint")}
         </div>
 
         ${this._renderSuggestions()}
@@ -1436,7 +1442,7 @@ export class AddWineDialog extends LitElement {
                 }}
               >
                 <div class="cab-name">${cab.name}</div>
-                <div class="cab-info">${cab.rows}×${cab.cols} slots</div>
+                <div class="cab-info">${this._t("ui.addWine.slotsCount", { rows: cab.rows, cols: cab.cols })}</div>
               </div>
             `
           )}
@@ -1444,13 +1450,13 @@ export class AddWineDialog extends LitElement {
 
         ${selectedCabinet && zones.length > 0 ? html`
           <div style="margin-top:12px">
-            <label style="display:block;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:6px">Bulk / Box Zone</label>
+            <label style="display:block;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:6px">${this._t("ui.addWine.bulkBoxZone")}</label>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
               <button
                 class="btn ${!hasZone ? "btn-primary" : "btn-outline"}"
                 style="font-size:0.8em;padding:6px 10px"
                 @click=${() => this._updateField("zone", "")}
-              >None — use grid Row/Col</button>
+              >${this._t("ui.addWine.noneUseGrid")}</button>
               ${zones.map((sr) => {
                 const usage = this._zoneUsage(sr);
                 const selected = this._wineData.zone === `storage-${sr.row}`;
@@ -1458,10 +1464,10 @@ export class AddWineDialog extends LitElement {
                   <button
                     class="btn ${selected ? "btn-primary" : "btn-outline"}"
                     style="font-size:0.8em;padding:6px 10px${usage.full ? ";opacity:0.5" : ""}"
-                    title=${usage.full ? "Full — free a slot or raise its capacity" : ""}
+                    title=${usage.full ? this._t("ui.addWine.fullTitle") : ""}
                     @click=${() => this._selectZone(sr)}
                   >
-                    ${sr.name || (sr.type === "box" ? "Box" : "Bulk Bin")}
+                    ${sr.name || (sr.type === "box" ? this._t("ui.addWine.boxShort") : this._t("storageRowType.bulk"))}
                     <span style="opacity:0.75">${usage.used}/${usage.capacity}</span>
                   </button>
                 `;
@@ -1474,7 +1480,7 @@ export class AddWineDialog extends LitElement {
           ? html`
               <div class="pos-inputs">
                 <div class="form-group">
-                  <label>Row (1-based)</label>
+                  <label>${this._t("ui.addWine.rowLabel")}</label>
                   <input
                     type="number"
                     min="1"
@@ -1484,7 +1490,7 @@ export class AddWineDialog extends LitElement {
                   />
                 </div>
                 <div class="form-group">
-                  <label>Column (1-based)</label>
+                  <label>${this._t("ui.addWine.columnLabel")}</label>
                   <input
                     type="number"
                     min="1"
@@ -1501,10 +1507,10 @@ export class AddWineDialog extends LitElement {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => this._goToStep("details")}>
-          ← Back
+          ${this._t("ui.addWine.back")}
         </button>
         <button class="btn btn-primary" @click=${() => this._onLocationNext()}>
-          Next →
+          ${this._t("ui.addWine.next")}
         </button>
       </div>
     `;
@@ -1516,19 +1522,19 @@ export class AddWineDialog extends LitElement {
     // findable position — it silently vanishes (assigned to the cabinet,
     // but rendered nowhere). Catch that here instead of at save time.
     if (d.cabinet_id && !d.zone && (d.row == null || d.col == null || isNaN(d.row) || isNaN(d.col))) {
-      this._error = "Pick a zone, or enter both Row and Column, so the bottle has a findable spot.";
+      this._error = this._t("ui.addWine.pickZoneOrRowCol");
       return;
     }
 
     const cabinet = this.cabinets.find((c) => c.id === d.cabinet_id);
     if (cabinet && !d.zone && d.row != null && d.col != null) {
       if (d.row < 0 || d.row >= cabinet.rows || d.col < 0 || d.col >= cabinet.cols) {
-        this._error = `That slot is outside ${cabinet.name} (${cabinet.rows} rows × ${cabinet.cols} columns).`;
+        this._error = this._t("ui.addWine.slotOutside", { cabinet: cabinet.name, rows: cabinet.rows, cols: cabinet.cols });
         return;
       }
       const isStorageRow = (cabinet.storage_rows || []).some((sr) => sr.row === d.row);
       if (isStorageRow) {
-        this._error = "That row is a bin or box, not grid slots — pick it from the zone list above.";
+        this._error = this._t("ui.addWine.rowIsBinOrBox");
         return;
       }
       // Stack behind whatever is already in the slot, up to the rack's depth,
@@ -1542,7 +1548,7 @@ export class AddWineDialog extends LitElement {
       let depth = 0;
       while (occupied.has(depth)) depth++;
       if (depth >= rackDepth) {
-        this._error = `Row ${d.row + 1}, column ${d.col + 1} is full (${occupied.size}/${rackDepth} deep).`;
+        this._error = this._t("ui.addWine.slotFull", { row: d.row + 1, col: d.col + 1, used: occupied.size, depth: rackDepth });
         return;
       }
       this._wineData = { ...this._wineData, depth };
@@ -1561,7 +1567,7 @@ export class AddWineDialog extends LitElement {
 
     return html`
       <div class="qty-row">
-        <span class="qty-label">Bottles</span>
+        <span class="qty-label">${this._t("ui.addWine.bottlesLabel")}</span>
         <div class="qty-stepper">
           <button
             class="qty-btn"
@@ -1586,12 +1592,12 @@ export class AddWineDialog extends LitElement {
       </div>
       <div class="qty-hint">
         ${available === null
-          ? "Identical bottles, added unassigned."
+          ? this._t("ui.addWine.identicalUnassigned")
           : available === 0
-            ? "That destination is full."
-            : html`${available} slot${available > 1 ? "s" : ""} free here.
+            ? this._t("ui.addWine.destinationFull")
+            : html`${this._t("ui.addWine.slotsFreeHere", { n: available, plural: available > 1 ? "s" : "" })}
               ${destination && destination.length > 1
-                ? `The ${destination.length} bottles take consecutive free slots.`
+                ? this._t("ui.addWine.consecutiveSlots", { n: destination.length })
                 : ""}`}
       </div>
     `;
@@ -1600,30 +1606,30 @@ export class AddWineDialog extends LitElement {
   private _renderConfirmStep() {
     const cabinetName =
       this.cabinets.find((c) => c.id === this._wineData.cabinet_id)?.name ||
-      "Unassigned";
+      this._t("wineLocation.unassigned");
     const zoneCabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
     const zoneRow = this._wineData.zone
       ? zoneCabinet?.storage_rows.find((sr) => `storage-${sr.row}` === this._wineData.zone)
       : undefined;
     const posLabel = zoneRow
-      ? zoneRow.name || (zoneRow.type === "box" ? "Box" : "Bulk Bin")
+      ? zoneRow.name || (zoneRow.type === "box" ? this._t("ui.addWine.boxShort") : this._t("storageRowType.bulk"))
       : this._wineData.row != null && this._wineData.col != null
-        ? `Row ${(this._wineData.row ?? 0) + 1}, Col ${(this._wineData.col ?? 0) + 1}`
-        : "Not specified";
+        ? this._t("ui.addWine.posRowCol", { row: (this._wineData.row ?? 0) + 1, col: (this._wineData.col ?? 0) + 1 })
+        : this._t("ui.addWine.notSpecified");
 
     return html`
       <div class="dialog-body">
-        <div style="font-weight: 500; margin-bottom: 12px">Confirm & Add</div>
+        <div style="font-weight: 500; margin-bottom: 12px">${this._t("ui.addWine.confirmAndAdd")}</div>
 
         <div class="confirm-summary">
           <div class="summary-row">
-            <span class="summary-label">Name</span>
+            <span class="summary-label">${this._t("ui.addWine.nameLabel")}</span>
             <span class="summary-value">${this._wineData.name}</span>
           </div>
           ${this._wineData.winery
             ? html`
                 <div class="summary-row">
-                  <span class="summary-label">Winery</span>
+                  <span class="summary-label">${this._t("ui.addWine.wineryLabel")}</span>
                   <span class="summary-value">${this._wineData.winery}</span>
                 </div>
               `
@@ -1631,33 +1637,33 @@ export class AddWineDialog extends LitElement {
           ${this._wineData.vintage
             ? html`
                 <div class="summary-row">
-                  <span class="summary-label">Vintage</span>
+                  <span class="summary-label">${this._t("ui.addWine.vintageLabel")}</span>
                   <span class="summary-value">${this._wineData.vintage}</span>
                 </div>
               `
             : nothing}
           <div class="summary-row">
-            <span class="summary-label">Type</span>
+            <span class="summary-label">${this._t("ui.addWine.typeLabel")}</span>
             <span class="summary-value">
-              ${WINE_TYPE_LABELS[(this._wineData.type as WineType) || "red"]}
+              ${getWineTypeLabels(this.hass?.language)[(this._wineData.type as WineType) || "red"]}
             </span>
           </div>
           ${this.buyListMode
             ? nothing
             : html`
                 <div class="summary-row">
-                  <span class="summary-label">Cabinet</span>
+                  <span class="summary-label">${this._t("ui.addWine.cabinetLabel")}</span>
                   <span class="summary-value">${cabinetName}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-label">Position</span>
+                  <span class="summary-label">${this._t("ui.addWine.positionLabel")}</span>
                   <span class="summary-value">${posLabel}</span>
                 </div>
               `}
           ${this._wineData.user_rating
             ? html`
                 <div class="summary-row">
-                  <span class="summary-label">My Rating</span>
+                  <span class="summary-label">${this._t("ui.addWine.myRatingLabel")}</span>
                   <span class="summary-value">${this._wineData.user_rating}/5</span>
                 </div>
               `
@@ -1673,7 +1679,7 @@ export class AddWineDialog extends LitElement {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => this._goToStep(this.buyListMode ? "details" : "location")}>
-          ← Back
+          ${this._t("ui.addWine.back")}
         </button>
         <button class="btn btn-primary" @click=${this._addWine}>
           ${this._loading
@@ -1681,10 +1687,10 @@ export class AddWineDialog extends LitElement {
                 ? html` ${this._addProgress}/${this._quantity}`
                 : nothing}`
             : this.buyListMode
-              ? "Add to Buy List"
+              ? this._t("ui.addWine.titleBuyList")
               : this._quantity > 1
-                ? `Add ${this._quantity} Bottles`
-                : "Add Wine"}
+                ? this._t("ui.addWine.addNBottles", { n: this._quantity })
+                : this._t("ui.addWine.title")}
         </button>
       </div>
     `;
@@ -1696,7 +1702,7 @@ export class AddWineDialog extends LitElement {
     return html`
       <div class="dialog-overlay" @click=${this._close}>
         <div class="dialog" @click=${(e: Event) => e.stopPropagation()}>
-          <div class="dialog-header">${this.buyListMode ? "Add to Buy List" : "Add Wine"}</div>
+          <div class="dialog-header">${this.buyListMode ? this._t("ui.addWine.titleBuyList") : this._t("ui.addWine.title")}</div>
           ${this._renderStepIndicator()}
           ${this._step === "scan" ? this._renderScanStep() : nothing}
           ${this._step === "details" ? this._renderDetailsStep() : nothing}

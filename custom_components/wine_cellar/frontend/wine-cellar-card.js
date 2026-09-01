@@ -32,7 +32,7 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
  * Copyright 2019 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t$2=globalThis,e$2=t$2.ShadowRoot&&(void 0===t$2.ShadyCSS||t$2.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,s$2=Symbol(),o$4=new WeakMap;let n$3 = class n{constructor(t,e,o){if(this._$cssResult$=true,o!==s$2)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e;}get styleSheet(){let t=this.o;const s=this.t;if(e$2&&void 0===t){const e=void 0!==s&&1===s.length;e&&(t=o$4.get(s)),void 0===t&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),e&&o$4.set(s,t));}return t}toString(){return this.cssText}};const r$4=t=>new n$3("string"==typeof t?t:t+"",void 0,s$2),i$3=(t,...e)=>{const o=1===t.length?t[0]:e.reduce((e,s,o)=>e+(t=>{if(true===t._$cssResult$)return t.cssText;if("number"==typeof t)return t;throw Error("Value passed to 'css' function must be a 'css' function result: "+t+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+t[o+1],t[0]);return new n$3(o,t,s$2)},S$1=(s,o)=>{if(e$2)s.adoptedStyleSheets=o.map(t=>t instanceof CSSStyleSheet?t:t.styleSheet);else for(const e of o){const o=document.createElement("style"),n=t$2.litNonce;void 0!==n&&o.setAttribute("nonce",n),o.textContent=e.cssText,s.appendChild(o);}},c$2=e$2?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const s of t.cssRules)e+=s.cssText;return r$4(e)})(t):t;
+const t$3=globalThis,e$2=t$3.ShadowRoot&&(void 0===t$3.ShadyCSS||t$3.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,s$2=Symbol(),o$4=new WeakMap;let n$3 = class n{constructor(t,e,o){if(this._$cssResult$=true,o!==s$2)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e;}get styleSheet(){let t=this.o;const s=this.t;if(e$2&&void 0===t){const e=void 0!==s&&1===s.length;e&&(t=o$4.get(s)),void 0===t&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),e&&o$4.set(s,t));}return t}toString(){return this.cssText}};const r$4=t=>new n$3("string"==typeof t?t:t+"",void 0,s$2),i$3=(t,...e)=>{const o=1===t.length?t[0]:e.reduce((e,s,o)=>e+(t=>{if(true===t._$cssResult$)return t.cssText;if("number"==typeof t)return t;throw Error("Value passed to 'css' function must be a 'css' function result: "+t+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+t[o+1],t[0]);return new n$3(o,t,s$2)},S$1=(s,o)=>{if(e$2)s.adoptedStyleSheets=o.map(t=>t instanceof CSSStyleSheet?t:t.styleSheet);else for(const e of o){const o=document.createElement("style"),n=t$3.litNonce;void 0!==n&&o.setAttribute("nonce",n),o.textContent=e.cssText,s.appendChild(o);}},c$2=e$2?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const s of t.cssRules)e+=s.cssText;return r$4(e)})(t):t;
 
 /**
  * @license
@@ -45,7 +45,7 @@ const t$2=globalThis,e$2=t$2.ShadowRoot&&(void 0===t$2.ShadyCSS||t$2.ShadyCSS.na
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t$1=globalThis,i$1=t=>t,s$1=t$1.trustedTypes,e=s$1?s$1.createPolicy("lit-html",{createHTML:t=>t}):void 0,h="$lit$",o$2=`lit$${Math.random().toFixed(9).slice(2)}$`,n$1="?"+o$2,r$2=`<${n$1}>`,l=document,c=()=>l.createComment(""),a=t=>null===t||"object"!=typeof t&&"function"!=typeof t,u=Array.isArray,d=t=>u(t)||"function"==typeof t?.[Symbol.iterator],f="[ \t\n\f\r]",v=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,_=/-->/g,m=/>/g,p=RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),g=/'/g,$=/"/g,y=/^(?:script|style|textarea|title)$/i,x=t=>(i,...s)=>({_$litType$:t,strings:i,values:s}),b=x(1),E=Symbol.for("lit-noChange"),A=Symbol.for("lit-nothing"),C=new WeakMap,P=l.createTreeWalker(l,129);function V(t,i){if(!u(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==e?e.createHTML(i):i}const N=(t,i)=>{const s=t.length-1,e=[];let n,l=2===i?"<svg>":3===i?"<math>":"",c=v;for(let i=0;i<s;i++){const s=t[i];let a,u,d=-1,f=0;for(;f<s.length&&(c.lastIndex=f,u=c.exec(s),null!==u);)f=c.lastIndex,c===v?"!--"===u[1]?c=_:void 0!==u[1]?c=m:void 0!==u[2]?(y.test(u[2])&&(n=RegExp("</"+u[2],"g")),c=p):void 0!==u[3]&&(c=p):c===p?">"===u[0]?(c=n??v,d=-1):void 0===u[1]?d=-2:(d=c.lastIndex-u[2].length,a=u[1],c=void 0===u[3]?p:'"'===u[3]?$:g):c===$||c===g?c=p:c===_||c===m?c=v:(c=p,n=void 0);const x=c===p&&t[i+1].startsWith("/>")?" ":"";l+=c===v?s+r$2:d>=0?(e.push(a),s.slice(0,d)+h+s.slice(d)+o$2+x):s+o$2+(-2===d?i:x);}return [V(t,l+(t[s]||"<?>")+(2===i?"</svg>":3===i?"</math>":"")),e]};class S{constructor({strings:t,_$litType$:i},e){let r;this.parts=[];let l=0,a=0;const u=t.length-1,d=this.parts,[f,v]=N(t,i);if(this.el=S.createElement(f,e),P.currentNode=this.el.content,2===i||3===i){const t=this.el.content.firstChild;t.replaceWith(...t.childNodes);}for(;null!==(r=P.nextNode())&&d.length<u;){if(1===r.nodeType){if(r.hasAttributes())for(const t of r.getAttributeNames())if(t.endsWith(h)){const i=v[a++],s=r.getAttribute(t).split(o$2),e=/([.?@])?(.*)/.exec(i);d.push({type:1,index:l,name:e[2],strings:s,ctor:"."===e[1]?I:"?"===e[1]?L:"@"===e[1]?z:H}),r.removeAttribute(t);}else t.startsWith(o$2)&&(d.push({type:6,index:l}),r.removeAttribute(t));if(y.test(r.tagName)){const t=r.textContent.split(o$2),i=t.length-1;if(i>0){r.textContent=s$1?s$1.emptyScript:"";for(let s=0;s<i;s++)r.append(t[s],c()),P.nextNode(),d.push({type:2,index:++l});r.append(t[i],c());}}}else if(8===r.nodeType)if(r.data===n$1)d.push({type:2,index:l});else {let t=-1;for(;-1!==(t=r.data.indexOf(o$2,t+1));)d.push({type:7,index:l}),t+=o$2.length-1;}l++;}}static createElement(t,i){const s=l.createElement("template");return s.innerHTML=t,s}}function M(t,i,s=t,e){if(i===E)return i;let h=void 0!==e?s._$Co?.[e]:s._$Cl;const o=a(i)?void 0:i._$litDirective$;return h?.constructor!==o&&(h?._$AO?.(false),void 0===o?h=void 0:(h=new o(t),h._$AT(t,s,e)),void 0!==e?(s._$Co??=[])[e]=h:s._$Cl=h),void 0!==h&&(i=M(t,h._$AS(t,i.values),h,e)),i}class R{constructor(t,i){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=i;}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){const{el:{content:i},parts:s}=this._$AD,e=(t?.creationScope??l).importNode(i,true);P.currentNode=e;let h=P.nextNode(),o=0,n=0,r=s[0];for(;void 0!==r;){if(o===r.index){let i;2===r.type?i=new k(h,h.nextSibling,this,t):1===r.type?i=new r.ctor(h,r.name,r.strings,this,t):6===r.type&&(i=new Z(h,this,t)),this._$AV.push(i),r=s[++n];}o!==r?.index&&(h=P.nextNode(),o++);}return P.currentNode=l,e}p(t){let i=0;for(const s of this._$AV) void 0!==s&&(void 0!==s.strings?(s._$AI(t,s,i),i+=s.strings.length-2):s._$AI(t[i])),i++;}}class k{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(t,i,s,e){this.type=2,this._$AH=A,this._$AN=void 0,this._$AA=t,this._$AB=i,this._$AM=s,this.options=e,this._$Cv=e?.isConnected??true;}get parentNode(){let t=this._$AA.parentNode;const i=this._$AM;return void 0!==i&&11===t?.nodeType&&(t=i.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,i=this){t=M(this,t,i),a(t)?t===A||null==t||""===t?(this._$AH!==A&&this._$AR(),this._$AH=A):t!==this._$AH&&t!==E&&this._(t):void 0!==t._$litType$?this.$(t):void 0!==t.nodeType?this.T(t):d(t)?this.k(t):this._(t);}O(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}T(t){this._$AH!==t&&(this._$AR(),this._$AH=this.O(t));}_(t){this._$AH!==A&&a(this._$AH)?this._$AA.nextSibling.data=t:this.T(l.createTextNode(t)),this._$AH=t;}$(t){const{values:i,_$litType$:s}=t,e="number"==typeof s?this._$AC(t):(void 0===s.el&&(s.el=S.createElement(V(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===e)this._$AH.p(i);else {const t=new R(e,this),s=t.u(this.options);t.p(i),this.T(s),this._$AH=t;}}_$AC(t){let i=C.get(t.strings);return void 0===i&&C.set(t.strings,i=new S(t)),i}k(t){u(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,e=0;for(const h of t)e===i.length?i.push(s=new k(this.O(c()),this.O(c()),this,this.options)):s=i[e],s._$AI(h),e++;e<i.length&&(this._$AR(s&&s._$AB.nextSibling,e),i.length=e);}_$AR(t=this._$AA.nextSibling,s){for(this._$AP?.(false,true,s);t!==this._$AB;){const s=i$1(t).nextSibling;i$1(t).remove(),t=s;}}setConnected(t){ void 0===this._$AM&&(this._$Cv=t,this._$AP?.(t));}}class H{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(t,i,s,e,h){this.type=1,this._$AH=A,this._$AN=void 0,this.element=t,this.name=i,this._$AM=e,this.options=h,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=A;}_$AI(t,i=this,s,e){const h=this.strings;let o=false;if(void 0===h)t=M(this,t,i,0),o=!a(t)||t!==this._$AH&&t!==E,o&&(this._$AH=t);else {const e=t;let n,r;for(t=h[0],n=0;n<h.length-1;n++)r=M(this,e[s+n],i,n),r===E&&(r=this._$AH[n]),o||=!a(r)||r!==this._$AH[n],r===A?t=A:t!==A&&(t+=(r??"")+h[n+1]),this._$AH[n]=r;}o&&!e&&this.j(t);}j(t){t===A?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,t??"");}}class I extends H{constructor(){super(...arguments),this.type=3;}j(t){this.element[this.name]=t===A?void 0:t;}}class L extends H{constructor(){super(...arguments),this.type=4;}j(t){this.element.toggleAttribute(this.name,!!t&&t!==A);}}class z extends H{constructor(t,i,s,e,h){super(t,i,s,e,h),this.type=5;}_$AI(t,i=this){if((t=M(this,t,i,0)??A)===E)return;const s=this._$AH,e=t===A&&s!==A||t.capture!==s.capture||t.once!==s.once||t.passive!==s.passive,h=t!==A&&(s===A||e);e&&this.element.removeEventListener(this.name,this,s),h&&this.element.addEventListener(this.name,this,t),this._$AH=t;}handleEvent(t){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,t):this._$AH.handleEvent(t);}}class Z{constructor(t,i,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s;}get _$AU(){return this._$AM._$AU}_$AI(t){M(this,t);}}const B=t$1.litHtmlPolyfillSupport;B?.(S,k),(t$1.litHtmlVersions??=[]).push("3.3.2");const D=(t,i,s)=>{const e=s?.renderBefore??i;let h=e._$litPart$;if(void 0===h){const t=s?.renderBefore??null;e._$litPart$=h=new k(i.insertBefore(c(),t),t,void 0,s??{});}return h._$AI(t),h};
+const t$2=globalThis,i$1=t=>t,s$1=t$2.trustedTypes,e=s$1?s$1.createPolicy("lit-html",{createHTML:t=>t}):void 0,h="$lit$",o$2=`lit$${Math.random().toFixed(9).slice(2)}$`,n$1="?"+o$2,r$2=`<${n$1}>`,l=document,c=()=>l.createComment(""),a=t=>null===t||"object"!=typeof t&&"function"!=typeof t,u=Array.isArray,d=t=>u(t)||"function"==typeof t?.[Symbol.iterator],f="[ \t\n\f\r]",v=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,_=/-->/g,m=/>/g,p=RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),g=/'/g,$=/"/g,y=/^(?:script|style|textarea|title)$/i,x=t=>(i,...s)=>({_$litType$:t,strings:i,values:s}),b=x(1),E=Symbol.for("lit-noChange"),A=Symbol.for("lit-nothing"),C=new WeakMap,P=l.createTreeWalker(l,129);function V(t,i){if(!u(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==e?e.createHTML(i):i}const N=(t,i)=>{const s=t.length-1,e=[];let n,l=2===i?"<svg>":3===i?"<math>":"",c=v;for(let i=0;i<s;i++){const s=t[i];let a,u,d=-1,f=0;for(;f<s.length&&(c.lastIndex=f,u=c.exec(s),null!==u);)f=c.lastIndex,c===v?"!--"===u[1]?c=_:void 0!==u[1]?c=m:void 0!==u[2]?(y.test(u[2])&&(n=RegExp("</"+u[2],"g")),c=p):void 0!==u[3]&&(c=p):c===p?">"===u[0]?(c=n??v,d=-1):void 0===u[1]?d=-2:(d=c.lastIndex-u[2].length,a=u[1],c=void 0===u[3]?p:'"'===u[3]?$:g):c===$||c===g?c=p:c===_||c===m?c=v:(c=p,n=void 0);const x=c===p&&t[i+1].startsWith("/>")?" ":"";l+=c===v?s+r$2:d>=0?(e.push(a),s.slice(0,d)+h+s.slice(d)+o$2+x):s+o$2+(-2===d?i:x);}return [V(t,l+(t[s]||"<?>")+(2===i?"</svg>":3===i?"</math>":"")),e]};class S{constructor({strings:t,_$litType$:i},e){let r;this.parts=[];let l=0,a=0;const u=t.length-1,d=this.parts,[f,v]=N(t,i);if(this.el=S.createElement(f,e),P.currentNode=this.el.content,2===i||3===i){const t=this.el.content.firstChild;t.replaceWith(...t.childNodes);}for(;null!==(r=P.nextNode())&&d.length<u;){if(1===r.nodeType){if(r.hasAttributes())for(const t of r.getAttributeNames())if(t.endsWith(h)){const i=v[a++],s=r.getAttribute(t).split(o$2),e=/([.?@])?(.*)/.exec(i);d.push({type:1,index:l,name:e[2],strings:s,ctor:"."===e[1]?I:"?"===e[1]?L:"@"===e[1]?z:H}),r.removeAttribute(t);}else t.startsWith(o$2)&&(d.push({type:6,index:l}),r.removeAttribute(t));if(y.test(r.tagName)){const t=r.textContent.split(o$2),i=t.length-1;if(i>0){r.textContent=s$1?s$1.emptyScript:"";for(let s=0;s<i;s++)r.append(t[s],c()),P.nextNode(),d.push({type:2,index:++l});r.append(t[i],c());}}}else if(8===r.nodeType)if(r.data===n$1)d.push({type:2,index:l});else {let t=-1;for(;-1!==(t=r.data.indexOf(o$2,t+1));)d.push({type:7,index:l}),t+=o$2.length-1;}l++;}}static createElement(t,i){const s=l.createElement("template");return s.innerHTML=t,s}}function M(t,i,s=t,e){if(i===E)return i;let h=void 0!==e?s._$Co?.[e]:s._$Cl;const o=a(i)?void 0:i._$litDirective$;return h?.constructor!==o&&(h?._$AO?.(false),void 0===o?h=void 0:(h=new o(t),h._$AT(t,s,e)),void 0!==e?(s._$Co??=[])[e]=h:s._$Cl=h),void 0!==h&&(i=M(t,h._$AS(t,i.values),h,e)),i}class R{constructor(t,i){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=i;}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){const{el:{content:i},parts:s}=this._$AD,e=(t?.creationScope??l).importNode(i,true);P.currentNode=e;let h=P.nextNode(),o=0,n=0,r=s[0];for(;void 0!==r;){if(o===r.index){let i;2===r.type?i=new k(h,h.nextSibling,this,t):1===r.type?i=new r.ctor(h,r.name,r.strings,this,t):6===r.type&&(i=new Z(h,this,t)),this._$AV.push(i),r=s[++n];}o!==r?.index&&(h=P.nextNode(),o++);}return P.currentNode=l,e}p(t){let i=0;for(const s of this._$AV) void 0!==s&&(void 0!==s.strings?(s._$AI(t,s,i),i+=s.strings.length-2):s._$AI(t[i])),i++;}}class k{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(t,i,s,e){this.type=2,this._$AH=A,this._$AN=void 0,this._$AA=t,this._$AB=i,this._$AM=s,this.options=e,this._$Cv=e?.isConnected??true;}get parentNode(){let t=this._$AA.parentNode;const i=this._$AM;return void 0!==i&&11===t?.nodeType&&(t=i.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,i=this){t=M(this,t,i),a(t)?t===A||null==t||""===t?(this._$AH!==A&&this._$AR(),this._$AH=A):t!==this._$AH&&t!==E&&this._(t):void 0!==t._$litType$?this.$(t):void 0!==t.nodeType?this.T(t):d(t)?this.k(t):this._(t);}O(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}T(t){this._$AH!==t&&(this._$AR(),this._$AH=this.O(t));}_(t){this._$AH!==A&&a(this._$AH)?this._$AA.nextSibling.data=t:this.T(l.createTextNode(t)),this._$AH=t;}$(t){const{values:i,_$litType$:s}=t,e="number"==typeof s?this._$AC(t):(void 0===s.el&&(s.el=S.createElement(V(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===e)this._$AH.p(i);else {const t=new R(e,this),s=t.u(this.options);t.p(i),this.T(s),this._$AH=t;}}_$AC(t){let i=C.get(t.strings);return void 0===i&&C.set(t.strings,i=new S(t)),i}k(t){u(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,e=0;for(const h of t)e===i.length?i.push(s=new k(this.O(c()),this.O(c()),this,this.options)):s=i[e],s._$AI(h),e++;e<i.length&&(this._$AR(s&&s._$AB.nextSibling,e),i.length=e);}_$AR(t=this._$AA.nextSibling,s){for(this._$AP?.(false,true,s);t!==this._$AB;){const s=i$1(t).nextSibling;i$1(t).remove(),t=s;}}setConnected(t){ void 0===this._$AM&&(this._$Cv=t,this._$AP?.(t));}}class H{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(t,i,s,e,h){this.type=1,this._$AH=A,this._$AN=void 0,this.element=t,this.name=i,this._$AM=e,this.options=h,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=A;}_$AI(t,i=this,s,e){const h=this.strings;let o=false;if(void 0===h)t=M(this,t,i,0),o=!a(t)||t!==this._$AH&&t!==E,o&&(this._$AH=t);else {const e=t;let n,r;for(t=h[0],n=0;n<h.length-1;n++)r=M(this,e[s+n],i,n),r===E&&(r=this._$AH[n]),o||=!a(r)||r!==this._$AH[n],r===A?t=A:t!==A&&(t+=(r??"")+h[n+1]),this._$AH[n]=r;}o&&!e&&this.j(t);}j(t){t===A?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,t??"");}}class I extends H{constructor(){super(...arguments),this.type=3;}j(t){this.element[this.name]=t===A?void 0:t;}}class L extends H{constructor(){super(...arguments),this.type=4;}j(t){this.element.toggleAttribute(this.name,!!t&&t!==A);}}class z extends H{constructor(t,i,s,e,h){super(t,i,s,e,h),this.type=5;}_$AI(t,i=this){if((t=M(this,t,i,0)??A)===E)return;const s=this._$AH,e=t===A&&s!==A||t.capture!==s.capture||t.once!==s.once||t.passive!==s.passive,h=t!==A&&(s===A||e);e&&this.element.removeEventListener(this.name,this,s),h&&this.element.addEventListener(this.name,this,t),this._$AH=t;}handleEvent(t){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,t):this._$AH.handleEvent(t);}}class Z{constructor(t,i,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s;}get _$AU(){return this._$AM._$AU}_$AI(t){M(this,t);}}const B=t$2.litHtmlPolyfillSupport;B?.(S,k),(t$2.litHtmlVersions??=[]).push("3.3.2");const D=(t,i,s)=>{const e=s?.renderBefore??i;let h=e._$litPart$;if(void 0===h){const t=s?.renderBefore??null;e._$litPart$=h=new k(i.insertBefore(c(),t),t,void 0,s??{});}return h._$AI(t),h};
 
 /**
  * @license
@@ -58,7 +58,7 @@ const t$1=globalThis,i$1=t=>t,s$1=t$1.trustedTypes,e=s$1?s$1.createPolicy("lit-h
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t=t=>(e,o)=>{ void 0!==o?o.addInitializer(()=>{customElements.define(t,e);}):customElements.define(t,e);};
+const t$1=t=>(e,o)=>{ void 0!==o?o.addInitializer(()=>{customElements.define(t,e);}):customElements.define(t,e);};
 
 /**
  * @license
@@ -733,10 +733,1314 @@ const sharedStyles = i$3 `
   }
 `;
 
-const STORAGE_ROW_TYPE_LABELS = {
-    bulk: "Bulk Bin",
-    box: "Wine Box",
+var wineType$1 = {
+	red: "Red",
+	white: "White",
+	"rosé": "Rosé",
+	sparkling: "Sparkling",
+	dessert: "Dessert"
 };
+var storageRowType$1 = {
+	bulk: "Bulk Bin",
+	box: "Wine Box"
+};
+var removalReason$1 = {
+	drank: "Drank",
+	gifted: "Gifted",
+	sold: "Sold",
+	broken: "Broken",
+	spoiled: "Spoiled",
+	other: "Other"
+};
+var wineLocation$1 = {
+	unassigned: "Unassigned",
+	storage: "Storage",
+	slot: "Slot"
+};
+var ui$1 = {
+	common: {
+		cancel: "Cancel",
+		empty: "Empty",
+		edit: "Edit",
+		notRated: "Not rated",
+		start: "Start",
+		close: "Close",
+		any: "Any",
+		replace: "replace",
+		"new": "new",
+		colonSep: ": ",
+		clearSearch: "Clear search"
+	},
+	disposition: {
+		drink: "Drink",
+		drinkNow: "Drink Now",
+		hold: "Hold",
+		pastPeak: "Past Peak"
+	},
+	card: {
+		loading: "Loading wine cellar...",
+		noSearchResults: "No wines match your search",
+		vivinoBatchScanTitle: "Vivino Batch Scan",
+		somePhotosQuestion: "Some wines already have a photo. What should happen to those photos?",
+		tryAiNoMatch: "Try AI for wines with no confident Vivino match",
+		keepExistingPhotos: "Keep My Existing Photos",
+		replaceWithVivinoPhotos: "Replace With Vivino Photos",
+		runAiBatchTitle: "Run AI Batch Scan?",
+		runAiBatchBody: "This will run a full AI analysis on all {n} wines, one API call per bottle. It may take a while and use significant AI quota.",
+		runOnNWines: "Run on {n} Wines",
+		aiBatchScanBtn: "🤖 AI Batch Scan",
+		aiScanning: "AI Scanning...",
+		vivinoBatchScanBtn: "🍇 Vivino Batch Scan",
+		vivinoScanning: "Vivino Scanning...",
+		vivinoSyncBtn: "🔄 Vivino Sync",
+		vivinoSyncing: "Vivino Syncing...",
+		scanListBtn: "🍽️ Scan List",
+		inventoryBtn: "📦 Inventory",
+		addWineBtn: "+ Add Wine",
+		fullAiAnalysisTitle: "Full AI analysis on all wines (disposition, ratings, price, description)",
+		refreshVivinoTitle: "Refresh all wines from Vivino (ratings, price, description)",
+		importVivinoTitle: "Import your Vivino cellar and wishlist into Cork Dork",
+		scanListTitle: "Scan a wine list or receipt for ratings and value",
+		inventoryTitle: "Browse full cellar inventory",
+		unplacedTitle: "Bottles in Unassigned, not yet placed on a rack",
+		suggestionsTitle: "Suggestions read from where your bottles already are",
+		statBottles: "bottles",
+		statCapacity: "capacity",
+		statAvailable: "available",
+		statUnplaced: "unplaced",
+		statValue: "value",
+		tidyUp: "tidy-up",
+		tidyUps: "tidy-ups",
+		allSections: "All Sections",
+		unassignedTab: "Unassigned ({n})",
+		unassignedSectionHeader: "📦 Unassigned ({n})",
+		buyListTab: "Buy List ({n})",
+		manageRacks: "Manage Racks",
+		vivinoAiSettings: "⚙️ Vivino/AI Settings",
+		buyListEmpty: "Your buy list is empty",
+		buyListEmptyHint: "Use 🛒 Buy List in Add Wine, or 🛒 Buy in the list scanner",
+		moveToCellar: "Move to cellar",
+		addToCellarBtn: "+ Cellar",
+		removeFromBuyList: "Remove from buy list",
+		unassignedHint: "These wines are not assigned to any rack. Tap a wine to view details, then use Move to place it.",
+		cellarEmpty: "Your cellar is empty",
+		cellarEmptyHint: "Tap \"Add Wine\" to start building your collection",
+		slot: "Slot {n}",
+		sortByDate: "↕ Sort by date",
+		sorting: "Sorting…",
+		renumberTitle: "Renumber the slots to match when bottles were added",
+		reorderByDateTitle: "Reorder by date added?",
+		reorderByDateBody: "Every bottle in {zone} moves to a slot matching when it was added. Any order you arranged by hand is lost. Slot 1 is the most accessible position.",
+		oldestFirst: "Oldest first",
+		newestFirst: "Newest first",
+		oldestFirstTitle: "Slot 1 holds the bottle that has been in this bin longest — for a bin you fill in a row",
+		newestFirstTitle: "Slot 1 holds the bottle you added last — for a bin you stack, where the newest sits on top",
+		deleteThisSlot: "Delete this slot",
+		addBox: "Add Box",
+		addSlot: "Add Slot",
+		panelStored: "stored",
+		titleCredit: "originally created by @BaconWappedBitcoin",
+		copyBannerText: "Copying \"{name}\" — tap empty cells or bulk/box zones to place copies",
+		moveBannerText: "Moving \"{name}\" — tap a cell to place it",
+		buyListMoveBannerText: "Placing \"{name}\" — tap a cell in your cellar",
+		doneBtn: "Done",
+		depthPanelRowCol: "Row {row}, Col {col}",
+		depthPanelDeepCount: "{n}/{max} deep",
+		rackPanelBottlesCount: "{n}/{max} bottles",
+		boxHeader: "Box {n} ({size}-pack)",
+		deepSuffix: "{n} deep"
+	},
+	inventory: {
+		title: "📦 Inventory",
+		tabInventory: "Inventory",
+		tabHistory: "History",
+		loadingHistory: "Loading history...",
+		noHistory: "No removal history yet",
+		winesRemoved: "{n} wines removed",
+		restoreBtn: "Restore",
+		clearHistoryBtn: "Clear History",
+		historyCleared: "History cleared",
+		wineRestoredUnassigned: "Wine restored to Unassigned",
+		restoreWineFailed: "Failed to restore wine",
+		enrichMissingVivino: "missing pairings or description, never checked against Vivino",
+		enrichMissingAI: "missing a drink window or verdict, never analyzed by AI",
+		enrichRetryVivino: "checked against Vivino, still nothing — Vivino does add bottles over time",
+		enrichRetryAI: "analyzed by AI, still without a verdict",
+		fillFromVivino: "Fill from Vivino",
+		analyzeWithAi: "Analyze with AI",
+		retryVivino: "Retry Vivino",
+		retryAI: "Retry AI",
+		working: "Working…",
+		retryVivinoQ: "🍇 Retry Vivino?",
+		fillFromVivinoQ: "🍇 Fill from Vivino?",
+		retryAiQ: "🤖 Retry AI analysis?",
+		analyzeWithAiQ: "🤖 Analyze with AI?",
+		enrichConfirmBodyOne: "{count} wine will be looked up. This is a slow, rate-limited network call — expect it to run for a while, and leave the dialog open until it finishes.",
+		enrichConfirmBodyMany: "{count} wines will be looked up one at a time. This is a slow, rate-limited network call — expect it to run for a while, and leave the dialog open until it finishes.",
+		retryExplain: "These were already checked and came back empty. The check date is updated either way, so you can always see when the last attempt was.",
+		newExplain: "Some will come back with nothing new — not every bottle exists in {source}. Those move to the retry line below rather than staying here.",
+		vivinoCatalogue: "Vivino's catalogue",
+		whatAiInfer: "what the AI can infer",
+		vivinoFillsExplain: "Fills food pairings, description, rating and the label photo where Vivino has them. Existing values are kept.",
+		aiFillsExplain: "Fills the drinking verdict, drink window and critic scores where the AI can infer them. Existing values are kept.",
+		dbSize: "Database {total} · history {history} ({share}%) · {wines} wines, {archived} archived",
+		heavyHistoryHint: "Home Assistant rewrites this whole file on every change — clearing old history speeds up every edit.",
+		refreshingWines: "Refreshing {n} wines via {source}…",
+		refreshFailed: "Refresh failed: {error}",
+		enrichUpdated: "{n} updated",
+		enrichUnchanged: "{n} had nothing new on {source}",
+		enrichErrors: "{n} could not be reached",
+		enrichRetryNote: "Their check date is updated — try again later.",
+		enrichMoveToRetryNote: "Their check date is updated; they move to the retry line.",
+		backupSaved: "Backup saved — {wines} wines, {cabinets} racks, {buyList} buy list",
+		backupFailed: "Backup failed: {error}",
+		importFailed: "Import failed: {error}",
+		noWinesInCsv: "No wines found in CSV file.",
+		importUpdated: "Updated {updated} wines{addedPart}.",
+		importAddedPart: ", added {n} new",
+		importSuccess: "Imported {n} wines successfully!",
+		importSkippedNoteOne: "{skipped} row kept its previous spot — the location given was unknown, out of range or already taken.",
+		importSkippedNoteMany: "{skipped} rows kept their previous spot — the location given was unknown, out of range or already taken.",
+		invalidBackupWines: "Invalid backup file: missing wines array.",
+		invalidBackupCabinets: "Invalid backup file: missing cabinets array.",
+		invalidJsonFile: "Invalid JSON file: {error}",
+		restoreFailed: "Restore failed: {error}",
+		restoredCount: "Restored {wines} wines, {cabinets} racks, {buyList} buy list items!",
+		savingEllipsis: "Saving…",
+		serverBackupFailed: "Server backup failed: {error}",
+		savedToServer: "Saved {wines} wines, {cabinets} racks to server",
+		savedCheckmark: "✅ Saved!",
+		listBackupsFailed: "Failed to list backups: {error}",
+		keepEveryBackup: "Keeping every server backup.",
+		keepNBackups: "Keeping the {n} most recent server backups.",
+		retentionSaveFailed: "Could not save retention: {error}",
+		deleteFailed: "Delete failed: {error}",
+		deletedFile: "Deleted {filename}",
+		restoredFromServer: "Restored {wines} wines, {cabinets} racks from {filename}",
+		readyToDrink: "Ready to drink",
+		filterDrinkNow: "Drink now",
+		filterHold: "Hold",
+		filterPastPeak: "Past peak",
+		filterNotAnalyzed: "Not analyzed",
+		pairsWith: "Pairs with",
+		anyFood: "Any food",
+		missingPairingsHintOne: "{n} wine has no pairing data. Only Vivino supplies pairings — use “Fill from Vivino” below the list.",
+		missingPairingsHintMany: "{n} wines have no pairing data. Only Vivino supplies pairings — use “Fill from Vivino” below the list.",
+		country: "Country",
+		grape: "Grape",
+		cabinet: "Cabinet",
+		minRating: "Min rating",
+		maxPrice: "Max price",
+		pricedOnly: "Priced wines only.",
+		vintage: "Vintage",
+		fromPlaceholder: "From",
+		toPlaceholder: "To",
+		byYear: "by {year}",
+		ofNBottles: "of {n} bottles",
+		estValue: "est. value",
+		searchPlaceholder: "Search wines...",
+		ascending: "Ascending",
+		descending: "Descending",
+		filtersBtn: "⚙︎ Filters",
+		moreFiltersTitle: "More filters",
+		sort: {
+			name: "Name",
+			winery: "Winery",
+			vintage: "Vintage",
+			type: "Type",
+			rating: "Rating",
+			myRating: "My Rating",
+			price: "Price",
+			drinkBy: "Drink By",
+			urgency: "Urgency",
+			purchaseDate: "Purchase Date",
+			dateAdded: "Date Added",
+			cabinet: "Cabinet"
+		},
+		preset: {
+			allLabel: "All",
+			allHint: "Every wine in the cellar",
+			drinkThisYearLabel: "Drink this year",
+			drinkThisYearHint: "Drink-by year {year} or earlier, or marked \"Drink now\" with no year. Excludes past peak.",
+			pastPeakLabel: "Past peak",
+			pastPeakHint: "Marked \"Past peak\" by the AI analysis",
+			unratedLabel: "Not rated",
+			unratedHint: "You have not given these a personal star rating",
+			incompleteLabel: "Missing data",
+			incompleteHint: "Missing at least one of: food pairings, description, drink window, label photo",
+			recentLabel: "Added recently",
+			recentHint: "Added to the cellar in the last 30 days"
+		},
+		winesShown: "{shown} of {total} wines shown",
+		filtersActive: " · {n} filter{plural} active",
+		clearAll: "Clear all",
+		footerCountAll: "{n} wines",
+		footerCountFiltered: "{shown} of {total} wines",
+		saveServerBackupTitle: "Save timestamped backup to HA server",
+		serverBackupBtn: "Server Backup",
+		restoreServerBackupTitle: "Restore from a server backup",
+		restoringEllipsis: "Restoring…",
+		serverRestoreBtn: "Server Restore",
+		downloadBackupTitle: "Download full cellar backup as JSON",
+		downloadBtn: "Download",
+		restoreFromFileTitle: "Restore cellar from a JSON backup file",
+		uploadBtn: "Upload",
+		importCsvTitle: "Import wines from a CSV file",
+		importingEllipsis: "Importing…",
+		importCsvBtn: "Import CSV",
+		exportCsvTitle: "Export wines as CSV",
+		exportCsvBtn: "Export CSV",
+		serverBackupsTitle: "Server Backups",
+		keepTheLast: "Keep the last",
+		allNeverDelete: "All (never delete)",
+		nBackups: "{n} backups",
+		noServerBackups: "No server backups found. Use \"Server Backup\" to create one.",
+		selectBackupToRestore1: "Select a backup to restore — this will",
+		selectBackupToRestore2: "all current data. {n} stored, {size} on disk.",
+		unreadableFile: "unreadable file",
+		backupMeta: "{wines} wines, {cabinets} racks · {size}",
+		deleteThisBackup: "Delete this backup",
+		updateExistingQ: "📄 Update existing wines?",
+		csvEditedExportNote: "This CSV looks like an edited export — some rows carry the ID of a wine already in your cellar.",
+		rowsMatchExisting: "row{plural} match existing wines",
+		updateOnlyTouchesNote: "Updating only touches the columns present in the file; blank cells leave the stored value alone.",
+		addAllAsNew: "Add all as new",
+		updateNWines: "Update {n} wine{plural}",
+		restoreBackupQ: "🔄 Restore Backup?",
+		restoreWillReplaceNote: "This will replace all your current cellar data with the backup. This action cannot be undone.",
+		backupContains: "Backup contains:",
+		backupStats: "{wines} wines · {cabinets} racks · {buyList} buy list items",
+		winesWord: "wines",
+		racksWord: "racks",
+		buyListItemsWord: "buy list items",
+		createdLabel: "Created: {date}",
+		restoreNowBtn: "Restore Now"
+	},
+	addWine: {
+		title: "Add Wine",
+		titleBuyList: "Add to Buy List",
+		lookingUpBarcode: "Looking up barcode...",
+		cancelScan: "Cancel Scan",
+		analyzingLabel: "Analyzing label with AI...",
+		frontLabelCaptured: "Front label captured",
+		addBackPhotoQuestion: "Add a photo of the back label too? It often has the vintage year (and sometimes a barcode).",
+		addBackPhotoBtn: "📷 Add Back Photo",
+		skipUseFrontOnly: "Skip, Use Front Only",
+		photographBackLabel: "Now photograph the back label",
+		scanBarcodeTitle: "Scan Barcode",
+		scanBarcodeDesc: "Point camera at wine bottle barcode",
+		recognizeLabelTitle: "Recognize Label",
+		configureGeminiTitle: "Configure Gemini API key in integration settings",
+		takePhotoOfLabel: "Take a photo of the wine label",
+		requiresGeminiKey: "Requires Gemini API key in settings",
+		orEnterManually: "or enter manually",
+		barcodePlaceholder: "Enter barcode...",
+		lookUpBtn: "Look Up",
+		orSearchByName: "or search by name",
+		searchNamePlaceholder: "Search wine name...",
+		searchBtn: "Search",
+		resultsCount: "{n} result{plural} — tap to select",
+		unknownName: "Unknown",
+		skipManualEntry: "Skip → Manual Entry",
+		back: "← Back",
+		next: "Next →",
+		wineNameLabel: "Wine Name *",
+		wineryLabel: "Winery",
+		vintageLabel: "Vintage",
+		typeLabel: "Type",
+		purchasePriceLabel: "Purchase Price",
+		currentValueLabel: "Current Value",
+		regionLabel: "Region",
+		countryLabel: "Country",
+		grapeVarietyLabel: "Grape Variety",
+		purchaseDateLabel: "Purchase Date",
+		drinkByLabel: "Drink By",
+		drinkByPlaceholder: "e.g. 2030",
+		notesLabel: "Notes",
+		myRatingLabel: "My Rating",
+		buyListBtnTitle: "Save to buy list instead of cellar",
+		buyListBtn: "🛒 Buy List",
+		suggestedTitle: "Suggested — where its relatives are",
+		fullUsage: "Full · {used}/{capacity}",
+		room: "Room",
+		oneFree: "1 free",
+		nFree: "{n} free",
+		noRoomSplit: "No room left there — split the series into",
+		orFreeSlotFirst: ", or free a slot first.",
+		chooseLocation: "Choose Location",
+		selectCabinetHint: "Select a cabinet and position for this bottle",
+		slotsCount: "{rows}×{cols} slots",
+		bulkBoxZone: "Bulk / Box Zone",
+		noneUseGrid: "None — use grid Row/Col",
+		boxShort: "Box",
+		fullTitle: "Full — free a slot or raise its capacity",
+		rowLabel: "Row (1-based)",
+		columnLabel: "Column (1-based)",
+		pickZoneOrRowCol: "Pick a zone, or enter both Row and Column, so the bottle has a findable spot.",
+		slotOutside: "That slot is outside {cabinet} ({rows} rows × {cols} columns).",
+		rowIsBinOrBox: "That row is a bin or box, not grid slots — pick it from the zone list above.",
+		slotFull: "Row {row}, column {col} is full ({used}/{depth} deep).",
+		bottlesLabel: "Bottles",
+		identicalUnassigned: "Identical bottles, added unassigned.",
+		destinationFull: "That destination is full.",
+		slotsFreeHere: "{n} slot{plural} free here.",
+		consecutiveSlots: "The {n} bottles take consecutive free slots.",
+		confirmAndAdd: "Confirm & Add",
+		nameLabel: "Name",
+		cabinetLabel: "Cabinet",
+		positionLabel: "Position",
+		notSpecified: "Not specified",
+		addNBottles: "Add {n} Bottles",
+		noBarcodeMatch: "No match for this barcode.",
+		barcodeLookupFailed: "Barcode lookup failed.",
+		takePhotoInstead: "{reason} Take a photo of the label instead.",
+		enterManually: "{reason} You can enter details manually.",
+		noResultsFound: "No results found. You can enter details manually.",
+		searchFailed: "Search failed. You can enter details manually.",
+		labelRecognitionFailed: "Label recognition failed: {error}",
+		unknownError: "Unknown error",
+		labelRecognitionError: "Label recognition error: {msg}",
+		zoneFull: "{label} is full ({used}/{capacity}). Free a slot, or raise its capacity in Manage Racks.",
+		containerFull: "{label} is full. Free a slot, or raise its capacity in Manage Racks.",
+		noFreeSlot: "No free slot left at that destination.",
+		addToBuyListFailed: "Failed to add to buy list.",
+		addWineFailed: "Failed to add wine.",
+		thisBox: "This box",
+		thisBin: "This bin",
+		posRowCol: "Row {row}, Col {col}"
+	},
+	wineDetail: {
+		backLabelSuffix: " (back label)",
+		backLabelBadge: "Back label",
+		frontLabelTitle: "Front label",
+		replacePhotoTitle: "Replace photo",
+		replaceBackPhotoTitle: "Replace back label photo",
+		deletePhotoTitle: "Delete photo",
+		deleteBackPhotoTitle: "Delete back label photo",
+		deletePhotoConfirm: "Delete this bottle's photo?",
+		deleteBackPhotoConfirm: "Delete this bottle's back label photo?",
+		tapToLocate: "Tap to locate",
+		ratingsCountSuffix: " ({count} ratings)",
+		myRating: "My Rating",
+		aiScanBtn: "AI Scan",
+		scanLabelBtn: "Scan Label",
+		scanLabelTitle: "Take a fresh photo of the label to update this bottle's photo and details",
+		copyBtn: "Copy",
+		moveBtn: "Move",
+		unassignBtn: "Unassign",
+		removeBtn: "Remove",
+		nothingFoundChecked: "nothing found · checked {date}",
+		recheckedNothingNew: "{date1} · rechecked {date2}, nothing new",
+		wineNameLabel: "Wine Name",
+		wineryLabel: "Winery",
+		vintageLabel: "Vintage",
+		typeLabel: "Type",
+		purchasePriceLabel: "Purchase Price",
+		currentValueLabel: "Current Value",
+		regionLabel: "Region",
+		countryLabel: "Country",
+		grapeVarietyLabel: "Grape Variety",
+		alcoholLabel: "Alcohol",
+		alcoholPlaceholder: "e.g. 13.5%",
+		purchaseDateLabel: "Purchase Date",
+		drinkByLabel: "Drink By",
+		drinkByPlaceholder: "e.g. 2030",
+		notesLabel: "Notes",
+		saving: "Saving...",
+		save: "Save",
+		priceLabel: "Price",
+		purchasedLabel: "Purchased",
+		barcodeLabel: "Barcode",
+		grapeLabel: "Grape",
+		drinkWindowPrefix: "Drink window: {window}",
+		tastingNotesTitle: "Tasting Notes",
+		aromaLabel: "Aroma",
+		aromaPlaceholder: "Berries, oak, vanilla...",
+		tasteLabel: "Taste",
+		tastePlaceholder: "Full-bodied, tannic...",
+		finishLabel: "Finish",
+		finishPlaceholder: "Long, smooth...",
+		overallLabel: "Overall",
+		overallPlaceholder: "Overall impression...",
+		noTastingNotes: "No tasting notes yet. Tap Edit to add your thoughts.",
+		removeWineTitle: "Remove Wine",
+		removeWineQuestion: "Why are you removing this bottle?",
+		vivinoPhotoAvailableTitle: "Vivino Photo Available",
+		vivinoPhotoAvailableBody: "Vivino found a different bottle photo. Keep your current photo or use Vivino's?",
+		currentPhotoLabel: "Current",
+		keepMyPhotoBtn: "Keep My Photo",
+		useVivinoPhotoBtn: "Use Vivino's",
+		noVivinoMatchTitle: "No Vivino Match",
+		noPriceFoundTitle: "No Price Found",
+		vivinoNoMatchBody: "Vivino couldn't find a confident match for this wine. Try AI instead?",
+		vivinoNoPriceBody: "Vivino has no price for this wine in the selected currency. Estimate it with AI?",
+		useAiOnceBtn: "Use AI Once",
+		alwaysUseAiBtn: "Always Use AI Automatically",
+		couldNotIdentifyLabel: "Could not identify the label. Try a clearer photo.",
+		labelScanFailed: "Label scan failed. Please try again.",
+		applyNoteConfirm: "Apply this note to your other {count} bottle{plural} of {name} too?",
+		drinkNowWithWindow: "Drink now • {window}",
+		drinkNowPlain: "Drink now",
+		holdWithWindow: "Hold • drink {window}",
+		holdUntil: "Hold until {date}",
+		holdPlain: "Hold",
+		pastPeakWithWindow: "Past peak • was {window}",
+		pastPeakPlain: "Past peak",
+		aiLabel: "AI"
+	},
+	rack: {
+		failedToAddRack: "Failed to add rack.",
+		failedToUpdateRack: "Failed to update rack.",
+		failedToDeleteRack: "Failed to delete rack.",
+		failedToReorderRacks: "Failed to reorder racks.",
+		gridDimensions: "{rows} × {cols} grid",
+		gridDeepSuffix: " × {depth} deep",
+		bottlesCountSuffix: " · {n} bottles",
+		storageCountSuffix: " · {n} storage",
+		moveUpTitle: "Move up",
+		moveDownTitle: "Move down",
+		delBtn: "Del",
+		addRackBtn: "+ Add Rack",
+		rackNameLabel: "Rack Name",
+		gridLayoutTitle: "Grid Layout",
+		rowsLabel: "Rows",
+		columnsLabel: "Columns",
+		depthLabel: "Depth",
+		slotsOption: "Slots",
+		zoneNamePlaceholder: "Zone name",
+		boxSizeOption: "{s}-pk",
+		colsCount: "{n} col{plural}",
+		warningBeforeOne: "This leaves 1 bottle without a slot. It will be moved to",
+		warningBeforeMany: "This leaves {n} bottles without a slot. They will be moved to",
+		warningAfterOne: "— nothing is deleted, and you can put it back anywhere.",
+		warningAfterMany: "— nothing is deleted, and you can put them back anywhere.",
+		unnamedWine: "Unnamed wine",
+		andNMore: "…and {n} more",
+		deletingBtn: "Deleting...",
+		deleteBtn: "Delete",
+		deleteConfirmQuestion: "Are you sure you want to delete \"{name}\"?",
+		deleteWinesUnassignedOne: "1 wine will be unassigned.",
+		deleteWinesUnassignedMany: "{count} wines will be unassigned.",
+		dialogTitleManage: "Manage Racks",
+		dialogTitleAdd: "Add Rack",
+		dialogTitleEdit: "Edit Rack",
+		dialogTitleDeleteConfirm: "Delete Rack?"
+	},
+	vivinoAiSettings: {
+		title: "Vivino / AI Settings",
+		alwaysTryAi: "Always try AI when Vivino finds no match",
+		languageLabel: "Vivino/AI language",
+		currencyLabel: "Currency",
+		infoTitle: "Vivino vs AI — What Each Provides",
+		vivinoProvidesTitle: "Vivino provides:",
+		vivinoBottlePhoto: "Bottle photo",
+		vivinoCommunityRating: "Community rating (★) and number of ratings",
+		vivinoMarketPrice: "Market price",
+		vivinoFoodPairings: "Food pairings",
+		vivinoAlcohol: "Alcohol %",
+		vivinoGrapeInfo: "Grape variety, region, country, type (when found)",
+		aiProvidesTitle: "AI provides:",
+		aiEstimatedPrice: "Estimated price (only fills in when Vivino has none)",
+		aiTastingDescription: "Tasting description",
+		aiCriticScores: "Critic scores (Wine Spectator, Robert Parker, Jeb Dunnuck, Antonio Galloni)",
+		aiDispositionInfo: "{drinkNow} / {hold} / {pastPeak} + {window}",
+		drinkingWindow: "drinking window",
+		aiGrapeInfo: "Grape variety, region, country, type — only when scanning a label photo, not on a refresh",
+		infoNote: "AI never provides a photo, a Vivino community rating, or food pairings — when Vivino can't find a confident match, AI fills in what it can (mainly price, description, and critic scores), not everything Vivino would have."
+	},
+	camera: {
+		blockedInsecure: "The live camera needs a secure connection. Home Assistant is being served over http://, and browsers only allow camera access over https:// (or on localhost).",
+		notOffered: "This browser does not offer live camera access.",
+		accessDenied: "Camera access was denied. Allow it for this site in your browser settings.",
+		notFound: "No camera found on this device.",
+		busy: "The camera is busy or unavailable — another app may be using it.",
+		genericError: "Could not access the camera{detail}.",
+		fallbackHint: "The button below opens your device's own camera, which works either way.",
+		pointAtLabel: "Point the camera at the wine label",
+		takePhotoBtn: "📷 Take a photo",
+		uploadGalleryBtn: "📁 Upload from gallery",
+		takePhotoTitle: "Take photo"
+	},
+	wineList: {
+		scanTitle: "🍽️ Scan List",
+		scannedListTitle: "🍽️ Scanned List",
+		alreadyScannedHintOne: "{n} wine already scanned. Take another photo to add more.",
+		alreadyScannedHintMany: "{n} wines already scanned. Take another photo to add more.",
+		captureSubtitle: "Take a photo of a wine list or receipt to see ratings, scores, and value.",
+		backToResults: "Back to Results ({n})",
+		analyzingList: "Analyzing list...",
+		geminiReading: "Gemini is reading wines and scoring them",
+		longListsHint: "Long lists may take up to 3 minutes",
+		winesFoundOne: "{n} wine found",
+		winesFoundMany: "{n} wines found",
+		pricesInCurrency: " • Prices in {currency}",
+		getVivinoScoresBtn: "🍇 Get Vivino Scores",
+		scanAnotherPageBtn: "📷 Scan Another Page",
+		inCellarBadge: "IN CELLAR",
+		drinkWindowLabel: "Drink window:",
+		byTheGlassLabel: "By the glass:",
+		sizeLabel: "Size:",
+		vivinoLabel: "Vivino:",
+		greatValue: "Great Value",
+		fairPrice: "Fair Price",
+		typical: "Typical",
+		premium: "Premium",
+		addBtn: "+ Add",
+		buyBtn: "🛒 Buy",
+		noWinesFoundImage: "No wines found in the image. Try a clearer photo.",
+		extractionFailed: "Extraction failed: {error}"
+	}
+};
+var toast$1 = {
+	zoneFull: "\"{zone}\" is full — cannot paste here.",
+	zoneFullMove: "\"{zone}\" is full — cannot move here.",
+	zoneResizeFailed: "Failed to resize zone",
+	slotDeletedUnassigned: "Slot deleted, wine unassigned",
+	slotDeleted: "Slot deleted",
+	deleteSlotFailed: "Failed to delete slot",
+	wineReordered: "Wine reordered",
+	reorderFailed: "Failed to reorder wine",
+	newestFirstToast: "Newest bottles first",
+	oldestFirstToast: "Oldest bottles first",
+	sortFailed: "Failed to sort",
+	wineUnassigned: "This wine is unassigned",
+	inLocation: "In {location}",
+	rackResizeFailed: "Failed to resize rack",
+	rackTooSmall: "Rack can't get any smaller",
+	deleteSlotConfirmNamed: "Delete Slot {n}? \"{name}\" will be moved to Unassigned.",
+	deleteSlotConfirm: "Delete Slot {n}?",
+	deleteThisSlotConfirmNamed: "Delete this slot? \"{name}\" will be moved to Unassigned.",
+	deleteThisSlotConfirm: "Delete this slot?",
+	wineMoved: "Moved \"{name}\"",
+	moveFailed: "Failed to move wine",
+	wineSwapped: "Swapped wines",
+	wineMovedShort: "Wine moved",
+	moveUndoFailed: "Move failed and could not be undone — check both slots",
+	wineCopied: "Copied \"{name}\" — tap empty cells or bulk/box zones to paste",
+	winePasted: "Wine pasted! Tap more empty cells or click ✕ to stop.",
+	pasteFailed: "Failed to paste wine.",
+	aiBatchRunning: "Running full AI analysis on all wines...",
+	aiBatchFailedError: "AI Batch failed: {error}",
+	aiBatchComplete: "AI Batch complete! {updated}/{total} updated",
+	errorsCount: "({n} errors)",
+	aiBatchFailed: "AI Batch analysis failed.",
+	dismissSuggestionFailed: "Failed to dismiss the suggestion",
+	changeLanguageFailed: "Failed to change language",
+	changeCurrencyFailed: "Failed to change currency",
+	changeAiFallbackFailed: "Failed to change AI fallback setting",
+	vivinoRefreshing: "Refreshing all wines from Vivino...",
+	vivinoBatchFailedError: "Vivino Batch failed: {error}",
+	vivinoBatchComplete: "Vivino Batch complete! {updated}/{total} updated",
+	vivinoPhotosUpdated: "{n} photos updated",
+	vivinoPhotosKept: "{n} kept",
+	vivinoAiFallbackUsed: "{n} used AI instead",
+	vivinoNoMatch: "{n} no match at all",
+	vivinoBatchRefreshFailed: "Vivino Batch refresh failed.",
+	vivinoSyncing: "Syncing your Vivino cellar & wishlist...",
+	vivinoSyncFailedError: "Vivino sync failed: {error}",
+	vivinoSyncCompleteOne: "Vivino sync complete! {n} bottle imported",
+	vivinoSyncCompleteMany: "Vivino sync complete! {n} bottles imported",
+	vivinoWishlistAdded: "+ {n} to buy list",
+	vivinoSyncFailed: "Vivino sync failed.",
+	removedFromBuyList: "Removed from buy list",
+	removeFromBuyListFailed: "Failed to remove from buy list",
+	tapToPlace: "Tap a cell to place \"{name}\"",
+	movedToCellar: "Moved \"{name}\" to cellar",
+	moveToCellarFailed: "Failed to move to cellar",
+	tapToMove: "Tap a cell to move \"{name}\""
+};
+var en = {
+	wineType: wineType$1,
+	storageRowType: storageRowType$1,
+	removalReason: removalReason$1,
+	wineLocation: wineLocation$1,
+	ui: ui$1,
+	toast: toast$1
+};
+
+var wineType = {
+	red: "Rouge",
+	white: "Blanc",
+	"rosé": "Rosé",
+	sparkling: "Pétillant",
+	dessert: "Sucré"
+};
+var storageRowType = {
+	bulk: "Casier en vrac",
+	box: "Caisse à vin"
+};
+var removalReason = {
+	drank: "Bue",
+	gifted: "Offerte",
+	sold: "Vendue",
+	broken: "Cassée",
+	spoiled: "Défectueuse",
+	other: "Autre"
+};
+var wineLocation = {
+	unassigned: "Non assignée",
+	storage: "Stockage",
+	slot: "Emplacement"
+};
+var ui = {
+	common: {
+		cancel: "Annuler",
+		empty: "Vide",
+		edit: "Modifier",
+		notRated: "Non noté",
+		start: "Démarrer",
+		close: "Fermer",
+		any: "Tous",
+		replace: "remplacer",
+		"new": "nouveau{plural}",
+		colonSep: " : ",
+		clearSearch: "Effacer la recherche"
+	},
+	disposition: {
+		drink: "Boire",
+		drinkNow: "À boire",
+		hold: "À garder",
+		pastPeak: "Sur le déclin"
+	},
+	card: {
+		loading: "Chargement de la cave à vin...",
+		noSearchResults: "Aucun vin ne correspond à votre recherche",
+		vivinoBatchScanTitle: "Analyse Vivino groupée",
+		somePhotosQuestion: "Certains vins ont déjà une photo. Que faire de ces photos ?",
+		tryAiNoMatch: "Essayer l'IA pour les vins sans correspondance Vivino fiable",
+		keepExistingPhotos: "Garder mes photos actuelles",
+		replaceWithVivinoPhotos: "Remplacer par les photos Vivino",
+		runAiBatchTitle: "Lancer l'analyse IA groupée ?",
+		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} vins, un appel API par bouteille. Cela peut prendre du temps et consommer un quota IA important.",
+		runOnNWines: "Lancer sur {n} vins",
+		aiBatchScanBtn: "🤖 Analyse IA groupée",
+		aiScanning: "Analyse IA en cours...",
+		vivinoBatchScanBtn: "🍇 Analyse Vivino groupée",
+		vivinoScanning: "Analyse Vivino en cours...",
+		vivinoSyncBtn: "🔄 Synchro Vivino",
+		vivinoSyncing: "Synchro Vivino en cours...",
+		scanListBtn: "🍽️ Scanner une liste",
+		inventoryBtn: "📦 Inventaire",
+		addWineBtn: "+ Ajouter un vin",
+		fullAiAnalysisTitle: "Analyse IA complète sur tous les vins (disposition, notes, prix, description)",
+		refreshVivinoTitle: "Rafraîchir tous les vins depuis Vivino (notes, prix, description)",
+		importVivinoTitle: "Importer votre cave et la liste des souhaits Vivino dans Cork Dork",
+		scanListTitle: "Scanner une carte des vins ou un reçu pour obtenir les notes et la valeur",
+		inventoryTitle: "Parcourir l'inventaire complet de la cave",
+		unplacedTitle: "Bouteilles non assignées, pas encore placées",
+		suggestionsTitle: "Suggestions basées sur l'emplacement actuel de vos bouteilles",
+		statBottles: "bouteilles",
+		statCapacity: "capacité",
+		statAvailable: "disponible",
+		statUnplaced: "non placées",
+		statValue: "valeur",
+		tidyUp: "à ranger",
+		tidyUps: "à ranger",
+		allSections: "Toutes les sections",
+		unassignedTab: "Non assignés ({n})",
+		unassignedSectionHeader: "📦 Non assignés ({n})",
+		buyListTab: "Liste d'achat ({n})",
+		manageRacks: "Gérer les racks",
+		vivinoAiSettings: "⚙️ Paramètres Vivino/IA",
+		buyListEmpty: "Votre liste d'achat est vide",
+		buyListEmptyHint: "Utilisez 🛒 Liste d'achat dans Ajouter un vin, ou 🛒 Acheter dans le scanner de liste",
+		moveToCellar: "Déplacer vers la cave",
+		addToCellarBtn: "+ Cave",
+		removeFromBuyList: "Retirer de la liste d'achat",
+		unassignedHint: "Ces vins ne sont assignés à aucun rack. Touchez un vin pour voir ses détails, puis utilisez Déplacer pour le placer.",
+		cellarEmpty: "Votre cave est vide",
+		cellarEmptyHint: "Touchez « Ajouter un vin » pour commencer votre collection",
+		slot: "Emplacement {n}",
+		sortByDate: "↕ Trier par date",
+		sorting: "Tri en cours…",
+		renumberTitle: "Renuméroter les emplacements selon l'ordre d'ajout des bouteilles",
+		reorderByDateTitle: "Réorganiser par date d'ajout ?",
+		reorderByDateBody: "Chaque bouteille de {zone} est déplacée vers un emplacement correspondant à sa date d'ajout. Tout ordre que vous avez arrangé manuellement est perdu. L'emplacement 1 est la position la plus accessible.",
+		oldestFirst: "Plus anciennes d'abord",
+		newestFirst: "Plus récentes d'abord",
+		oldestFirstTitle: "L'emplacement 1 contient la bouteille présente depuis le plus longtemps dans ce casier — pour un casier que vous remplissez en rangée",
+		newestFirstTitle: "L'emplacement 1 contient la dernière bouteille ajoutée — pour un casier que vous empilez, où la plus récente est sur le dessus",
+		deleteThisSlot: "Supprimer cet emplacement",
+		addBox: "Ajouter une caisse",
+		addSlot: "Ajouter un emplacement",
+		panelStored: "stockées",
+		titleCredit: "créé à l'origine par @BaconWappedBitcoin",
+		copyBannerText: "Copie de « {name} » — touchez des cases vides ou des zones casier/caisse pour placer les copies",
+		moveBannerText: "Déplacement de « {name} » — touchez une case pour le placer",
+		buyListMoveBannerText: "Placement de « {name} » — touchez une case dans votre cave",
+		doneBtn: "Terminé",
+		depthPanelRowCol: "Ligne {row}, Col {col}",
+		depthPanelDeepCount: "{n}/{max} en profondeur",
+		rackPanelBottlesCount: "{n}/{max} bouteilles",
+		boxHeader: "Caisse {n} ({size} bouteilles)",
+		deepSuffix: "{n} en profondeur"
+	},
+	inventory: {
+		title: "📦 Inventaire",
+		tabInventory: "Inventaire",
+		tabHistory: "Historique",
+		loadingHistory: "Chargement de l'historique...",
+		noHistory: "Aucun historique de retrait pour le moment",
+		winesRemoved: "{n} vins retirés",
+		restoreBtn: "Restaurer",
+		clearHistoryBtn: "Effacer l'historique",
+		historyCleared: "Historique effacé",
+		wineRestoredUnassigned: "Vin restauré vers Non assignés",
+		restoreWineFailed: "Échec de la restauration du vin",
+		enrichMissingVivino: "sans accords ni description, jamais vérifiés auprès de Vivino",
+		enrichMissingAI: "sans fenêtre de dégustation ni verdict, jamais analysés par l'IA",
+		enrichRetryVivino: "vérifiés auprès de Vivino, toujours rien — Vivino ajoute des bouteilles au fil du temps",
+		enrichRetryAI: "analysés par l'IA, toujours sans verdict",
+		fillFromVivino: "Compléter depuis Vivino",
+		analyzeWithAi: "Analyser avec l'IA",
+		retryVivino: "Réessayer Vivino",
+		retryAI: "Réessayer l'IA",
+		working: "En cours…",
+		retryVivinoQ: "🍇 Réessayer Vivino ?",
+		fillFromVivinoQ: "🍇 Compléter depuis Vivino ?",
+		retryAiQ: "🤖 Relancer l'analyse IA ?",
+		analyzeWithAiQ: "🤖 Analyser avec l'IA ?",
+		enrichConfirmBodyOne: "{count} vin sera recherché. Il s'agit d'un appel réseau lent et limité en débit — prévoyez que cela prenne du temps, et laissez la fenêtre ouverte jusqu'à la fin.",
+		enrichConfirmBodyMany: "{count} vins seront recherchés un par un. Il s'agit d'un appel réseau lent et limité en débit — prévoyez que cela prenne du temps, et laissez la fenêtre ouverte jusqu'à la fin.",
+		retryExplain: "Ces vins ont déjà été vérifiés et n'ont rien donné. La date de vérification est mise à jour dans tous les cas, pour que vous sachiez toujours quand a eu lieu la dernière tentative.",
+		newExplain: "Certains ne donneront rien de nouveau — toutes les bouteilles n'existent pas dans {source}. Elles passent alors à la ligne « à réessayer » ci-dessous plutôt que de rester ici.",
+		vivinoCatalogue: "le catalogue Vivino",
+		whatAiInfer: "ce que l'IA peut déduire",
+		vivinoFillsExplain: "Complète les accords mets-vins, la description, la note et la photo d'étiquette lorsque Vivino les a. Les valeurs existantes sont conservées.",
+		aiFillsExplain: "Complète le verdict de dégustation, la fenêtre de dégustation et les notes des critiques lorsque l'IA peut les déduire. Les valeurs existantes sont conservées.",
+		dbSize: "Base de données {total} · historique {history} ({share} %) · {wines} vins, {archived} archivés",
+		heavyHistoryHint: "Home Assistant réécrit tout ce fichier à chaque modification — supprimer l'ancien historique accélère chaque modification.",
+		refreshingWines: "Rafraîchissement de {n} vins via {source}…",
+		refreshFailed: "Échec du rafraîchissement : {error}",
+		enrichUpdated: "{n} mis à jour",
+		enrichUnchanged: "{n} n'avaient rien de nouveau sur {source}",
+		enrichErrors: "{n} n'ont pas pu être contactés",
+		enrichRetryNote: "Leur date de vérification est mise à jour — réessayez plus tard.",
+		enrichMoveToRetryNote: "Leur date de vérification est mise à jour ; ils passent à la ligne « à réessayer ».",
+		backupSaved: "Sauvegarde enregistrée — {wines} vins, {cabinets} racks, {buyList} liste d'achat",
+		backupFailed: "Échec de la sauvegarde : {error}",
+		importFailed: "Échec de l'import : {error}",
+		noWinesInCsv: "Aucun vin trouvé dans le fichier CSV.",
+		importUpdated: "{updated} vins mis à jour{addedPart}.",
+		importAddedPart: ", {n} nouveaux ajoutés",
+		importSuccess: "{n} vins importés avec succès !",
+		importSkippedNoteOne: "{skipped} ligne a gardé son emplacement précédent — l'emplacement indiqué était inconnu, hors limites ou déjà pris.",
+		importSkippedNoteMany: "{skipped} lignes ont gardé leur emplacement précédent — l'emplacement indiqué était inconnu, hors limites ou déjà pris.",
+		invalidBackupWines: "Fichier de sauvegarde invalide : tableau de vins manquant.",
+		invalidBackupCabinets: "Fichier de sauvegarde invalide : tableau de racks manquant.",
+		invalidJsonFile: "Fichier JSON invalide : {error}",
+		restoreFailed: "Échec de la restauration : {error}",
+		restoredCount: "Restauré : {wines} vins, {cabinets} racks, {buyList} éléments de liste d'achat !",
+		savingEllipsis: "Enregistrement…",
+		serverBackupFailed: "Échec de la sauvegarde serveur : {error}",
+		savedToServer: "{wines} vins, {cabinets} racks enregistrés sur le serveur",
+		savedCheckmark: "✅ Enregistré !",
+		listBackupsFailed: "Échec du chargement des sauvegardes : {error}",
+		keepEveryBackup: "Conservation de toutes les sauvegardes serveur.",
+		keepNBackups: "Conservation des {n} sauvegardes serveur les plus récentes.",
+		retentionSaveFailed: "Impossible d'enregistrer la rétention : {error}",
+		deleteFailed: "Échec de la suppression : {error}",
+		deletedFile: "{filename} supprimé",
+		restoredFromServer: "Restauré : {wines} vins, {cabinets} racks depuis {filename}",
+		readyToDrink: "Prêt à boire",
+		filterDrinkNow: "À boire",
+		filterHold: "À garder",
+		filterPastPeak: "Sur le déclin",
+		filterNotAnalyzed: "Non analysé",
+		pairsWith: "Accords avec",
+		anyFood: "Tout accord",
+		missingPairingsHintOne: "{n} vin n'a pas d'accords. Seul Vivino fournit les accords — utilisez « Compléter depuis Vivino » ci-dessous.",
+		missingPairingsHintMany: "{n} vins n'ont pas d'accords. Seul Vivino fournit les accords — utilisez « Compléter depuis Vivino » ci-dessous.",
+		country: "Pays",
+		grape: "Cépage",
+		cabinet: "Rack",
+		minRating: "Note min",
+		maxPrice: "Prix max",
+		pricedOnly: "Vins avec prix uniquement.",
+		vintage: "Millésime",
+		fromPlaceholder: "De",
+		toPlaceholder: "À",
+		byYear: "avant {year}",
+		ofNBottles: "sur {n} bouteilles",
+		estValue: "estimation",
+		searchPlaceholder: "Rechercher des vins...",
+		ascending: "Croissant",
+		descending: "Décroissant",
+		filtersBtn: "⚙︎ Filtres",
+		moreFiltersTitle: "Plus de filtres",
+		sort: {
+			name: "Nom",
+			winery: "Domaine",
+			vintage: "Millésime",
+			type: "Type",
+			rating: "Note",
+			myRating: "Ma note",
+			price: "Prix",
+			drinkBy: "À boire avant",
+			urgency: "Urgence",
+			purchaseDate: "Date d'achat",
+			dateAdded: "Date d'ajout",
+			cabinet: "Rack"
+		},
+		preset: {
+			allLabel: "Tous",
+			allHint: "Tous les vins de la cave",
+			drinkThisYearLabel: "À boire cette année",
+			drinkThisYearHint: "Millésime à boire avant {year} ou plus tôt, ou marqué « À boire » sans année. Exclut les vins sur le déclin.",
+			pastPeakLabel: "Sur le déclin",
+			pastPeakHint: "Marqué « Sur le déclin » par l'analyse IA",
+			unratedLabel: "Non noté",
+			unratedHint: "Vous ne leur avez pas donné de note personnelle",
+			incompleteLabel: "Données manquantes",
+			incompleteHint: "Il manque au moins un élément parmi : accords, description, fenêtre de dégustation, photo d'étiquette",
+			recentLabel: "Ajouté récemment",
+			recentHint: "Ajouté à la cave dans les 30 derniers jours"
+		},
+		winesShown: "{shown} vins affichés sur {total}",
+		filtersActive: " · {n} filtre{plural} actif{plural}",
+		clearAll: "Tout effacer",
+		footerCountAll: "{n} vins",
+		footerCountFiltered: "{shown} vins sur {total}",
+		saveServerBackupTitle: "Enregistrer une sauvegarde datée sur le serveur HA",
+		serverBackupBtn: "Sauvegarde serveur",
+		restoreServerBackupTitle: "Restaurer depuis une sauvegarde serveur",
+		restoringEllipsis: "Restauration…",
+		serverRestoreBtn: "Restauration serveur",
+		downloadBackupTitle: "Télécharger une sauvegarde complète de la cave en JSON",
+		downloadBtn: "Télécharger",
+		restoreFromFileTitle: "Restaurer la cave depuis un fichier de sauvegarde JSON",
+		uploadBtn: "Importer",
+		importCsvTitle: "Importer des vins depuis un fichier CSV",
+		importingEllipsis: "Import en cours…",
+		importCsvBtn: "Importer CSV",
+		exportCsvTitle: "Exporter les vins en CSV",
+		exportCsvBtn: "Exporter CSV",
+		serverBackupsTitle: "Sauvegardes serveur",
+		keepTheLast: "Conserver les",
+		allNeverDelete: "Toutes (ne jamais supprimer)",
+		nBackups: "{n} sauvegardes",
+		noServerBackups: "Aucune sauvegarde serveur trouvée. Utilisez « Sauvegarde serveur » pour en créer une.",
+		selectBackupToRestore1: "Sélectionnez une sauvegarde à restaurer — cela va",
+		selectBackupToRestore2: "toutes les données actuelles. {n} stockées, {size} sur le disque.",
+		unreadableFile: "fichier illisible",
+		backupMeta: "{wines} vins, {cabinets} racks · {size}",
+		deleteThisBackup: "Supprimer cette sauvegarde",
+		updateExistingQ: "📄 Mettre à jour les vins existants ?",
+		csvEditedExportNote: "Ce CSV ressemble à un export modifié — certaines lignes portent l'ID d'un vin déjà présent dans votre cave.",
+		rowsMatchExisting: "ligne{plural} correspondant à des vins existants",
+		updateOnlyTouchesNote: "La mise à jour ne touche que les colonnes présentes dans le fichier ; les cellules vides laissent la valeur existante inchangée.",
+		addAllAsNew: "Tout ajouter comme nouveau",
+		updateNWines: "Mettre à jour {n} vin{plural}",
+		restoreBackupQ: "🔄 Restaurer la sauvegarde ?",
+		restoreWillReplaceNote: "Cela va remplacer toutes les données actuelles de votre cave par la sauvegarde. Cette action est irréversible.",
+		backupContains: "La sauvegarde contient :",
+		backupStats: "{wines} vins · {cabinets} racks · {buyList} éléments de liste d'achat",
+		winesWord: "vins",
+		racksWord: "racks",
+		buyListItemsWord: "éléments de liste d'achat",
+		createdLabel: "Créée le : {date}",
+		restoreNowBtn: "Restaurer maintenant"
+	},
+	addWine: {
+		title: "Ajouter un vin",
+		titleBuyList: "Ajouter à la liste d'achat",
+		lookingUpBarcode: "Recherche du code-barres...",
+		cancelScan: "Annuler le scan",
+		analyzingLabel: "Analyse de l'étiquette par l'IA...",
+		frontLabelCaptured: "Étiquette avant capturée",
+		addBackPhotoQuestion: "Ajouter aussi une photo de l'étiquette arrière ? Elle contient souvent le millésime (et parfois un code-barres).",
+		addBackPhotoBtn: "📷 Ajouter la photo arrière",
+		skipUseFrontOnly: "Passer, utiliser l'avant seulement",
+		photographBackLabel: "Photographiez maintenant l'étiquette arrière",
+		scanBarcodeTitle: "Scanner le code-barres",
+		scanBarcodeDesc: "Pointez la caméra vers le code-barres de la bouteille",
+		recognizeLabelTitle: "Reconnaître l'étiquette",
+		configureGeminiTitle: "Configurez la clé API Gemini dans les paramètres de l'intégration",
+		takePhotoOfLabel: "Prenez une photo de l'étiquette du vin",
+		requiresGeminiKey: "Nécessite une clé API Gemini dans les paramètres",
+		orEnterManually: "ou entrez manuellement",
+		barcodePlaceholder: "Entrez le code-barres...",
+		lookUpBtn: "Rechercher",
+		orSearchByName: "ou recherchez par nom",
+		searchNamePlaceholder: "Rechercher un nom de vin...",
+		searchBtn: "Rechercher",
+		resultsCount: "{n} résultat{plural} — touchez pour sélectionner",
+		unknownName: "Inconnu",
+		skipManualEntry: "Passer → saisie manuelle",
+		back: "← Retour",
+		next: "Suivant →",
+		wineNameLabel: "Nom du vin *",
+		wineryLabel: "Domaine",
+		vintageLabel: "Millésime",
+		typeLabel: "Type",
+		purchasePriceLabel: "Prix d'achat",
+		currentValueLabel: "Valeur actuelle",
+		regionLabel: "Région",
+		countryLabel: "Pays",
+		grapeVarietyLabel: "Cépage",
+		purchaseDateLabel: "Date d'achat",
+		drinkByLabel: "À boire avant",
+		drinkByPlaceholder: "ex. 2030",
+		notesLabel: "Notes",
+		myRatingLabel: "Ma note",
+		buyListBtnTitle: "Enregistrer dans la liste d'achat plutôt que dans la cave",
+		buyListBtn: "🛒 Liste d'achat",
+		suggestedTitle: "Suggéré — là où se trouvent ses semblables",
+		fullUsage: "Plein · {used}/{capacity}",
+		room: "De la place",
+		oneFree: "1 libre",
+		nFree: "{n} libres",
+		noRoomSplit: "Plus de place là-bas — répartissez la série dans",
+		orFreeSlotFirst: ", ou libérez d'abord un emplacement.",
+		chooseLocation: "Choisir un emplacement",
+		selectCabinetHint: "Choisissez un rack et une position pour cette bouteille",
+		slotsCount: "{rows}×{cols} emplacements",
+		bulkBoxZone: "Zone casier/caisse",
+		noneUseGrid: "Aucune — utiliser ligne/colonne de la grille",
+		boxShort: "Caisse",
+		fullTitle: "Plein — libérez un emplacement ou augmentez sa capacité",
+		rowLabel: "Ligne (à partir de 1)",
+		columnLabel: "Colonne (à partir de 1)",
+		pickZoneOrRowCol: "Choisissez une zone, ou renseignez à la fois la ligne et la colonne, pour que la bouteille ait un emplacement repérable.",
+		slotOutside: "Cet emplacement est hors de {cabinet} ({rows} lignes × {cols} colonnes).",
+		rowIsBinOrBox: "Cette ligne est un casier ou une caisse, pas des emplacements de grille — choisissez-la dans la liste de zones ci-dessus.",
+		slotFull: "Ligne {row}, colonne {col} est pleine ({used}/{depth} de profondeur).",
+		bottlesLabel: "Bouteilles",
+		identicalUnassigned: "Bouteilles identiques, ajoutées sans assignation.",
+		destinationFull: "Cette destination est pleine.",
+		slotsFreeHere: "{n} emplacement{plural} libre{plural} ici.",
+		consecutiveSlots: "Les {n} bouteilles occupent des emplacements libres consécutifs.",
+		confirmAndAdd: "Confirmer et ajouter",
+		nameLabel: "Nom",
+		cabinetLabel: "Rack",
+		positionLabel: "Position",
+		notSpecified: "Non spécifié",
+		addNBottles: "Ajouter {n} bouteilles",
+		noBarcodeMatch: "Aucune correspondance pour ce code-barres.",
+		barcodeLookupFailed: "Échec de la recherche du code-barres.",
+		takePhotoInstead: "{reason} Prenez plutôt une photo de l'étiquette.",
+		enterManually: "{reason} Vous pouvez saisir les détails manuellement.",
+		noResultsFound: "Aucun résultat trouvé. Vous pouvez saisir les détails manuellement.",
+		searchFailed: "Échec de la recherche. Vous pouvez saisir les détails manuellement.",
+		labelRecognitionFailed: "Échec de la reconnaissance de l'étiquette : {error}",
+		unknownError: "Erreur inconnue",
+		labelRecognitionError: "Erreur de reconnaissance de l'étiquette : {msg}",
+		zoneFull: "{label} est pleine ({used}/{capacity}). Libérez un emplacement, ou augmentez sa capacité dans Gérer les racks.",
+		containerFull: "{label} est pleine. Libérez un emplacement, ou augmentez sa capacité dans Gérer les racks.",
+		noFreeSlot: "Plus d'emplacement libre à cette destination.",
+		addToBuyListFailed: "Échec de l'ajout à la liste d'achat.",
+		addWineFailed: "Échec de l'ajout du vin.",
+		thisBox: "Cette caisse",
+		thisBin: "Ce casier",
+		posRowCol: "Ligne {row}, Col {col}"
+	},
+	wineDetail: {
+		backLabelSuffix: " (étiquette arrière)",
+		backLabelBadge: "Étiquette arrière",
+		frontLabelTitle: "Étiquette avant",
+		replacePhotoTitle: "Remplacer la photo",
+		replaceBackPhotoTitle: "Remplacer la photo de l'étiquette arrière",
+		deletePhotoTitle: "Supprimer la photo",
+		deleteBackPhotoTitle: "Supprimer la photo de l'étiquette arrière",
+		deletePhotoConfirm: "Supprimer la photo de cette bouteille ?",
+		deleteBackPhotoConfirm: "Supprimer la photo de l'étiquette arrière de cette bouteille ?",
+		tapToLocate: "Toucher pour localiser",
+		ratingsCountSuffix: " ({count} avis)",
+		myRating: "Ma note",
+		aiScanBtn: "Analyse IA",
+		scanLabelBtn: "Scanner l'étiquette",
+		scanLabelTitle: "Prendre une nouvelle photo de l'étiquette pour mettre à jour la photo et les détails de cette bouteille",
+		copyBtn: "Copier",
+		moveBtn: "Déplacer",
+		unassignBtn: "Désassigner",
+		removeBtn: "Retirer",
+		nothingFoundChecked: "rien trouvé · vérifié {date}",
+		recheckedNothingNew: "{date1} · revérifié {date2}, rien de nouveau",
+		wineNameLabel: "Nom du vin",
+		wineryLabel: "Domaine",
+		vintageLabel: "Millésime",
+		typeLabel: "Type",
+		purchasePriceLabel: "Prix d'achat",
+		currentValueLabel: "Valeur actuelle",
+		regionLabel: "Région",
+		countryLabel: "Pays",
+		grapeVarietyLabel: "Cépage",
+		alcoholLabel: "Alcool",
+		alcoholPlaceholder: "ex. 13,5 %",
+		purchaseDateLabel: "Date d'achat",
+		drinkByLabel: "À boire avant",
+		drinkByPlaceholder: "ex. 2030",
+		notesLabel: "Notes",
+		saving: "Enregistrement...",
+		save: "Enregistrer",
+		priceLabel: "Prix",
+		purchasedLabel: "Acheté le",
+		barcodeLabel: "Code-barres",
+		grapeLabel: "Cépage",
+		drinkWindowPrefix: "Fenêtre de dégustation : {window}",
+		tastingNotesTitle: "Notes de dégustation",
+		aromaLabel: "Arôme",
+		aromaPlaceholder: "Fruits rouges, chêne, vanille...",
+		tasteLabel: "Bouche",
+		tastePlaceholder: "Corsé, tannique...",
+		finishLabel: "Finale",
+		finishPlaceholder: "Longue, souple...",
+		overallLabel: "Impression générale",
+		overallPlaceholder: "Impression générale...",
+		noTastingNotes: "Aucune note de dégustation pour le moment. Touchez Modifier pour ajouter vos impressions.",
+		removeWineTitle: "Retirer le vin",
+		removeWineQuestion: "Pourquoi retirez-vous cette bouteille ?",
+		vivinoPhotoAvailableTitle: "Photo Vivino disponible",
+		vivinoPhotoAvailableBody: "Vivino a trouvé une photo différente pour cette bouteille. Garder votre photo actuelle ou utiliser celle de Vivino ?",
+		currentPhotoLabel: "Actuelle",
+		keepMyPhotoBtn: "Garder ma photo",
+		useVivinoPhotoBtn: "Utiliser celle de Vivino",
+		noVivinoMatchTitle: "Aucune correspondance Vivino",
+		noPriceFoundTitle: "Aucun prix trouvé",
+		vivinoNoMatchBody: "Vivino n'a pas trouvé de correspondance fiable pour ce vin. Essayer avec l'IA ?",
+		vivinoNoPriceBody: "Vivino n'a pas de prix pour ce vin dans la devise sélectionnée. L'estimer avec l'IA ?",
+		useAiOnceBtn: "Utiliser l'IA une fois",
+		alwaysUseAiBtn: "Toujours utiliser l'IA automatiquement",
+		couldNotIdentifyLabel: "Impossible d'identifier l'étiquette. Essayez une photo plus nette.",
+		labelScanFailed: "Échec du scan de l'étiquette. Veuillez réessayer.",
+		applyNoteConfirm: "Appliquer aussi cette note à vos {count} autre{plural} bouteille{plural} de {name} ?",
+		drinkNowWithWindow: "À boire maintenant • {window}",
+		drinkNowPlain: "À boire maintenant",
+		holdWithWindow: "À garder • à boire {window}",
+		holdUntil: "À garder jusqu'à {date}",
+		holdPlain: "À garder",
+		pastPeakWithWindow: "Sur le déclin • était {window}",
+		pastPeakPlain: "Sur le déclin",
+		aiLabel: "IA"
+	},
+	rack: {
+		failedToAddRack: "Échec de l'ajout du rack.",
+		failedToUpdateRack: "Échec de la mise à jour du rack.",
+		failedToDeleteRack: "Échec de la suppression du rack.",
+		failedToReorderRacks: "Échec de la réorganisation des racks.",
+		gridDimensions: "grille {rows} × {cols}",
+		gridDeepSuffix: " × {depth} en profondeur",
+		bottlesCountSuffix: " · {n} bouteilles",
+		storageCountSuffix: " · {n} stockage",
+		moveUpTitle: "Monter",
+		moveDownTitle: "Descendre",
+		delBtn: "Suppr",
+		addRackBtn: "+ Ajouter un rack",
+		rackNameLabel: "Nom du rack",
+		gridLayoutTitle: "Disposition de la grille",
+		rowsLabel: "Lignes",
+		columnsLabel: "Colonnes",
+		depthLabel: "Profondeur",
+		slotsOption: "Emplacements",
+		zoneNamePlaceholder: "Nom de la zone",
+		boxSizeOption: "{s} bout.",
+		colsCount: "{n} colonne{plural}",
+		warningBeforeOne: "Cela laisse 1 bouteille sans emplacement. Elle sera déplacée vers",
+		warningBeforeMany: "Cela laisse {n} bouteilles sans emplacement. Elles seront déplacées vers",
+		warningAfterOne: "— rien n'est supprimé, vous pourrez la remettre où vous voulez.",
+		warningAfterMany: "— rien n'est supprimé, vous pourrez les remettre où vous voulez.",
+		unnamedWine: "Vin sans nom",
+		andNMore: "…et {n} de plus",
+		deletingBtn: "Suppression...",
+		deleteBtn: "Supprimer",
+		deleteConfirmQuestion: "Voulez-vous vraiment supprimer « {name} » ?",
+		deleteWinesUnassignedOne: "1 vin sera désassigné.",
+		deleteWinesUnassignedMany: "{count} vins seront désassignés.",
+		dialogTitleManage: "Gérer les racks",
+		dialogTitleAdd: "Ajouter un rack",
+		dialogTitleEdit: "Modifier le rack",
+		dialogTitleDeleteConfirm: "Supprimer le rack ?"
+	},
+	vivinoAiSettings: {
+		title: "Paramètres Vivino / IA",
+		alwaysTryAi: "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
+		languageLabel: "Langue Vivino/IA",
+		currencyLabel: "Devise",
+		infoTitle: "Vivino vs IA — Ce que chacun fournit",
+		vivinoProvidesTitle: "Vivino fournit :",
+		vivinoBottlePhoto: "Photo de la bouteille",
+		vivinoCommunityRating: "Note de la communauté (★) et nombre d'avis",
+		vivinoMarketPrice: "Prix du marché",
+		vivinoFoodPairings: "Accords mets-vins",
+		vivinoAlcohol: "Taux d'alcool",
+		vivinoGrapeInfo: "Cépage, région, pays, type (si trouvés)",
+		aiProvidesTitle: "L'IA fournit :",
+		aiEstimatedPrice: "Prix estimé (uniquement si Vivino n'en a pas)",
+		aiTastingDescription: "Description de dégustation",
+		aiCriticScores: "Notes des critiques (Wine Spectator, Robert Parker, Jeb Dunnuck, Antonio Galloni)",
+		aiDispositionInfo: "{drinkNow} / {hold} / {pastPeak} + {window}",
+		drinkingWindow: "fenêtre de dégustation",
+		aiGrapeInfo: "Cépage, région, pays, type — uniquement lors du scan d'une photo d'étiquette, pas lors d'une actualisation",
+		infoNote: "L'IA ne fournit jamais de photo, de note de la communauté Vivino, ni d'accords mets-vins — quand Vivino ne trouve pas de correspondance fiable, l'IA complète ce qu'elle peut (surtout le prix, la description et les notes des critiques), pas tout ce que Vivino aurait fourni."
+	},
+	camera: {
+		blockedInsecure: "La caméra en direct nécessite une connexion sécurisée. Home Assistant est servi en http://, et les navigateurs n'autorisent l'accès à la caméra qu'en https:// (ou sur localhost).",
+		notOffered: "Ce navigateur ne permet pas l'accès à la caméra en direct.",
+		accessDenied: "L'accès à la caméra a été refusé. Autorisez-le pour ce site dans les paramètres de votre navigateur.",
+		notFound: "Aucune caméra trouvée sur cet appareil.",
+		busy: "La caméra est occupée ou indisponible — une autre application l'utilise peut-être.",
+		genericError: "Impossible d'accéder à la caméra{detail}.",
+		fallbackHint: "Le bouton ci-dessous ouvre la caméra de votre appareil, qui fonctionne dans tous les cas.",
+		pointAtLabel: "Pointez la caméra vers l'étiquette du vin",
+		takePhotoBtn: "📷 Prendre une photo",
+		uploadGalleryBtn: "📁 Importer depuis la galerie",
+		takePhotoTitle: "Prendre une photo"
+	},
+	wineList: {
+		scanTitle: "🍽️ Scanner une liste",
+		scannedListTitle: "🍽️ Liste scannée",
+		alreadyScannedHintOne: "{n} vin déjà scanné. Prenez une autre photo pour en ajouter d'autres.",
+		alreadyScannedHintMany: "{n} vins déjà scannés. Prenez une autre photo pour en ajouter d'autres.",
+		captureSubtitle: "Prenez en photo une carte des vins ou un reçu pour voir les notes et la valeur.",
+		backToResults: "Retour aux résultats ({n})",
+		analyzingList: "Analyse de la liste...",
+		geminiReading: "Gemini lit les vins et les note",
+		longListsHint: "Les longues listes peuvent prendre jusqu'à 3 minutes",
+		winesFoundOne: "{n} vin trouvé",
+		winesFoundMany: "{n} vins trouvés",
+		pricesInCurrency: " • Prix en {currency}",
+		getVivinoScoresBtn: "🍇 Obtenir les notes Vivino",
+		scanAnotherPageBtn: "📷 Scanner une autre page",
+		inCellarBadge: "EN CAVE",
+		drinkWindowLabel: "Fenêtre de dégustation :",
+		byTheGlassLabel: "Au verre :",
+		sizeLabel: "Taille :",
+		vivinoLabel: "Vivino :",
+		greatValue: "Bonne affaire",
+		fairPrice: "Prix correct",
+		typical: "Standard",
+		premium: "Premium",
+		addBtn: "+ Ajouter",
+		buyBtn: "🛒 Acheter",
+		noWinesFoundImage: "Aucun vin trouvé dans l'image. Essayez une photo plus nette.",
+		extractionFailed: "Échec de l'extraction : {error}"
+	}
+};
+var toast = {
+	zoneFull: "« {zone} » est pleine — impossible de coller ici.",
+	zoneFullMove: "« {zone} » est pleine — impossible de déplacer ici.",
+	zoneResizeFailed: "Échec du redimensionnement de la zone",
+	slotDeletedUnassigned: "Emplacement supprimé, vin non assigné",
+	slotDeleted: "Emplacement supprimé",
+	deleteSlotFailed: "Échec de la suppression de l'emplacement",
+	wineReordered: "Vin réorganisé",
+	reorderFailed: "Échec de la réorganisation du vin",
+	newestFirstToast: "Bouteilles les plus récentes en premier",
+	oldestFirstToast: "Bouteilles les plus anciennes en premier",
+	sortFailed: "Échec du tri",
+	wineUnassigned: "Ce vin n'est pas assigné",
+	inLocation: "Dans {location}",
+	rackResizeFailed: "Échec du redimensionnement du rack",
+	rackTooSmall: "Le rack ne peut pas être plus petit",
+	deleteSlotConfirmNamed: "Supprimer l'emplacement {n} ? « {name} » sera déplacé vers Non assignés.",
+	deleteSlotConfirm: "Supprimer l'emplacement {n} ?",
+	deleteThisSlotConfirmNamed: "Supprimer cet emplacement ? « {name} » sera déplacé vers Non assignés.",
+	deleteThisSlotConfirm: "Supprimer cet emplacement ?",
+	wineMoved: "« {name} » déplacé",
+	moveFailed: "Échec du déplacement du vin",
+	wineSwapped: "Vins échangés",
+	wineMovedShort: "Vin déplacé",
+	moveUndoFailed: "Le déplacement a échoué et n'a pas pu être annulé — vérifiez les deux emplacements",
+	wineCopied: "« {name} » copié — touchez des cases vides ou des zones casier/caisse pour coller",
+	winePasted: "Vin collé ! Touchez d'autres cases vides ou cliquez sur ✕ pour arrêter.",
+	pasteFailed: "Échec du collage du vin.",
+	aiBatchRunning: "Analyse IA complète en cours sur tous les vins...",
+	aiBatchFailedError: "Échec de l'analyse IA groupée : {error}",
+	aiBatchComplete: "Analyse IA par groupée terminée ! {updated}/{total} mis à jour",
+	errorsCount: "({n} erreurs)",
+	aiBatchFailed: "L'analyse IA groupée a échoué.",
+	dismissSuggestionFailed: "Échec du rejet de la suggestion",
+	changeLanguageFailed: "Échec du changement de langue",
+	changeCurrencyFailed: "Échec du changement de devise",
+	changeAiFallbackFailed: "Échec du changement du paramètre de secours IA",
+	vivinoRefreshing: "Rafraîchissement de tous les vins depuis Vivino...",
+	vivinoBatchFailedError: "Échec de l'analyse Vivino groupée : {error}",
+	vivinoBatchComplete: "Analyse Vivino groupée terminée ! {updated}/{total} mis à jour",
+	vivinoPhotosUpdated: "{n} photos mises à jour",
+	vivinoPhotosKept: "{n} conservées",
+	vivinoAiFallbackUsed: "{n} ont utilisé l'IA à la place",
+	vivinoNoMatch: "{n} aucune correspondance",
+	vivinoBatchRefreshFailed: "Le rafraîchissement Vivino groupée a échoué.",
+	vivinoSyncing: "Synchronisation de votre cave et liste de souhaits Vivino...",
+	vivinoSyncFailedError: "Échec de la synchro Vivino : {error}",
+	vivinoSyncCompleteOne: "Synchro Vivino terminée ! {n} bouteille importée",
+	vivinoSyncCompleteMany: "Synchro Vivino terminée ! {n} bouteilles importées",
+	vivinoWishlistAdded: "+ {n} à la liste d'achat",
+	vivinoSyncFailed: "Échec de la synchro Vivino.",
+	removedFromBuyList: "Retiré de la liste d'achat",
+	removeFromBuyListFailed: "Échec du retrait de la liste d'achat",
+	tapToPlace: "Touchez une case pour placer « {name} »",
+	movedToCellar: "« {name} » déplacé vers la cave",
+	moveToCellarFailed: "Échec du déplacement vers la cave",
+	tapToMove: "Touchez une case pour déplacer « {name} »"
+};
+var fr = {
+	wineType: wineType,
+	storageRowType: storageRowType,
+	removalReason: removalReason,
+	wineLocation: wineLocation,
+	ui: ui,
+	toast: toast
+};
+
+// The frontend's own translation catalog — separate from HA's own
+// translations/{en,fr}.json (which only cover the config-flow screens; HA
+// validates that file against its own schema, so it can't also carry
+// arbitrary card UI strings). New languages are added here as another
+// {lang}.json file plus one line in this map.
+// Loosely typed on purpose: some groups (e.g. "ui") nest several levels
+// deep ("ui.wineDetail.vintage"), others are flat one-level maps used with
+// tGroup() — lookup()/tGroup() below navigate them dynamically either way.
+const TRANSLATIONS = { en, fr };
+// "spoiled" in removalReason groups every wine-side flaw (corked, volatile
+// acidity, oxidized, off...) rather than physical bottle damage —
+// "Défectueuse" (faulty wine) covers that better in French than a literal
+// "Abîmée" (damaged).
+// A single string, e.g. t("wineLocation.slot", hass.language). Dot-notation
+// key into the catalog. Falls back to the English value for a language HA
+// reports that this catalog doesn't have a file for, or for a key that
+// exists in English but hasn't been translated into the target language
+// yet — a partially-translated catalog should never render "undefined".
+//
+// `params` fills in {token} placeholders inside the resolved string, e.g.
+// t("toast.wine.moved", lang, { name: wine.name }) against a catalog entry
+// `"moved": "Moved \"{name}\""`. A placeholder with no matching param is
+// left as-is rather than blanked out, so a missed param is visible in
+// testing instead of silently disappearing.
+function t(key, language, params) {
+    const lang = (language || "en").split("-")[0];
+    const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
+    const value = lookup(dict, key);
+    const resolved = value !== undefined ? value : lookup(TRANSLATIONS.en, key);
+    const text = resolved !== undefined ? resolved : key;
+    return params ? interpolate(text, params) : text;
+}
+function interpolate(text, params) {
+    return text.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
+}
+// A whole translated group at once (e.g. every wine-type label), for
+// callers that need a Record to index into — Object.entries(), a lookup by
+// a dynamic key, etc. — rather than calling t() one key at a time. Missing
+// keys within a partially-translated group fall back individually to
+// English rather than the whole group falling back.
+function tGroup(group, language) {
+    const lang = (language || "en").split("-")[0];
+    const enGroup = TRANSLATIONS.en[group] || {};
+    if (lang === "en")
+        return enGroup;
+    const langGroup = TRANSLATIONS[lang]?.[group];
+    return langGroup ? { ...enGroup, ...langGroup } : enGroup;
+}
+function lookup(dict, key) {
+    return key.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), dict);
+}
+
+// Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
+// — falls back to the English STORAGE_ROW_TYPE_LABELS above for a language
+// with no catalog yet.
+function getStorageRowTypeLabels(language) {
+    return tGroup("storageRowType", language);
+}
 const BOX_SIZES = [1, 3, 6, 12, 24];
 const REMOVAL_REASONS = [
     { id: "drank", label: "Drank" },
@@ -746,6 +2050,13 @@ const REMOVAL_REASONS = [
     { id: "spoiled", label: "Spoiled" },
     { id: "other", label: "Other" },
 ];
+// Same reasons, translated per HA's display language — `id` (the stored
+// value) is never translated, only `label`. Falls back to the English
+// label above for any reason not yet translated into the target language.
+function getRemovalReasons(language) {
+    const labels = tGroup("removalReason", language);
+    return REMOVAL_REASONS.map((r) => ({ id: r.id, label: labels[r.id] || r.label }));
+}
 const WINE_TYPE_COLORS = {
     red: "#722F37",
     white: "#F5E6CA",
@@ -760,6 +2071,13 @@ const WINE_TYPE_LABELS = {
     sparkling: "Sparkling",
     dessert: "Dessert",
 };
+// Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
+// — falls back to the English WINE_TYPE_LABELS above for a language with
+// no catalog yet, or for any type not yet translated within one that
+// exists.
+function getWineTypeLabels(language) {
+    return tGroup("wineType", language);
+}
 // Every physical (row, col) grid slot in a cabinet, in display order,
 // skipping rows configured as bulk/box storage zones.
 function getRackSlots(cabinet) {
@@ -776,23 +2094,24 @@ function getRackSlots(cabinet) {
 // A precise, human-readable location for a wine: cabinet name, plus the
 // zone name and slot number when it's in a bulk bin or wine box, or the
 // rack's linear slot number when it's in a grid cell.
-function getWineLocation(wine, cabinets) {
+function getWineLocation(wine, cabinets, language) {
+    const loc = tGroup("wineLocation", language);
     const cabinet = wine.cabinet_id ? cabinets.find((c) => c.id === wine.cabinet_id) || null : null;
     if (!cabinet)
-        return { text: "Unassigned", cabinet: null, zone: "", storageRow: null };
+        return { text: loc.unassigned, cabinet: null, zone: "", storageRow: null };
     if (wine.row !== null && wine.col !== null) {
         const slotIdx = getRackSlots(cabinet).findIndex((s) => s.row === wine.row && s.col === wine.col);
-        const slotLabel = slotIdx >= 0 ? `Slot ${slotIdx + 1}` : `R${wine.row + 1}C${wine.col + 1}`;
+        const slotLabel = slotIdx >= 0 ? `${loc.slot} ${slotIdx + 1}` : `R${wine.row + 1}C${wine.col + 1}`;
         return { text: `${cabinet.name} · ${slotLabel}`, cabinet, zone: "", storageRow: null };
     }
     if (wine.zone && wine.zone !== "bottom") {
         const rowIdx = parseInt(wine.zone.replace("storage-", ""), 10);
         const storageRow = (cabinet.storage_rows || []).find((sr) => sr.row === rowIdx) || null;
-        const zoneName = storageRow?.name || "Storage";
-        return { text: `${cabinet.name} · ${zoneName} · Slot ${(wine.depth || 0) + 1}`, cabinet, zone: wine.zone, storageRow };
+        const zoneName = storageRow?.name || loc.storage;
+        return { text: `${cabinet.name} · ${zoneName} · ${loc.slot} ${(wine.depth || 0) + 1}`, cabinet, zone: wine.zone, storageRow };
     }
     if (wine.zone === "bottom") {
-        return { text: `${cabinet.name} · ${cabinet.bottom_zone_name || "Storage"}`, cabinet, zone: "bottom", storageRow: null };
+        return { text: `${cabinet.name} · ${cabinet.bottom_zone_name || loc.storage}`, cabinet, zone: "bottom", storageRow: null };
     }
     return { text: cabinet.name, cabinet, zone: "", storageRow: null };
 }
@@ -917,11 +2236,31 @@ function compareNullable(a, b, dir, cmp) {
 // Comma-separated fields (grape varieties, food pairings) are exploded into
 // individual values so the filter menus only ever offer what the cellar
 // actually contains.
+//
+// A plain split(",") breaks on every comma, including ones inside a
+// parenthetical aside — "Game (deer, venison)" became the two fragments
+// "Game (deer" and "venison)" in the filter menu. Commas inside parentheses
+// don't separate values, so depth-tracking skips them.
 function splitMulti(value) {
-    return (value || "")
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean);
+    const source = value || "";
+    const parts = [];
+    let current = "";
+    let depth = 0;
+    for (const ch of source) {
+        if (ch === "(")
+            depth++;
+        else if (ch === ")")
+            depth = Math.max(0, depth - 1);
+        if (ch === "," && depth === 0) {
+            parts.push(current);
+            current = "";
+        }
+        else {
+            current += ch;
+        }
+    }
+    parts.push(current);
+    return parts.map((v) => v.trim()).filter(Boolean);
 }
 function collectFacet(wines, pick) {
     const seen = new Map();
@@ -1777,7 +3116,7 @@ __decorate([
     r()
 ], ArrangementDialog.prototype, "_error", void 0);
 ArrangementDialog = __decorate([
-    t("arrangement-dialog")
+    t$1("arrangement-dialog")
 ], ArrangementDialog);
 
 let CabinetGrid = class CabinetGrid extends i {
@@ -2800,7 +4139,7 @@ __decorate([
     r()
 ], CabinetGrid.prototype, "_dragOverCell", void 0);
 CabinetGrid = __decorate([
-    t("cabinet-grid")
+    t$1("cabinet-grid")
 ], CabinetGrid);
 
 /** Resize a base64 JPEG (no data: prefix) to a thumbnail data URL for storage.
@@ -2954,7 +4293,7 @@ __decorate([
     n({ type: Number })
 ], StarRating.prototype, "size", void 0);
 StarRating = __decorate([
-    t("star-rating")
+    t$1("star-rating")
 ], StarRating);
 
 // Shared camera diagnostics.
@@ -2972,30 +4311,31 @@ StarRating = __decorate([
 // TypeError that reads like a mysterious failure. There is no code-side fix
 // for that, so the honest move is to say it up front and point at the device's
 // own camera, which needs no secure context.
-function cameraBlockedReason() {
+function cameraBlockedReason(language) {
     if (typeof window !== "undefined" && !window.isSecureContext) {
-        return ("The live camera needs a secure connection. Home Assistant is being served over " +
-            "http://, and browsers only allow camera access over https:// (or on localhost).");
+        return t("ui.camera.blockedInsecure", language);
     }
     if (!navigator.mediaDevices?.getUserMedia) {
-        return "This browser does not offer live camera access.";
+        return t("ui.camera.notOffered", language);
     }
     return "";
 }
 // A getUserMedia failure, in words that suggest what to do about it.
-function describeCameraError(err) {
+function describeCameraError(err, language) {
     switch (err?.name) {
         case "NotAllowedError":
         case "SecurityError":
-            return "Camera access was denied. Allow it for this site in your browser settings.";
+            return t("ui.camera.accessDenied", language);
         case "NotFoundError":
         case "OverconstrainedError":
-            return "No camera found on this device.";
+            return t("ui.camera.notFound", language);
         case "NotReadableError":
         case "AbortError":
-            return "The camera is busy or unavailable — another app may be using it.";
+            return t("ui.camera.busy", language);
         default:
-            return `Could not access the camera${err?.name ? ` (${err.name})` : ""}.`;
+            return t("ui.camera.genericError", language, {
+                detail: err?.name ? ` (${err.name})` : "",
+            });
     }
 }
 
@@ -3007,6 +4347,10 @@ let LabelCamera = class LabelCamera extends i {
         this._error = "";
         this._captured = false;
         this._capturedImage = "";
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     updated(changedProps) {
         if (changedProps.has("active")) {
@@ -3029,7 +4373,7 @@ let LabelCamera = class LabelCamera extends i {
         // Ask why before asking for the camera: over http:// there is nothing to
         // ask, and a TypeError from a missing navigator.mediaDevices would read as
         // a generic failure.
-        const blocked = cameraBlockedReason();
+        const blocked = cameraBlockedReason(this.hass?.language);
         if (blocked) {
             this._error = blocked;
             return;
@@ -3051,7 +4395,7 @@ let LabelCamera = class LabelCamera extends i {
             }
         }
         catch (err) {
-            this._error = describeCameraError(err);
+            this._error = describeCameraError(err, this.hass?.language);
         }
     }
     _stopCamera() {
@@ -3144,7 +4488,7 @@ let LabelCamera = class LabelCamera extends i {
             ? b `
             <div class="error-message">${this._error}</div>
             <div class="hint">
-              The button below opens your device's own camera, which works either way.
+              ${this._t("ui.camera.fallbackHint")}
             </div>
           `
             : b `
@@ -3152,14 +4496,14 @@ let LabelCamera = class LabelCamera extends i {
               <video autoplay playsinline muted></video>
             </div>
             <div class="capture-btn-area">
-              <button class="capture-btn" @click=${this._capture} title="Take photo"></button>
+              <button class="capture-btn" @click=${this._capture} title="${this._t('ui.camera.takePhotoTitle')}"></button>
             </div>
-            <div class="hint">Point the camera at the wine label</div>
+            <div class="hint">${this._t("ui.camera.pointAtLabel")}</div>
           `}
 
       <div class="fallback-area">
         <label class="file-input-label">
-          ${this._error ? "📷 Take a photo" : "📁 Upload from gallery"}
+          ${this._error ? this._t("ui.camera.takePhotoBtn") : this._t("ui.camera.uploadGalleryBtn")}
           <input type="file" accept="image/*" capture="environment" @change=${this._onFileSelected} />
         </label>
       </div>
@@ -3294,6 +4638,9 @@ LabelCamera.styles = [
     `,
 ];
 __decorate([
+    n({ attribute: false })
+], LabelCamera.prototype, "hass", void 0);
+__decorate([
     n({ type: Boolean })
 ], LabelCamera.prototype, "active", void 0);
 __decorate([
@@ -3309,7 +4656,7 @@ __decorate([
     r()
 ], LabelCamera.prototype, "_capturedImage", void 0);
 LabelCamera = __decorate([
-    t("label-camera")
+    t$1("label-camera")
 ], LabelCamera);
 
 let WineDetailDialog = class WineDetailDialog extends i {
@@ -3343,6 +4690,10 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this.hasGemini = false;
         this.aiFallbackAlways = false;
         this.currency = "USD";
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     updated(changedProps) {
         if (changedProps.has("wine") && this.wine) {
@@ -3444,7 +4795,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                         w.winery === this.wine.winery &&
                         w.vintage === this.wine.vintage);
                     if (duplicates.length > 0) {
-                        propagateNotes = window.confirm(`Apply this note to your other ${duplicates.length} bottle${duplicates.length > 1 ? "s" : ""} of ${this.wine.name} too?`);
+                        propagateNotes = window.confirm(this._t("ui.wineDetail.applyNoteConfirm", { count: duplicates.length, plural: duplicates.length > 1 ? "s" : "", name: this.wine.name }));
                     }
                 }
                 await this.hass.callWS({
@@ -3697,7 +5048,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         const field = this._photoSide === "back" ? "back_image_url" : "image_url";
         if (!this.wine?.[field])
             return;
-        if (!window.confirm(this._photoSide === "back" ? "Delete this bottle's back label photo?" : "Delete this bottle's photo?"))
+        if (!window.confirm(this._photoSide === "back" ? this._t("ui.wineDetail.deleteBackPhotoConfirm") : this._t("ui.wineDetail.deletePhotoConfirm")))
             return;
         this._updatePhoto("", field);
     }
@@ -3753,7 +5104,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             }
             const r = result.result;
             if (!r) {
-                alert("Could not identify the label. Try a clearer photo.");
+                alert(this._t("ui.wineDetail.couldNotIdentifyLabel"));
                 return;
             }
             const thumbUrl = await resizeImageForStorage(raw);
@@ -3789,7 +5140,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         }
         catch (err) {
             console.error("Label scan failed", err);
-            alert("Label scan failed. Please try again.");
+            alert(this._t("ui.wineDetail.labelScanFailed"));
         }
         this._scanningLabel = false;
     }
@@ -3824,11 +5175,13 @@ let WineDetailDialog = class WineDetailDialog extends i {
     // having tried at all.
     _renderSourceDates(updatedAt, checkedAt) {
         if (!updatedAt) {
-            return b `nothing found · checked ${this._formatUpdatedAt(checkedAt)}`;
+            return b `${this._t("ui.wineDetail.nothingFoundChecked", { date: this._formatUpdatedAt(checkedAt) })}`;
         }
         if (checkedAt && checkedAt > updatedAt) {
-            return b `${this._formatUpdatedAt(updatedAt)} · rechecked
-        ${this._formatUpdatedAt(checkedAt)}, nothing new`;
+            return b `${this._t("ui.wineDetail.recheckedNothingNew", {
+                date1: this._formatUpdatedAt(updatedAt),
+                date2: this._formatUpdatedAt(checkedAt),
+            })}`;
         }
         return b `${this._formatUpdatedAt(updatedAt)}`;
     }
@@ -3848,19 +5201,19 @@ let WineDetailDialog = class WineDetailDialog extends i {
         return b `
       <div class="edit-form">
         <div class="form-group">
-          <label>Wine Name</label>
+          <label>${this._t("ui.wineDetail.wineNameLabel")}</label>
           <input type="text" .value=${d.name}
             @input=${(e) => this._updateEditField("name", e.target.value)} />
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Winery</label>
+            <label>${this._t("ui.wineDetail.wineryLabel")}</label>
             <input type="text" .value=${d.winery}
               @input=${(e) => this._updateEditField("winery", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>Vintage</label>
+            <label>${this._t("ui.wineDetail.vintageLabel")}</label>
             <input type="number" .value=${d.vintage?.toString() || ""}
               @input=${(e) => this._updateEditField("vintage", e.target.value)} />
           </div>
@@ -3868,14 +5221,14 @@ let WineDetailDialog = class WineDetailDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Type</label>
+            <label>${this._t("ui.wineDetail.typeLabel")}</label>
             <select .value=${d.type}
               @change=${(e) => this._updateEditField("type", e.target.value)}>
-              ${Object.entries(WINE_TYPE_LABELS).map(([value, label]) => b `<option value=${value} ?selected=${d.type === value}>${label}</option>`)}
+              ${Object.entries(getWineTypeLabels(this.hass?.language)).map(([value, label]) => b `<option value=${value} ?selected=${d.type === value}>${label}</option>`)}
             </select>
           </div>
           <div class="form-group">
-            <label>Purchase Price</label>
+            <label>${this._t("ui.wineDetail.purchasePriceLabel")}</label>
             <input type="number" step="0.01" .value=${d.price?.toString() || ""}
               @input=${(e) => this._updateEditField("price", e.target.value)} />
           </div>
@@ -3883,12 +5236,12 @@ let WineDetailDialog = class WineDetailDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Current Value</label>
+            <label>${this._t("ui.wineDetail.currentValueLabel")}</label>
             <input type="number" step="0.01" .value=${d.retail_price?.toString() || ""}
               @input=${(e) => this._updateEditField("retail_price", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>Region</label>
+            <label>${this._t("ui.wineDetail.regionLabel")}</label>
             <input type="text" .value=${d.region}
               @input=${(e) => this._updateEditField("region", e.target.value)} />
           </div>
@@ -3896,46 +5249,46 @@ let WineDetailDialog = class WineDetailDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Country</label>
+            <label>${this._t("ui.wineDetail.countryLabel")}</label>
             <input type="text" .value=${d.country}
               @input=${(e) => this._updateEditField("country", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>Grape Variety</label>
+            <label>${this._t("ui.wineDetail.grapeVarietyLabel")}</label>
             <input type="text" .value=${d.grape_variety}
               @input=${(e) => this._updateEditField("grape_variety", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>Alcohol</label>
-            <input type="text" .value=${d.alcohol} placeholder="e.g. 13.5%"
+            <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
+            <input type="text" .value=${d.alcohol} placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
               @input=${(e) => this._updateEditField("alcohol", e.target.value)} />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Purchase Date</label>
+            <label>${this._t("ui.wineDetail.purchaseDateLabel")}</label>
             <input type="date" .value=${d.purchase_date}
               @input=${(e) => this._updateEditField("purchase_date", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>Drink By</label>
-            <input type="text" placeholder="e.g. 2030" .value=${d.drink_by}
+            <label>${this._t("ui.wineDetail.drinkByLabel")}</label>
+            <input type="text" placeholder="${this._t('ui.wineDetail.drinkByPlaceholder')}" .value=${d.drink_by}
               @input=${(e) => this._updateEditField("drink_by", e.target.value)} />
           </div>
         </div>
 
         <div class="form-group">
-          <label>Notes</label>
+          <label>${this._t("ui.wineDetail.notesLabel")}</label>
           <textarea .value=${d.notes}
             @input=${(e) => this._updateEditField("notes", e.target.value)}></textarea>
         </div>
       </div>
 
       <div class="edit-actions">
-        <button class="btn btn-outline" @click=${this._cancelEditingFields}>Cancel</button>
+        <button class="btn btn-outline" @click=${this._cancelEditingFields}>${this._t("ui.common.cancel")}</button>
         <button class="btn btn-primary" ?disabled=${this._saving} @click=${this._saveFields}>
-          ${this._saving ? "Saving..." : "Save"}
+          ${this._saving ? this._t("ui.wineDetail.saving") : this._t("ui.wineDetail.save")}
         </button>
       </div>
     `;
@@ -3945,7 +5298,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             return A;
         const wine = this.wine;
         const typeColor = WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red;
-        const typeLabel = WINE_TYPE_LABELS[wine.type] || wine.type;
+        const typeLabel = getWineTypeLabels(this.hass?.language)[wine.type] || wine.type;
         const showingBack = this._photoSide === "back";
         const currentImageUrl = showingBack ? wine.back_image_url : wine.image_url;
         return b `
@@ -3953,9 +5306,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
         <div class="dialog" style="position:relative" @click=${(e) => e.stopPropagation()}>
           <div class="dialog-top-bar">
             ${this.mode !== "winelist"
-            ? b `<button class="icon-btn" title="Edit" @click=${this._startEditingFields}>✏️</button>`
+            ? b `<button class="icon-btn" title="${this._t('ui.common.edit')}" @click=${this._startEditingFields}>✏️</button>`
             : A}
-            <button class="icon-btn close-btn" title="Close" @click=${this._close}>✕</button>
+            <button class="icon-btn close-btn" title="${this._t('ui.common.close')}" @click=${this._close}>✕</button>
           </div>
           <div class="wine-header">
             <div class="wine-image-col">
@@ -3965,22 +5318,22 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 @pointerup=${this._onImageSwipeEnd}
               >
                 ${currentImageUrl
-            ? b `<img class="wine-image" src="${currentImageUrl}" alt="${wine.name}${showingBack ? " (back label)" : ""}" />`
+            ? b `<img class="wine-image" src="${currentImageUrl}" alt="${wine.name}${showingBack ? this._t('ui.wineDetail.backLabelSuffix') : ""}" />`
             : b `
                       <div class="wine-image-placeholder" style="background: ${typeColor}">
                         🍷
                       </div>
                     `}
-                ${showingBack ? b `<div class="photo-side-badge">Back label</div>` : A}
+                ${showingBack ? b `<div class="photo-side-badge">${this._t('ui.wineDetail.backLabelBadge')}</div>` : A}
                 <div class="photo-dots">
                   <span
                     class="photo-dot ${this._photoSide === "front" ? "active" : ""}"
-                    title="Front label"
+                    title="${this._t('ui.wineDetail.frontLabelTitle')}"
                     @click=${() => (this._photoSide = "front")}
                   ></span>
                   <span
                     class="photo-dot ${showingBack ? "active" : ""}"
-                    title="Back label"
+                    title="${this._t('ui.wineDetail.backLabelBadge')}"
                     @click=${() => (this._photoSide = "back")}
                   ></span>
                 </div>
@@ -3989,14 +5342,14 @@ let WineDetailDialog = class WineDetailDialog extends i {
                       <div class="photo-actions">
                         <button
                           class="photo-action-btn"
-                          title="Replace ${showingBack ? "back label " : ""}photo"
+                          title="${showingBack ? this._t('ui.wineDetail.replaceBackPhotoTitle') : this._t('ui.wineDetail.replacePhotoTitle')}"
                           ?disabled=${this._photoBusy}
                           @click=${() => (this._showPhotoCamera = true)}
                         >📷</button>
                         ${currentImageUrl
                 ? b `<button
                               class="photo-action-btn"
-                              title="Delete ${showingBack ? "back label " : ""}photo"
+                              title="${showingBack ? this._t('ui.wineDetail.deleteBackPhotoTitle') : this._t('ui.wineDetail.deletePhotoTitle')}"
                               ?disabled=${this._photoBusy}
                               @click=${this._onDeletePhoto}
                             >🗑️</button>`
@@ -4007,8 +5360,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
               </div>
               ${this.mode === "cellar"
             ? b `
-                    <div class="wine-location" title="Tap to locate" @click=${this._onLocate}>
-                      📍 ${getWineLocation(wine, this.cabinets).text}
+                    <div class="wine-location" title="${this._t('ui.wineDetail.tapToLocate')}" @click=${this._onLocate}>
+                      📍 ${getWineLocation(wine, this.cabinets, this.hass?.language).text}
                     </div>
                   `
             : A}
@@ -4023,9 +5376,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ${wine.disposition
             ? b `<span class="wine-type-badge" style="background: ${wine.disposition === "D" ? "#2e7d32" :
                 wine.disposition === "H" ? "#1565c0" :
-                    wine.disposition === "P" ? "#c62828" : "#666"}">${wine.disposition === "D" ? "Drink Now" :
-                wine.disposition === "H" ? "Hold" :
-                    wine.disposition === "P" ? "Past Peak" : wine.disposition}</span>`
+                    wine.disposition === "P" ? "#c62828" : "#666"}">${wine.disposition === "D" ? this._t("ui.disposition.drinkNow") :
+                wine.disposition === "H" ? this._t("ui.disposition.hold") :
+                    wine.disposition === "P" ? this._t("ui.disposition.pastPeak") : wine.disposition}</span>`
             : A}
               </div>
               ${wine.rating
@@ -4034,7 +5387,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                       <span class="rating-star">★</span>
                       ${wine.rating.toFixed(1)}
                       <span style="font-size:0.8em;color:var(--wc-text-secondary)">
-                        Vivino${wine.ratings_count ? ` (${wine.ratings_count.toLocaleString()} ratings)` : ""}
+                        Vivino${wine.ratings_count ? this._t('ui.wineDetail.ratingsCountSuffix', { count: wine.ratings_count.toLocaleString() }) : ""}
                       </span>
                     </div>
                   `
@@ -4042,7 +5395,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
               ${this.mode !== "winelist"
             ? b `
                     <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
-                      <span style="font-size:0.8em;color:var(--wc-text-secondary)">My Rating</span>
+                      <span style="font-size:0.8em;color:var(--wc-text-secondary)">${this._t('ui.wineDetail.myRating')}</span>
                       <star-rating
                         .value=${this._userRating}
                         .readonly=${!this._editing}
@@ -4050,10 +5403,10 @@ let WineDetailDialog = class WineDetailDialog extends i {
                         @rating-change=${this._onRatingChange}
                       ></star-rating>
                       ${!this._editing && this._userRating === 0
-                ? b `<span class="no-rating" style="font-size:0.8em">Not rated</span>`
+                ? b `<span class="no-rating" style="font-size:0.8em">${this._t('ui.common.notRated')}</span>`
                 : A}
                       <button class="edit-toggle" style="font-size:0.75em;padding:2px 6px" @click=${() => (this._editing = !this._editing)}>
-                        ${this._editing ? "Cancel" : "Edit"}
+                        ${this._editing ? this._t('ui.common.cancel') : this._t('ui.common.edit')}
                       </button>
                     </div>
                   `
@@ -4071,25 +5424,25 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   ${this.hasGemini
                 ? b `<button class="btn btn-primary" style="background:#1565c0"
                         ?disabled=${this._analyzing} @click=${this._analyzeWithAI}>
-                        ${this._analyzing ? "..." : "🤖 AI Scan"}
+                        ${this._analyzing ? "..." : `🤖 ${this._t("ui.wineDetail.aiScanBtn")}`}
                       </button>
                       <button class="btn btn-primary" style="background:#2e7d32"
                         ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
-                        title="Take a fresh photo of the label to update this bottle's photo and details">
-                        ${this._scanningLabel ? "..." : "📷 Scan Label"}
+                        title="${this._t('ui.wineDetail.scanLabelTitle')}">
+                        ${this._scanningLabel ? "..." : `📷 ${this._t("ui.wineDetail.scanLabelBtn")}`}
                       </button>`
                 : A}
                   ${this.mode === "cellar"
                 ? b `
-                        <button class="btn btn-primary" style="background:#546e7a" @click=${this._onCopy}>📋 Copy</button>
-                        <button class="btn btn-primary" style="background:#6d4c41" @click=${this._onMove}>↔ Move</button>
+                        <button class="btn btn-primary" style="background:#546e7a" @click=${this._onCopy}>📋 ${this._t("ui.wineDetail.copyBtn")}</button>
+                        <button class="btn btn-primary" style="background:#6d4c41" @click=${this._onMove}>↔ ${this._t("ui.wineDetail.moveBtn")}</button>
                         ${wine.cabinet_id
-                    ? b `<button class="btn btn-primary" style="background:#ef6c00" @click=${this._moveToUnassigned}>📦 Unassign</button>`
+                    ? b `<button class="btn btn-primary" style="background:#ef6c00" @click=${this._moveToUnassigned}>📦 ${this._t("ui.wineDetail.unassignBtn")}</button>`
                     : A}
                       `
                 : A}
                   <button class="btn btn-primary" style="background:#c62828"
-                    @click=${this._onRemove}>✕ Remove</button>
+                    @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                 ? b `
@@ -4103,14 +5456,14 @@ let WineDetailDialog = class WineDetailDialog extends i {
                                   style="color:inherit;text-decoration:underline"
                                   @click=${(e) => e.stopPropagation()}
                                 >Vivino</a>`
-                        : b `Vivino`}: ${this._renderSourceDates(wine.vivino_updated_at, wine.vivino_checked_at)}`
+                        : b `Vivino`}${this._t("ui.common.colonSep")}${this._renderSourceDates(wine.vivino_updated_at, wine.vivino_checked_at)}`
                     : A}
                         ${(wine.vivino_checked_at || wine.vivino_updated_at) &&
                     (wine.ai_checked_at || wine.ai_updated_at)
                     ? " · "
                     : A}
                         ${wine.ai_checked_at || wine.ai_updated_at
-                    ? b `AI: ${this._renderSourceDates(wine.ai_updated_at, wine.ai_checked_at)}`
+                    ? b `${this._t("ui.wineDetail.aiLabel")}${this._t("ui.common.colonSep")}${this._renderSourceDates(wine.ai_updated_at, wine.ai_checked_at)}`
                     : A}
                       </div>
                     `
@@ -4126,10 +5479,10 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `
                       <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''}">
                         ${wine.disposition === "D"
-                    ? (wine.drink_window ? `Drink now \u2022 ${wine.drink_window}` : "Drink now")
+                    ? (wine.drink_window ? this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.drinkNowPlain"))
                     : wine.disposition === "H"
-                        ? (wine.drink_window ? `Hold \u2022 drink ${wine.drink_window}` : wine.drink_by ? `Hold until ${wine.drink_by}` : "Hold")
-                        : (wine.drink_window ? `Past peak \u2022 was ${wine.drink_window}` : "Past peak")}
+                        ? (wine.drink_window ? this._t("ui.wineDetail.holdWithWindow", { window: wine.drink_window }) : wine.drink_by ? this._t("ui.wineDetail.holdUntil", { date: wine.drink_by }) : this._t("ui.wineDetail.holdPlain"))
+                        : (wine.drink_window ? this._t("ui.wineDetail.pastPeakWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.pastPeakPlain"))}
                       </div>
                     `
                 : A}
@@ -4170,43 +5523,43 @@ let WineDetailDialog = class WineDetailDialog extends i {
 
                 <!-- Drink window (shown when no disposition banner) -->
                 ${!(wine.disposition) && wine.drink_window
-                ? b `<div class="drink-window">Drink window: ${wine.drink_window}</div>`
+                ? b `<div class="drink-window">${this._t("ui.wineDetail.drinkWindowPrefix", { window: wine.drink_window })}</div>`
                 : A}
 
                 <div class="details-grid">
                   ${wine.vintage
-                ? b `<div class="detail-item"><span class="detail-label">Vintage</span><span class="detail-value">${wine.vintage}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.vintageLabel")}</span><span class="detail-value">${wine.vintage}</span></div>`
                 : A}
                   ${wine.region
-                ? b `<div class="detail-item"><span class="detail-label">Region</span><span class="detail-value">${wine.region}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.regionLabel")}</span><span class="detail-value">${wine.region}</span></div>`
                 : A}
                   ${wine.country
-                ? b `<div class="detail-item"><span class="detail-label">Country</span><span class="detail-value">${wine.country}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                 : A}
                   ${wine.grape_variety
-                ? b `<div class="detail-item"><span class="detail-label">Grape</span><span class="detail-value">${wine.grape_variety}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.grapeLabel")}</span><span class="detail-value">${wine.grape_variety}</span></div>`
                 : A}
                   ${wine.price
-                ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? "Price" : "Purchase Price"}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                 : A}
                   ${wine.retail_price
-                ? b `<div class="detail-item"><span class="detail-label">Current Value</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
                 : A}
                   ${wine.purchase_date && this.mode === "cellar"
-                ? b `<div class="detail-item"><span class="detail-label">Purchased</span><span class="detail-value">${wine.purchase_date}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${wine.purchase_date}</span></div>`
                 : A}
                   ${wine.drink_by
-                ? b `<div class="detail-item"><span class="detail-label">Drink By</span><span class="detail-value">${wine.drink_by}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.drinkByLabel")}</span><span class="detail-value">${wine.drink_by}</span></div>`
                 : A}
                   ${wine.barcode && this.mode === "cellar"
-                ? b `<div class="detail-item"><span class="detail-label">Barcode</span><span class="detail-value">${wine.barcode}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.barcodeLabel")}</span><span class="detail-value">${wine.barcode}</span></div>`
                 : A}
                 </div>
 
                 ${wine.notes
                 ? b `
                       <div class="wine-notes">
-                        <div class="detail-label" style="margin-bottom: 4px">Notes</div>
+                        <div class="detail-label" style="margin-bottom: 4px">${this._t("ui.wineDetail.notesLabel")}</div>
                         <div class="wine-notes-text">${wine.notes}</div>
                       </div>
                     `
@@ -4218,40 +5571,40 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 <!-- Tasting Notes section -->
                 <div class="section">
                   <div class="section-header">
-                    <span class="section-title">Tasting Notes</span>
+                    <span class="section-title">${this._t("ui.wineDetail.tastingNotesTitle")}</span>
                   </div>
                   ${this._editing
                 ? b `
                         <div class="tasting-grid">
                           <div class="tasting-field">
-                            <label>Aroma</label>
+                            <label>${this._t("ui.wineDetail.aromaLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.aroma}
-                              placeholder="Berries, oak, vanilla..."
+                              placeholder="${this._t('ui.wineDetail.aromaPlaceholder')}"
                               @input=${(e) => this._onTastingChange("aroma", e)}
                             ></textarea>
                           </div>
                           <div class="tasting-field">
-                            <label>Taste</label>
+                            <label>${this._t("ui.wineDetail.tasteLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.taste}
-                              placeholder="Full-bodied, tannic..."
+                              placeholder="${this._t('ui.wineDetail.tastePlaceholder')}"
                               @input=${(e) => this._onTastingChange("taste", e)}
                             ></textarea>
                           </div>
                           <div class="tasting-field">
-                            <label>Finish</label>
+                            <label>${this._t("ui.wineDetail.finishLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.finish}
-                              placeholder="Long, smooth..."
+                              placeholder="${this._t('ui.wineDetail.finishPlaceholder')}"
                               @input=${(e) => this._onTastingChange("finish", e)}
                             ></textarea>
                           </div>
                           <div class="tasting-field">
-                            <label>Overall</label>
+                            <label>${this._t("ui.wineDetail.overallLabel")}</label>
                             <textarea
                               .value=${this._tastingNotes.overall}
-                              placeholder="Overall impression..."
+                              placeholder="${this._t('ui.wineDetail.overallPlaceholder')}"
                               @input=${(e) => this._onTastingChange("overall", e)}
                             ></textarea>
                           </div>
@@ -4262,7 +5615,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                             ?disabled=${this._saving}
                             @click=${this._saveRating}
                           >
-                            ${this._saving ? "Saving..." : "Save"}
+                            ${this._saving ? this._t("ui.wineDetail.saving") : this._t("ui.wineDetail.save")}
                           </button>
                         </div>
                       `
@@ -4270,20 +5623,20 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     ? b `
                           <div class="tasting-grid">
                             ${this._tastingNotes.aroma
-                        ? b `<div class="tasting-field"><label>Aroma</label><div class="tasting-value">${this._tastingNotes.aroma}</div></div>`
+                        ? b `<div class="tasting-field"><label>${this._t("ui.wineDetail.aromaLabel")}</label><div class="tasting-value">${this._tastingNotes.aroma}</div></div>`
                         : A}
                             ${this._tastingNotes.taste
-                        ? b `<div class="tasting-field"><label>Taste</label><div class="tasting-value">${this._tastingNotes.taste}</div></div>`
+                        ? b `<div class="tasting-field"><label>${this._t("ui.wineDetail.tasteLabel")}</label><div class="tasting-value">${this._tastingNotes.taste}</div></div>`
                         : A}
                             ${this._tastingNotes.finish
-                        ? b `<div class="tasting-field"><label>Finish</label><div class="tasting-value">${this._tastingNotes.finish}</div></div>`
+                        ? b `<div class="tasting-field"><label>${this._t("ui.wineDetail.finishLabel")}</label><div class="tasting-value">${this._tastingNotes.finish}</div></div>`
                         : A}
                             ${this._tastingNotes.overall
-                        ? b `<div class="tasting-field full-width"><label>Overall</label><div class="tasting-value">${this._tastingNotes.overall}</div></div>`
+                        ? b `<div class="tasting-field full-width"><label>${this._t("ui.wineDetail.overallLabel")}</label><div class="tasting-value">${this._tastingNotes.overall}</div></div>`
                         : A}
                           </div>
                         `
-                    : b `<div class="no-rating">No tasting notes yet. Tap Edit to add your thoughts.</div>`}
+                    : b `<div class="no-rating">${this._t("ui.wineDetail.noTastingNotes")}</div>`}
                 </div>
                 ` : A}
 
@@ -4291,10 +5644,10 @@ let WineDetailDialog = class WineDetailDialog extends i {
           ${this._showRemoveConfirm ? b `
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e) => e.stopPropagation()}>
-                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Remove Wine</h3>
-                <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">Why are you removing this bottle?</p>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.removeWineTitle")}</h3>
+                <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.removeWineQuestion")}</p>
                 <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
-                  ${REMOVAL_REASONS.map(r => b `
+                  ${getRemovalReasons(this.hass?.language).map(r => b `
                     <button
                       style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em;transition:all 0.15s"
                       @click=${() => this._confirmRemove(r.id)}
@@ -4304,19 +5657,19 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 <button
                   style="margin-top:12px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                   @click=${() => (this._showRemoveConfirm = false)}
-                >Cancel</button>
+                >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
           ` : A}
           ${this._pendingVivinoImage ? b `
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e) => e.stopPropagation()}>
-                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Vivino Photo Available</h3>
-                <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">Vivino found a different bottle photo. Keep your current photo or use Vivino's?</p>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.vivinoPhotoAvailableTitle")}</h3>
+                <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.vivinoPhotoAvailableBody")}</p>
                 <div style="display:flex;gap:12px;justify-content:center;margin-bottom:16px">
                   <div style="text-align:center">
                     <img src="${wine.image_url}" style="width:70px;height:100px;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.2)" />
-                    <div style="font-size:0.7em;color:var(--wc-text-secondary);margin-top:4px">Current</div>
+                    <div style="font-size:0.7em;color:var(--wc-text-secondary);margin-top:4px">${this._t("ui.wineDetail.currentPhotoLabel")}</div>
                   </div>
                   <div style="text-align:center">
                     <img src="${this._pendingVivinoImage}" style="width:70px;height:100px;object-fit:cover;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.2)" />
@@ -4327,8 +5680,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button
                     style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                     @click=${this._dismissVivinoPhoto}
-                  >Keep My Photo</button>
-                  <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>Use Vivino's</button>
+                  >${this._t("ui.wineDetail.keepMyPhotoBtn")}</button>
+                  <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
               </div>
             </div>
@@ -4339,12 +5692,12 @@ let WineDetailDialog = class WineDetailDialog extends i {
               @click=${() => (this._showPhotoCamera = false)}
             >
               <div style="width:100%" @click=${(e) => e.stopPropagation()}>
-                <label-camera .active=${this._showPhotoCamera} @photo-captured=${this._onPhotoReplaced}></label-camera>
+                <label-camera .hass=${this.hass} .active=${this._showPhotoCamera} @photo-captured=${this._onPhotoReplaced}></label-camera>
                 <div style="text-align:center;margin-top:12px">
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._showPhotoCamera = false)}
-                  >Cancel</button>
+                  >${this._t("ui.common.cancel")}</button>
                 </div>
               </div>
             </div>
@@ -4355,12 +5708,12 @@ let WineDetailDialog = class WineDetailDialog extends i {
               @click=${() => (this._showLabelCamera = false)}
             >
               <div style="width:100%" @click=${(e) => e.stopPropagation()}>
-                <label-camera .active=${this._showLabelCamera} @photo-captured=${this._onLabelPhotoScanned}></label-camera>
+                <label-camera .hass=${this.hass} .active=${this._showLabelCamera} @photo-captured=${this._onLabelPhotoScanned}></label-camera>
                 <div style="text-align:center;margin-top:12px">
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._showLabelCamera = false)}
-                  >Cancel</button>
+                  >${this._t("ui.common.cancel")}</button>
                 </div>
               </div>
             </div>
@@ -4368,20 +5721,20 @@ let WineDetailDialog = class WineDetailDialog extends i {
           ${this._aiFallbackReason ? b `
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e) => e.stopPropagation()}>
-                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._aiFallbackReason === "no_match" ? "No Vivino Match" : "No Price Found"}</h3>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._aiFallbackReason === "no_match" ? this._t("ui.wineDetail.noVivinoMatchTitle") : this._t("ui.wineDetail.noPriceFoundTitle")}</h3>
                 <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">${this._aiFallbackReason === "no_match"
-            ? "Vivino couldn't find a confident match for this wine. Try AI instead?"
-            : "Vivino has no price for this wine in the selected currency. Estimate it with AI?"}</p>
+            ? this._t("ui.wineDetail.vivinoNoMatchBody")
+            : this._t("ui.wineDetail.vivinoNoPriceBody")}</p>
                 <div style="display:flex;flex-direction:column;gap:8px">
-                  <button class="btn btn-primary" style="background:#1565c0" @click=${() => this._confirmAiFallback(false)}>Use AI Once</button>
+                  <button class="btn btn-primary" style="background:#1565c0" @click=${() => this._confirmAiFallback(false)}>${this._t("ui.wineDetail.useAiOnceBtn")}</button>
                   <button
                     style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                     @click=${() => this._confirmAiFallback(true)}
-                  >Always Use AI Automatically</button>
+                  >${this._t("ui.wineDetail.alwaysUseAiBtn")}</button>
                   <button
                     style="margin-top:4px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                     @click=${this._dismissAiFallback}
-                  >Cancel</button>
+                  >${this._t("ui.common.cancel")}</button>
                 </div>
               </div>
             </div>
@@ -4993,7 +6346,7 @@ __decorate([
     n({ type: String })
 ], WineDetailDialog.prototype, "currency", void 0);
 WineDetailDialog = __decorate([
-    t("wine-detail-dialog")
+    t$1("wine-detail-dialog")
 ], WineDetailDialog);
 
 let BarcodeScanner = class BarcodeScanner extends i {
@@ -5221,7 +6574,7 @@ __decorate([
     r()
 ], BarcodeScanner.prototype, "_scanning", void 0);
 BarcodeScanner = __decorate([
-    t("barcode-scanner")
+    t$1("barcode-scanner")
 ], BarcodeScanner);
 
 let AddWineDialog = class AddWineDialog extends i {
@@ -5361,14 +6714,14 @@ let AddWineDialog = class AddWineDialog extends i {
             }
             else {
                 this._wineData = { ...this._wineData, barcode: this._barcode.trim() };
-                this._onBarcodeLookupFailed("No match for this barcode.");
+                this._onBarcodeLookupFailed(this._t("ui.addWine.noBarcodeMatch"));
             }
         }
         catch (err) {
             if (session !== this._session)
                 return;
             this._wineData = { ...this._wineData, barcode: this._barcode.trim() };
-            this._onBarcodeLookupFailed("Barcode lookup failed.");
+            this._onBarcodeLookupFailed(this._t("ui.addWine.barcodeLookupFailed"));
         }
         this._loading = false;
     }
@@ -5382,10 +6735,10 @@ let AddWineDialog = class AddWineDialog extends i {
             this._showBackPrompt = false;
             this._captureStage = "front";
             this._frontImageRaw = "";
-            this._error = `${reason} Take a photo of the label instead.`;
+            this._error = this._t("ui.addWine.takePhotoInstead", { reason });
         }
         else {
-            this._error = `${reason} You can enter details manually.`;
+            this._error = this._t("ui.addWine.enterManually", { reason });
         }
     }
     async _searchWine() {
@@ -5407,11 +6760,11 @@ let AddWineDialog = class AddWineDialog extends i {
                 this._searchResults = result.results;
             }
             else {
-                this._error = "No results found. You can enter details manually.";
+                this._error = this._t("ui.addWine.noResultsFound");
             }
         }
         catch {
-            this._error = "Search failed. You can enter details manually.";
+            this._error = this._t("ui.addWine.searchFailed");
         }
         this._loading = false;
     }
@@ -5501,8 +6854,8 @@ let AddWineDialog = class AddWineDialog extends i {
             }
             else {
                 // Show specific error from backend if available
-                const errorDetail = result.error || "Unknown error";
-                this._error = `Label recognition failed: ${errorDetail}`;
+                const errorDetail = result.error || this._t("ui.addWine.unknownError");
+                this._error = this._t("ui.addWine.labelRecognitionFailed", { error: errorDetail });
                 console.error("Wine Cellar: label recognition failed:", errorDetail);
             }
         }
@@ -5511,9 +6864,13 @@ let AddWineDialog = class AddWineDialog extends i {
                 return;
             const msg = err?.message || String(err);
             console.error("Wine Cellar: label recognition error:", msg);
-            this._error = `Label recognition error: ${msg}`;
+            this._error = this._t("ui.addWine.labelRecognitionError", { msg });
         }
         this._labelLoading = false;
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     _goToStep(step) {
         this._step = step;
@@ -5537,9 +6894,9 @@ let AddWineDialog = class AddWineDialog extends i {
         // growing it beyond its configured capacity. Refuse instead, the way
         // drag-and-drop and paste already do.
         const { used, capacity, nextDepth, full } = this._zoneUsage(sr);
-        const label = sr.name || (sr.type === "box" ? "This box" : "This bin");
+        const label = sr.name || (sr.type === "box" ? this._t("ui.addWine.thisBox") : this._t("ui.addWine.thisBin"));
         if (full) {
-            this._error = `${label} is full (${used}/${capacity}). Free a slot, or raise its capacity in Manage Racks.`;
+            this._error = this._t("ui.addWine.zoneFull", { label, used, capacity });
             return;
         }
         this._error = "";
@@ -5557,7 +6914,7 @@ let AddWineDialog = class AddWineDialog extends i {
         const cabinet = this.cabinets.find((cab) => cab.id === c.cabinetId);
         const patch = placementIn(c, cabinet, this.wines);
         if (!patch) {
-            this._error = `${containerLabel(c, this.cabinets)} is full. Free a slot, or raise its capacity in Manage Racks.`;
+            this._error = this._t("ui.addWine.containerFull", { label: containerLabel(c, this.cabinets) });
             return;
         }
         this._error = "";
@@ -5589,7 +6946,7 @@ let AddWineDialog = class AddWineDialog extends i {
             else {
                 const slots = this._planSlots(this._quantity);
                 if (!slots.length) {
-                    this._error = "No free slot left at that destination.";
+                    this._error = this._t("ui.addWine.noFreeSlot");
                     this._loading = false;
                     return;
                 }
@@ -5622,7 +6979,7 @@ let AddWineDialog = class AddWineDialog extends i {
             this._close();
         }
         catch (err) {
-            this._error = this.buyListMode ? "Failed to add to buy list." : "Failed to add wine.";
+            this._error = this.buyListMode ? this._t("ui.addWine.addToBuyListFailed") : this._t("ui.addWine.addWineFailed");
         }
         this._addProgress = 0;
         this._loading = false;
@@ -5640,7 +6997,7 @@ let AddWineDialog = class AddWineDialog extends i {
             this._close();
         }
         catch (err) {
-            this._error = "Failed to add to buy list.";
+            this._error = this._t("ui.addWine.addToBuyListFailed");
         }
         this._loading = false;
     }
@@ -5667,15 +7024,15 @@ let AddWineDialog = class AddWineDialog extends i {
             @scanner-error=${(e) => { this._error = e.detail.error; this._scanMode = "idle"; }}
           ></barcode-scanner>
           ${this._loading
-                ? b `<div class="label-loading"><span class="loading-spinner"></span><div style="margin-top: 8px">Looking up barcode...</div></div>`
+                ? b `<div class="label-loading"><span class="loading-spinner"></span><div style="margin-top: 8px">${this._t("ui.addWine.lookingUpBarcode")}</div></div>`
                 : A}
           ${this._error ? b `<div class="error-msg">${this._error}</div>` : A}
           <div class="camera-actions">
-            <button class="btn btn-outline" @click=${() => { this._scanMode = "idle"; this._error = ""; }}>Cancel Scan</button>
+            <button class="btn btn-outline" @click=${() => { this._scanMode = "idle"; this._error = ""; }}>${this._t("ui.addWine.cancelScan")}</button>
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="btn btn-outline" @click=${this._close}>Cancel</button>
+          <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.cancel")}</button>
         </div>
       `;
         }
@@ -5687,28 +7044,29 @@ let AddWineDialog = class AddWineDialog extends i {
                 ? b `
                 <div class="label-loading">
                   <span class="loading-spinner"></span>
-                  <div style="margin-top: 8px">Analyzing label with AI...</div>
+                  <div style="margin-top: 8px">${this._t("ui.addWine.analyzingLabel")}</div>
                 </div>
               `
                 : this._showBackPrompt
                     ? b `
                   <div style="text-align:center;padding:24px 12px">
                     <div style="font-size:2em;margin-bottom:8px">✅</div>
-                    <div style="margin-bottom:12px;font-weight:500">Front label captured</div>
+                    <div style="margin-bottom:12px;font-weight:500">${this._t("ui.addWine.frontLabelCaptured")}</div>
                     <p style="font-size:0.85em;color:var(--wc-text-secondary);margin-bottom:16px">
-                      Add a photo of the back label too? It often has the vintage year (and sometimes a barcode).
+                      ${this._t("ui.addWine.addBackPhotoQuestion")}
                     </p>
                     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-                      <button class="btn btn-primary" @click=${() => { this._showBackPrompt = false; this._captureStage = "back"; }}>📷 Add Back Photo</button>
-                      <button class="btn btn-outline" @click=${() => this._finishLabelScan()}>Skip, Use Front Only</button>
+                      <button class="btn btn-primary" @click=${() => { this._showBackPrompt = false; this._captureStage = "back"; }}>${this._t("ui.addWine.addBackPhotoBtn")}</button>
+                      <button class="btn btn-outline" @click=${() => this._finishLabelScan()}>${this._t("ui.addWine.skipUseFrontOnly")}</button>
                     </div>
                   </div>
                 `
                     : b `
                   ${this._captureStage === "back"
-                        ? b `<div class="hint" style="text-align:center;margin-bottom:6px">Now photograph the back label</div>`
+                        ? b `<div class="hint" style="text-align:center;margin-bottom:6px">${this._t("ui.addWine.photographBackLabel")}</div>`
                         : A}
                   <label-camera
+                    .hass=${this.hass}
                     .active=${true}
                     @photo-captured=${this._onLabelPhotoCaptured}
                   ></label-camera>
@@ -5722,11 +7080,11 @@ let AddWineDialog = class AddWineDialog extends i {
                 this._showBackPrompt = false;
                 this._captureStage = "front";
                 this._frontImageRaw = "";
-            }}>Cancel</button>
+            }}>${this._t("ui.common.cancel")}</button>
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="btn btn-outline" @click=${this._close}>Cancel</button>
+          <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.cancel")}</button>
         </div>
       `;
         }
@@ -5737,34 +7095,34 @@ let AddWineDialog = class AddWineDialog extends i {
           <button class="scan-option" @click=${() => { this._scanMode = "barcode"; this._error = ""; }}>
             <span class="scan-option-icon">📷</span>
             <div class="scan-option-text">
-              <div class="scan-option-title">Scan Barcode</div>
-              <div class="scan-option-desc">Point camera at wine bottle barcode</div>
+              <div class="scan-option-title">${this._t("ui.addWine.scanBarcodeTitle")}</div>
+              <div class="scan-option-desc">${this._t("ui.addWine.scanBarcodeDesc")}</div>
             </div>
           </button>
 
           <button
             class="scan-option ${this._hasGemini ? "" : "disabled"}"
             @click=${() => this._hasGemini && (() => { this._scanMode = "label"; this._error = ""; })()}
-            title=${this._hasGemini ? "" : "Configure Gemini API key in integration settings"}
+            title=${this._hasGemini ? "" : this._t("ui.addWine.configureGeminiTitle")}
           >
             <span class="scan-option-icon">🤖</span>
             <div class="scan-option-text">
-              <div class="scan-option-title">Recognize Label</div>
+              <div class="scan-option-title">${this._t("ui.addWine.recognizeLabelTitle")}</div>
               <div class="scan-option-desc">
                 ${this._hasGemini
-            ? "Take a photo of the wine label"
-            : "Requires Gemini API key in settings"}
+            ? this._t("ui.addWine.takePhotoOfLabel")
+            : this._t("ui.addWine.requiresGeminiKey")}
               </div>
             </div>
           </button>
         </div>
 
-        <div class="or-divider">or enter manually</div>
+        <div class="or-divider">${this._t("ui.addWine.orEnterManually")}</div>
 
         <div class="barcode-input-row">
           <input
             type="text"
-            placeholder="Enter barcode..."
+            placeholder="${this._t('ui.addWine.barcodePlaceholder')}"
             .value=${this._barcode}
             @input=${(e) => (this._barcode = e.target.value)}
             @keypress=${(e) => e.key === "Enter" && this._lookupBarcode()}
@@ -5772,7 +7130,7 @@ let AddWineDialog = class AddWineDialog extends i {
           <button class="btn btn-primary" @click=${this._lookupBarcode}>
             ${this._loading
             ? b `<span class="loading-spinner"></span>`
-            : "Look Up"}
+            : this._t("ui.addWine.lookUpBtn")}
           </button>
         </div>
 
@@ -5790,19 +7148,19 @@ let AddWineDialog = class AddWineDialog extends i {
             `
             : A}
 
-        <div class="or-divider">or search by name</div>
+        <div class="or-divider">${this._t("ui.addWine.orSearchByName")}</div>
 
         <div class="barcode-input-row">
           <input
             class="search-input"
             type="text"
-            placeholder="Search wine name..."
+            placeholder="${this._t('ui.addWine.searchNamePlaceholder')}"
             @keypress=${(e) => e.key === "Enter" && this._searchWine()}
           />
           <button class="btn btn-outline" @click=${this._searchWine}>
             ${this._loading
             ? b `<span class="loading-spinner"></span>`
-            : "Search"}
+            : this._t("ui.addWine.searchBtn")}
           </button>
         </div>
 
@@ -5810,7 +7168,7 @@ let AddWineDialog = class AddWineDialog extends i {
             ? b `
               <div class="search-results">
                 <div class="search-results-label">
-                  ${this._searchResults.length} result${this._searchResults.length > 1 ? "s" : ""} — tap to select
+                  ${this._t("ui.addWine.resultsCount", { n: this._searchResults.length, plural: this._searchResults.length > 1 ? "s" : "" })}
                 </div>
                 ${this._searchResults.map((item) => b `
                     <button
@@ -5821,7 +7179,7 @@ let AddWineDialog = class AddWineDialog extends i {
                 ? b `<img class="search-result-thumb" src="${item.image_url}" alt="" />`
                 : b `<div class="search-result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.2em;">🍷</div>`}
                       <div class="search-result-info">
-                        <div class="search-result-name">${item.name || "Unknown"}</div>
+                        <div class="search-result-name">${item.name || this._t("ui.addWine.unknownName")}</div>
                         <div class="search-result-meta">
                           ${item.winery || ""}${item.vintage ? ` · ${item.vintage}` : ""}${item.region ? ` · ${item.region}` : ""}
                         </div>
@@ -5841,12 +7199,12 @@ let AddWineDialog = class AddWineDialog extends i {
       </div>
 
       <div class="dialog-footer">
-        <button class="btn btn-outline" @click=${this._close}>Cancel</button>
+        <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.cancel")}</button>
         <button
           class="btn btn-outline"
           @click=${() => this._goToStep("details")}
         >
-          Skip → Manual Entry
+          ${this._t("ui.addWine.skipManualEntry")}
         </button>
       </div>
     `;
@@ -5855,7 +7213,7 @@ let AddWineDialog = class AddWineDialog extends i {
         return b `
       <div class="dialog-body">
         <div class="form-group">
-          <label>Wine Name *</label>
+          <label>${this._t("ui.addWine.wineNameLabel")}</label>
           <input
             type="text"
             .value=${this._wineData.name || ""}
@@ -5865,7 +7223,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Winery</label>
+            <label>${this._t("ui.addWine.wineryLabel")}</label>
             <input
               type="text"
               .value=${this._wineData.winery || ""}
@@ -5873,7 +7231,7 @@ let AddWineDialog = class AddWineDialog extends i {
             />
           </div>
           <div class="form-group">
-            <label>Vintage</label>
+            <label>${this._t("ui.addWine.vintageLabel")}</label>
             <input
               type="number"
               .value=${this._wineData.vintage?.toString() || ""}
@@ -5884,15 +7242,15 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Type</label>
+            <label>${this._t("ui.addWine.typeLabel")}</label>
             <select
               @change=${(e) => this._updateField("type", e.target.value)}
             >
-              ${Object.entries(WINE_TYPE_LABELS).map(([value, label]) => b `<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`)}
+              ${Object.entries(getWineTypeLabels(this.hass?.language)).map(([value, label]) => b `<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`)}
             </select>
           </div>
           <div class="form-group">
-            <label>Purchase Price</label>
+            <label>${this._t("ui.addWine.purchasePriceLabel")}</label>
             <input
               type="number"
               step="0.01"
@@ -5904,7 +7262,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Current Value</label>
+            <label>${this._t("ui.addWine.currentValueLabel")}</label>
             <input
               type="number"
               step="0.01"
@@ -5913,7 +7271,7 @@ let AddWineDialog = class AddWineDialog extends i {
             />
           </div>
           <div class="form-group">
-            <label>Region</label>
+            <label>${this._t("ui.addWine.regionLabel")}</label>
             <input
               type="text"
               .value=${this._wineData.region || ""}
@@ -5924,7 +7282,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Country</label>
+            <label>${this._t("ui.addWine.countryLabel")}</label>
             <input
               type="text"
               .value=${this._wineData.country || ""}
@@ -5934,7 +7292,7 @@ let AddWineDialog = class AddWineDialog extends i {
         </div>
 
         <div class="form-group">
-          <label>Grape Variety</label>
+          <label>${this._t("ui.addWine.grapeVarietyLabel")}</label>
           <input
             type="text"
             .value=${this._wineData.grape_variety || ""}
@@ -5944,7 +7302,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Purchase Date</label>
+            <label>${this._t("ui.addWine.purchaseDateLabel")}</label>
             <input
               type="date"
               .value=${this._wineData.purchase_date || ""}
@@ -5952,10 +7310,10 @@ let AddWineDialog = class AddWineDialog extends i {
             />
           </div>
           <div class="form-group">
-            <label>Drink By</label>
+            <label>${this._t("ui.addWine.drinkByLabel")}</label>
             <input
               type="text"
-              placeholder="e.g. 2030"
+              placeholder="${this._t('ui.addWine.drinkByPlaceholder')}"
               .value=${this._wineData.drink_by || ""}
               @input=${(e) => this._updateField("drink_by", e.target.value)}
             />
@@ -5963,7 +7321,7 @@ let AddWineDialog = class AddWineDialog extends i {
         </div>
 
         <div class="form-group">
-          <label>Notes</label>
+          <label>${this._t("ui.addWine.notesLabel")}</label>
           <textarea
             .value=${this._wineData.notes || ""}
             @input=${(e) => this._updateField("notes", e.target.value)}
@@ -5971,7 +7329,7 @@ let AddWineDialog = class AddWineDialog extends i {
         </div>
 
         <div class="rating-section">
-          <div class="rating-label">My Rating</div>
+          <div class="rating-label">${this._t("ui.addWine.myRatingLabel")}</div>
           <star-rating
             .value=${this._wineData.user_rating || 0}
             @rating-change=${(e) => this._updateField("user_rating", e.detail.value || null)}
@@ -5981,7 +7339,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => this._goToStep("scan")}>
-          ← Back
+          ${this._t("ui.addWine.back")}
         </button>
         ${!this.buyListMode
             ? b `
@@ -5990,9 +7348,9 @@ let AddWineDialog = class AddWineDialog extends i {
                 style="background: #e65100;"
                 @click=${this._quickAddToBuyList}
                 ?disabled=${!this._wineData.name || this._loading}
-                title="Save to buy list instead of cellar"
+                title="${this._t('ui.addWine.buyListBtnTitle')}"
               >
-                ${this._loading ? b `<span class="loading-spinner"></span>` : "🛒 Buy List"}
+                ${this._loading ? b `<span class="loading-spinner"></span>` : this._t("ui.addWine.buyListBtn")}
               </button>
             `
             : A}
@@ -6001,7 +7359,7 @@ let AddWineDialog = class AddWineDialog extends i {
           @click=${() => this._goToStep(this.buyListMode ? "confirm" : "location")}
           ?disabled=${!this._wineData.name}
         >
-          Next →
+          ${this._t("ui.addWine.next")}
         </button>
       </div>
     `;
@@ -6016,14 +7374,14 @@ let AddWineDialog = class AddWineDialog extends i {
         const current = containerOf(this._wineData);
         const spaceText = (s) => {
             if (s.usage.full)
-                return `Full · ${s.usage.used}/${s.usage.capacity}`;
+                return this._t("ui.addWine.fullUsage", { used: s.usage.used, capacity: s.usage.capacity });
             if (!Number.isFinite(s.usage.free))
-                return "Room";
-            return s.usage.free === 1 ? "1 free" : `${s.usage.free} free`;
+                return this._t("ui.addWine.room");
+            return s.usage.free === 1 ? this._t("ui.addWine.oneFree") : this._t("ui.addWine.nFree", { n: s.usage.free });
         };
         return b `
       <div class="suggest-strip">
-        <div class="suggest-title">Suggested — where its relatives are</div>
+        <div class="suggest-title">${this._t("ui.addWine.suggestedTitle")}</div>
         ${suggestions.map((s) => {
             const selected = !!current && sameContainer(current, s.container);
             return b `
@@ -6041,12 +7399,11 @@ let AddWineDialog = class AddWineDialog extends i {
             ${s.alternative
                 ? b `
                   <div class="suggest-alt">
-                    No room left there — split the series into
+                    ${this._t("ui.addWine.noRoomSplit")}
                     <button @click=${() => this._applyContainer(s.alternative.container)}>
                       ${s.alternative.label}
                     </button>
-                    (${s.alternative.free === 1 ? "1 free" : `${s.alternative.free} free`}), or free a
-                    slot first.
+                    (${s.alternative.free === 1 ? this._t("ui.addWine.oneFree") : this._t("ui.addWine.nFree", { n: s.alternative.free })})${this._t("ui.addWine.orFreeSlotFirst")}
                   </div>
                 `
                 : A}
@@ -6061,9 +7418,9 @@ let AddWineDialog = class AddWineDialog extends i {
         const hasZone = !!this._wineData.zone;
         return b `
       <div class="dialog-body">
-        <div style="font-weight: 500; margin-bottom: 8px">Choose Location</div>
+        <div style="font-weight: 500; margin-bottom: 8px">${this._t("ui.addWine.chooseLocation")}</div>
         <div style="font-size: 0.85em; color: var(--wc-text-secondary); margin-bottom: 12px">
-          Select a cabinet and position for this bottle
+          ${this._t("ui.addWine.selectCabinetHint")}
         </div>
 
         ${this._renderSuggestions()}
@@ -6077,20 +7434,20 @@ let AddWineDialog = class AddWineDialog extends i {
         }}
               >
                 <div class="cab-name">${cab.name}</div>
-                <div class="cab-info">${cab.rows}×${cab.cols} slots</div>
+                <div class="cab-info">${this._t("ui.addWine.slotsCount", { rows: cab.rows, cols: cab.cols })}</div>
               </div>
             `)}
         </div>
 
         ${selectedCabinet && zones.length > 0 ? b `
           <div style="margin-top:12px">
-            <label style="display:block;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:6px">Bulk / Box Zone</label>
+            <label style="display:block;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:6px">${this._t("ui.addWine.bulkBoxZone")}</label>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
               <button
                 class="btn ${!hasZone ? "btn-primary" : "btn-outline"}"
                 style="font-size:0.8em;padding:6px 10px"
                 @click=${() => this._updateField("zone", "")}
-              >None — use grid Row/Col</button>
+              >${this._t("ui.addWine.noneUseGrid")}</button>
               ${zones.map((sr) => {
             const usage = this._zoneUsage(sr);
             const selected = this._wineData.zone === `storage-${sr.row}`;
@@ -6098,10 +7455,10 @@ let AddWineDialog = class AddWineDialog extends i {
                   <button
                     class="btn ${selected ? "btn-primary" : "btn-outline"}"
                     style="font-size:0.8em;padding:6px 10px${usage.full ? ";opacity:0.5" : ""}"
-                    title=${usage.full ? "Full — free a slot or raise its capacity" : ""}
+                    title=${usage.full ? this._t("ui.addWine.fullTitle") : ""}
                     @click=${() => this._selectZone(sr)}
                   >
-                    ${sr.name || (sr.type === "box" ? "Box" : "Bulk Bin")}
+                    ${sr.name || (sr.type === "box" ? this._t("ui.addWine.boxShort") : this._t("storageRowType.bulk"))}
                     <span style="opacity:0.75">${usage.used}/${usage.capacity}</span>
                   </button>
                 `;
@@ -6114,7 +7471,7 @@ let AddWineDialog = class AddWineDialog extends i {
             ? b `
               <div class="pos-inputs">
                 <div class="form-group">
-                  <label>Row (1-based)</label>
+                  <label>${this._t("ui.addWine.rowLabel")}</label>
                   <input
                     type="number"
                     min="1"
@@ -6123,7 +7480,7 @@ let AddWineDialog = class AddWineDialog extends i {
                   />
                 </div>
                 <div class="form-group">
-                  <label>Column (1-based)</label>
+                  <label>${this._t("ui.addWine.columnLabel")}</label>
                   <input
                     type="number"
                     min="1"
@@ -6139,10 +7496,10 @@ let AddWineDialog = class AddWineDialog extends i {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => this._goToStep("details")}>
-          ← Back
+          ${this._t("ui.addWine.back")}
         </button>
         <button class="btn btn-primary" @click=${() => this._onLocationNext()}>
-          Next →
+          ${this._t("ui.addWine.next")}
         </button>
       </div>
     `;
@@ -6153,18 +7510,18 @@ let AddWineDialog = class AddWineDialog extends i {
         // findable position — it silently vanishes (assigned to the cabinet,
         // but rendered nowhere). Catch that here instead of at save time.
         if (d.cabinet_id && !d.zone && (d.row == null || d.col == null || isNaN(d.row) || isNaN(d.col))) {
-            this._error = "Pick a zone, or enter both Row and Column, so the bottle has a findable spot.";
+            this._error = this._t("ui.addWine.pickZoneOrRowCol");
             return;
         }
         const cabinet = this.cabinets.find((c) => c.id === d.cabinet_id);
         if (cabinet && !d.zone && d.row != null && d.col != null) {
             if (d.row < 0 || d.row >= cabinet.rows || d.col < 0 || d.col >= cabinet.cols) {
-                this._error = `That slot is outside ${cabinet.name} (${cabinet.rows} rows × ${cabinet.cols} columns).`;
+                this._error = this._t("ui.addWine.slotOutside", { cabinet: cabinet.name, rows: cabinet.rows, cols: cabinet.cols });
                 return;
             }
             const isStorageRow = (cabinet.storage_rows || []).some((sr) => sr.row === d.row);
             if (isStorageRow) {
-                this._error = "That row is a bin or box, not grid slots — pick it from the zone list above.";
+                this._error = this._t("ui.addWine.rowIsBinOrBox");
                 return;
             }
             // Stack behind whatever is already in the slot, up to the rack's depth,
@@ -6177,7 +7534,7 @@ let AddWineDialog = class AddWineDialog extends i {
             while (occupied.has(depth))
                 depth++;
             if (depth >= rackDepth) {
-                this._error = `Row ${d.row + 1}, column ${d.col + 1} is full (${occupied.size}/${rackDepth} deep).`;
+                this._error = this._t("ui.addWine.slotFull", { row: d.row + 1, col: d.col + 1, used: occupied.size, depth: rackDepth });
                 return;
             }
             this._wineData = { ...this._wineData, depth };
@@ -6193,7 +7550,7 @@ let AddWineDialog = class AddWineDialog extends i {
             : null;
         return b `
       <div class="qty-row">
-        <span class="qty-label">Bottles</span>
+        <span class="qty-label">${this._t("ui.addWine.bottlesLabel")}</span>
         <div class="qty-stepper">
           <button
             class="qty-btn"
@@ -6217,41 +7574,41 @@ let AddWineDialog = class AddWineDialog extends i {
       </div>
       <div class="qty-hint">
         ${available === null
-            ? "Identical bottles, added unassigned."
+            ? this._t("ui.addWine.identicalUnassigned")
             : available === 0
-                ? "That destination is full."
-                : b `${available} slot${available > 1 ? "s" : ""} free here.
+                ? this._t("ui.addWine.destinationFull")
+                : b `${this._t("ui.addWine.slotsFreeHere", { n: available, plural: available > 1 ? "s" : "" })}
               ${destination && destination.length > 1
-                    ? `The ${destination.length} bottles take consecutive free slots.`
+                    ? this._t("ui.addWine.consecutiveSlots", { n: destination.length })
                     : ""}`}
       </div>
     `;
     }
     _renderConfirmStep() {
         const cabinetName = this.cabinets.find((c) => c.id === this._wineData.cabinet_id)?.name ||
-            "Unassigned";
+            this._t("wineLocation.unassigned");
         const zoneCabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
         const zoneRow = this._wineData.zone
             ? zoneCabinet?.storage_rows.find((sr) => `storage-${sr.row}` === this._wineData.zone)
             : undefined;
         const posLabel = zoneRow
-            ? zoneRow.name || (zoneRow.type === "box" ? "Box" : "Bulk Bin")
+            ? zoneRow.name || (zoneRow.type === "box" ? this._t("ui.addWine.boxShort") : this._t("storageRowType.bulk"))
             : this._wineData.row != null && this._wineData.col != null
-                ? `Row ${(this._wineData.row ?? 0) + 1}, Col ${(this._wineData.col ?? 0) + 1}`
-                : "Not specified";
+                ? this._t("ui.addWine.posRowCol", { row: (this._wineData.row ?? 0) + 1, col: (this._wineData.col ?? 0) + 1 })
+                : this._t("ui.addWine.notSpecified");
         return b `
       <div class="dialog-body">
-        <div style="font-weight: 500; margin-bottom: 12px">Confirm & Add</div>
+        <div style="font-weight: 500; margin-bottom: 12px">${this._t("ui.addWine.confirmAndAdd")}</div>
 
         <div class="confirm-summary">
           <div class="summary-row">
-            <span class="summary-label">Name</span>
+            <span class="summary-label">${this._t("ui.addWine.nameLabel")}</span>
             <span class="summary-value">${this._wineData.name}</span>
           </div>
           ${this._wineData.winery
             ? b `
                 <div class="summary-row">
-                  <span class="summary-label">Winery</span>
+                  <span class="summary-label">${this._t("ui.addWine.wineryLabel")}</span>
                   <span class="summary-value">${this._wineData.winery}</span>
                 </div>
               `
@@ -6259,33 +7616,33 @@ let AddWineDialog = class AddWineDialog extends i {
           ${this._wineData.vintage
             ? b `
                 <div class="summary-row">
-                  <span class="summary-label">Vintage</span>
+                  <span class="summary-label">${this._t("ui.addWine.vintageLabel")}</span>
                   <span class="summary-value">${this._wineData.vintage}</span>
                 </div>
               `
             : A}
           <div class="summary-row">
-            <span class="summary-label">Type</span>
+            <span class="summary-label">${this._t("ui.addWine.typeLabel")}</span>
             <span class="summary-value">
-              ${WINE_TYPE_LABELS[this._wineData.type || "red"]}
+              ${getWineTypeLabels(this.hass?.language)[this._wineData.type || "red"]}
             </span>
           </div>
           ${this.buyListMode
             ? A
             : b `
                 <div class="summary-row">
-                  <span class="summary-label">Cabinet</span>
+                  <span class="summary-label">${this._t("ui.addWine.cabinetLabel")}</span>
                   <span class="summary-value">${cabinetName}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-label">Position</span>
+                  <span class="summary-label">${this._t("ui.addWine.positionLabel")}</span>
                   <span class="summary-value">${posLabel}</span>
                 </div>
               `}
           ${this._wineData.user_rating
             ? b `
                 <div class="summary-row">
-                  <span class="summary-label">My Rating</span>
+                  <span class="summary-label">${this._t("ui.addWine.myRatingLabel")}</span>
                   <span class="summary-value">${this._wineData.user_rating}/5</span>
                 </div>
               `
@@ -6301,7 +7658,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => this._goToStep(this.buyListMode ? "details" : "location")}>
-          ← Back
+          ${this._t("ui.addWine.back")}
         </button>
         <button class="btn btn-primary" @click=${this._addWine}>
           ${this._loading
@@ -6309,10 +7666,10 @@ let AddWineDialog = class AddWineDialog extends i {
                 ? b ` ${this._addProgress}/${this._quantity}`
                 : A}`
             : this.buyListMode
-                ? "Add to Buy List"
+                ? this._t("ui.addWine.titleBuyList")
                 : this._quantity > 1
-                    ? `Add ${this._quantity} Bottles`
-                    : "Add Wine"}
+                    ? this._t("ui.addWine.addNBottles", { n: this._quantity })
+                    : this._t("ui.addWine.title")}
         </button>
       </div>
     `;
@@ -6323,7 +7680,7 @@ let AddWineDialog = class AddWineDialog extends i {
         return b `
       <div class="dialog-overlay" @click=${this._close}>
         <div class="dialog" @click=${(e) => e.stopPropagation()}>
-          <div class="dialog-header">${this.buyListMode ? "Add to Buy List" : "Add Wine"}</div>
+          <div class="dialog-header">${this.buyListMode ? this._t("ui.addWine.titleBuyList") : this._t("ui.addWine.title")}</div>
           ${this._renderStepIndicator()}
           ${this._step === "scan" ? this._renderScanStep() : A}
           ${this._step === "details" ? this._renderDetailsStep() : A}
@@ -6914,7 +8271,7 @@ __decorate([
     r()
 ], AddWineDialog.prototype, "_searchResults", void 0);
 AddWineDialog = __decorate([
-    t("add-wine-dialog")
+    t$1("add-wine-dialog")
 ], AddWineDialog);
 
 let WineSearchBar = class WineSearchBar extends i {
@@ -6922,6 +8279,10 @@ let WineSearchBar = class WineSearchBar extends i {
         super(...arguments);
         this.value = "";
         this.filter = "all";
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     _onInput(e) {
         const value = e.target.value;
@@ -6956,12 +8317,12 @@ let WineSearchBar = class WineSearchBar extends i {
     }
     render() {
         const filters = [
-            { id: "all", label: "All" },
-            { id: "red", label: "Red" },
-            { id: "white", label: "White" },
-            { id: "rosé", label: "Rosé" },
-            { id: "sparkling", label: "Sparkling" },
-            { id: "dessert", label: "Dessert" },
+            { id: "all", label: this._t("ui.inventory.preset.allLabel") },
+            { id: "red", label: this._t("wineType.red") },
+            { id: "white", label: this._t("wineType.white") },
+            { id: "rosé", label: this._t("wineType.rosé") },
+            { id: "sparkling", label: this._t("wineType.sparkling") },
+            { id: "dessert", label: this._t("wineType.dessert") },
         ];
         return b `
       <div class="search-container">
@@ -6969,7 +8330,7 @@ let WineSearchBar = class WineSearchBar extends i {
           <span class="search-icon">🔍</span>
           <input
             type="search"
-            placeholder="Search wines..."
+            placeholder="${this._t('ui.inventory.searchPlaceholder')}"
             enterkeyhint="search"
             autocomplete="off"
             autocorrect="off"
@@ -6980,7 +8341,7 @@ let WineSearchBar = class WineSearchBar extends i {
           />
           ${this.value
             ? b `
-                <button class="search-clear" title="Clear search" aria-label="Clear search" @click=${this._clear}>
+                <button class="search-clear" title="${this._t('ui.common.clearSearch')}" aria-label="${this._t('ui.common.clearSearch')}" @click=${this._clear}>
                   ✕
                 </button>
               `
@@ -7126,13 +8487,16 @@ WineSearchBar.styles = [
     `,
 ];
 __decorate([
+    n({ attribute: false })
+], WineSearchBar.prototype, "hass", void 0);
+__decorate([
     n({ type: String })
 ], WineSearchBar.prototype, "value", void 0);
 __decorate([
     n({ type: String })
 ], WineSearchBar.prototype, "filter", void 0);
 WineSearchBar = __decorate([
-    t("wine-search-bar")
+    t$1("wine-search-bar")
 ], WineSearchBar);
 
 var RackSettingsDialog_1;
@@ -7148,6 +8512,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this._deleteCabinet = null;
         this._loading = false;
         this._error = "";
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     updated(changedProps) {
         if (changedProps.has("open") && this.open) {
@@ -7253,7 +8621,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             const defaultCapacity = isBox ? 12 : 20;
             const newRow = {
                 row,
-                name: existing?.name || STORAGE_ROW_TYPE_LABELS[type],
+                name: existing?.name || getStorageRowTypeLabels(this.hass?.language)[type],
                 type,
                 capacity: defaultCapacity,
                 ...(isBox ? { boxes: [12] } : {}),
@@ -7362,7 +8730,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             this._mode = "list";
         }
         catch {
-            this._error = "Failed to add rack.";
+            this._error = this._t("ui.rack.failedToAddRack");
         }
         this._loading = false;
     }
@@ -7403,7 +8771,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             this._mode = "list";
         }
         catch {
-            this._error = "Failed to update rack.";
+            this._error = this._t("ui.rack.failedToUpdateRack");
         }
         this._loading = false;
     }
@@ -7422,7 +8790,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             this._deleteCabinet = null;
         }
         catch {
-            this._error = "Failed to delete rack.";
+            this._error = this._t("ui.rack.failedToDeleteRack");
         }
         this._loading = false;
     }
@@ -7448,7 +8816,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             this._notifyUpdate();
         }
         catch {
-            this._error = "Failed to reorder racks.";
+            this._error = this._t("ui.rack.failedToReorderRacks");
         }
     }
     async _moveDown(cabinet) {
@@ -7473,7 +8841,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             this._notifyUpdate();
         }
         catch {
-            this._error = "Failed to reorder racks.";
+            this._error = this._t("ui.rack.failedToReorderRacks");
         }
     }
     _renderList() {
@@ -7488,9 +8856,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                   <div class="rack-info">
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
-                      ${cab.rows} × ${cab.cols} grid${(cab.depth || 1) > 1 ? ` × ${cab.depth} deep` : ""}
-                      · ${this._winesInCabinet(cab.id)} bottles
-                      ${storageCount > 0 ? ` · ${storageCount} storage` : ""}
+                      ${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}
+                      ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id) })}
+                      ${storageCount > 0 ? this._t("ui.rack.storageCountSuffix", { n: storageCount }) : ""}
                     </div>
                   </div>
                   <div class="rack-actions">
@@ -7498,34 +8866,34 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                       class="small-btn"
                       @click=${() => this._moveUp(cab)}
                       ?disabled=${idx === 0}
-                      title="Move up"
+                      title="${this._t('ui.rack.moveUpTitle')}"
                     >↑</button>
                     <button
                       class="small-btn"
                       @click=${() => this._moveDown(cab)}
                       ?disabled=${idx === sorted.length - 1}
-                      title="Move down"
+                      title="${this._t('ui.rack.moveDownTitle')}"
                     >↓</button>
                     <button
                       class="small-btn"
                       @click=${() => this._startEdit(cab)}
-                    >Edit</button>
+                    >${this._t("ui.common.edit")}</button>
                     <button
                       class="small-btn danger"
                       @click=${() => this._startDelete(cab)}
-                    >Del</button>
+                    >${this._t("ui.rack.delBtn")}</button>
                   </div>
                 </div>
               `;
         })}
 
           <button class="add-rack-btn" @click=${this._startAdd}>
-            + Add Rack
+            ${this._t("ui.rack.addRackBtn")}
           </button>
         </div>
       </div>
       <div class="dialog-footer">
-        <button class="btn btn-outline" @click=${this._close}>Close</button>
+        <button class="btn btn-outline" @click=${this._close}>${this._t("ui.common.close")}</button>
       </div>
     `;
     }
@@ -7539,7 +8907,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         return b `
       <div class="dialog-body">
         <div class="form-group">
-          <label>Rack Name</label>
+          <label>${this._t("ui.rack.rackNameLabel")}</label>
           <input
             type="text"
             .value=${this._editCabinet.name || ""}
@@ -7552,12 +8920,12 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
 
         <!-- Grid Editor -->
         <div class="grid-editor">
-          <div class="grid-editor-title">Grid Layout</div>
+          <div class="grid-editor-title">${this._t("ui.rack.gridLayoutTitle")}</div>
 
           <!-- Stepper controls -->
           <div class="stepper-row">
             <div class="stepper-wrap">
-              <div class="stepper-label">Rows</div>
+              <div class="stepper-label">${this._t("ui.rack.rowsLabel")}</div>
               <div class="stepper">
                 <button class="stepper-btn" @click=${this._removeRow} ?disabled=${numRows <= 1}>−</button>
                 <span class="stepper-value">${numRows}</span>
@@ -7565,7 +8933,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
               </div>
             </div>
             <div class="stepper-wrap">
-              <div class="stepper-label">Columns</div>
+              <div class="stepper-label">${this._t("ui.rack.columnsLabel")}</div>
               <div class="stepper">
                 <button class="stepper-btn" @click=${this._removeCol} ?disabled=${numCols <= 1}>−</button>
                 <span class="stepper-value">${numCols}</span>
@@ -7573,7 +8941,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
               </div>
             </div>
             <div class="stepper-wrap">
-              <div class="stepper-label">Depth</div>
+              <div class="stepper-label">${this._t("ui.rack.depthLabel")}</div>
               <div class="stepper">
                 <button class="stepper-btn" @click=${this._removeDepth} ?disabled=${numDepth <= 1}>−</button>
                 <span class="stepper-value">${numDepth}</span>
@@ -7592,7 +8960,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                 <div class="grid-preview-row ${isStorage ? "storage" : ""}">
                   <span class="grid-preview-label">R${row + 1}</span>
                   ${isStorage
-                ? b `<div class="grid-preview-cell"></div><span class="grid-preview-storage-label">${typeIcon} ${sr?.name || "Storage"}</span>`
+                ? b `<div class="grid-preview-cell"></div><span class="grid-preview-storage-label">${typeIcon} ${sr?.name || this._t("wineLocation.storage")}</span>`
                 : Array.from({ length: Math.min(numCols, 15) }, () => b `<div class="grid-preview-cell"></div>`)}
                   ${!isStorage && numCols > 15
                 ? b `<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${numCols - 15}</span>`
@@ -7619,9 +8987,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             }}
                     @click=${(e) => e.stopPropagation()}
                   >
-                    <option value="slots" ?selected=${!isStorage}>Slots</option>
-                    <option value="bulk" ?selected=${currentType === "bulk"}>Bulk Bin</option>
-                    <option value="box" ?selected=${currentType === "box"}>Wine Box</option>
+                    <option value="slots" ?selected=${!isStorage}>${this._t("ui.rack.slotsOption")}</option>
+                    <option value="bulk" ?selected=${currentType === "bulk"}>${getStorageRowTypeLabels(this.hass?.language).bulk}</option>
+                    <option value="box" ?selected=${currentType === "box"}>${getStorageRowTypeLabels(this.hass?.language).box}</option>
                   </select>
                   ${isStorage
                 ? b `
@@ -7631,7 +8999,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                           .value=${sr?.name ?? ""}
                           @input=${(e) => this._updateStorageRowName(row, e.target.value)}
                           @click=${(e) => e.stopPropagation()}
-                          placeholder="Zone name"
+                          placeholder="${this._t('ui.rack.zoneNamePlaceholder')}"
                         />
                         ${sr?.type === "box"
                     ? b `
@@ -7647,7 +9015,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                                     @change=${(e) => this._updateBoxSize(row, bi, parseInt(e.target.value))}
                                     @click=${(e) => e.stopPropagation()}
                                   >
-                                    ${BOX_SIZES.map((s) => b `<option value=${s} ?selected=${boxSize === s}>${s}-pk</option>`)}
+                                    ${BOX_SIZES.map((s) => b `<option value=${s} ?selected=${boxSize === s}>${this._t('ui.rack.boxSizeOption', { s })}</option>`)}
                                   </select>
                                 `)}
                                 <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${sr?.capacity || 12}</span>
@@ -7661,7 +9029,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                               </div>
                             `}
                       `
-                : b `<span class="row-type-info">${numCols} col${numCols !== 1 ? "s" : ""}${numDepth > 1 ? ` × ${numDepth} deep` : ""}</span>`}
+                : b `<span class="row-type-info">${this._t('ui.rack.colsCount', { n: numCols, plural: numCols !== 1 ? "s" : "" })}${numDepth > 1 ? this._t('ui.rack.gridDeepSuffix', { depth: numDepth }) : ""}</span>`}
                 </div>
               `;
         })}
@@ -7672,15 +9040,17 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         ${displaced.length > 0
             ? b `
               <div class="warning-msg">
-                This leaves ${displaced.length}
-                bottle${displaced.length > 1 ? "s" : ""} without a slot.
-                ${displaced.length > 1 ? "They" : "It"} will be moved to
-                <strong>Unassigned</strong> — nothing is deleted, and you can put
-                ${displaced.length > 1 ? "them" : "it"} back anywhere.
+                ${displaced.length > 1
+                ? this._t("ui.rack.warningBeforeMany", { n: displaced.length })
+                : this._t("ui.rack.warningBeforeOne")}
+                <strong>${this._t("wineLocation.unassigned")}</strong>
+                ${displaced.length > 1
+                ? this._t("ui.rack.warningAfterMany")
+                : this._t("ui.rack.warningAfterOne")}
                 <div class="warning-list">
-                  ${displaced.slice(0, 6).map((w) => b `<div>${w.name || "Unnamed wine"}</div>`)}
+                  ${displaced.slice(0, 6).map((w) => b `<div>${w.name || this._t("ui.rack.unnamedWine")}</div>`)}
                   ${displaced.length > 6
-                ? b `<div>…and ${displaced.length - 6} more</div>`
+                ? b `<div>${this._t("ui.rack.andNMore", { n: displaced.length - 6 })}</div>`
                 : A}
                 </div>
               </div>
@@ -7694,14 +9064,14 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
 
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => (this._mode = "list")}>
-          Cancel
+          ${this._t("ui.common.cancel")}
         </button>
         <button
           class="btn btn-primary"
           @click=${isEdit ? this._saveEdit : this._saveAdd}
           ?disabled=${this._loading}
         >
-          ${this._loading ? "Saving..." : "Save"}
+          ${this._loading ? this._t("ui.wineDetail.saving") : this._t("ui.wineDetail.save")}
         </button>
       </div>
     `;
@@ -7713,11 +9083,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         return b `
       <div class="dialog-body">
         <div class="delete-info">
-          Are you sure you want to delete
-          <strong>"${this._deleteCabinet.name}"</strong>?
+          ${this._t("ui.rack.deleteConfirmQuestion", { name: this._deleteCabinet.name })}
           ${count > 0
             ? b `<br /><span class="delete-count"
-                >${count} wine${count > 1 ? "s" : ""} will be unassigned.</span
+                >${count > 1 ? this._t("ui.rack.deleteWinesUnassignedMany", { count }) : this._t("ui.rack.deleteWinesUnassignedOne")}</span
               >`
             : A}
         </div>
@@ -7727,7 +9096,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       </div>
       <div class="dialog-footer">
         <button class="btn btn-outline" @click=${() => (this._mode = "list")}>
-          Cancel
+          ${this._t("ui.common.cancel")}
         </button>
         <button
           class="btn btn-primary"
@@ -7735,7 +9104,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
           @click=${this._confirmDelete}
           ?disabled=${this._loading}
         >
-          ${this._loading ? "Deleting..." : "Delete"}
+          ${this._loading ? this._t("ui.rack.deletingBtn") : this._t("ui.rack.deleteBtn")}
         </button>
       </div>
     `;
@@ -7744,10 +9113,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         if (!this.open)
             return A;
         const titles = {
-            list: "Manage Racks",
-            add: "Add Rack",
-            edit: "Edit Rack",
-            "delete-confirm": "Delete Rack?",
+            list: this._t("ui.rack.dialogTitleManage"),
+            add: this._t("ui.rack.dialogTitleAdd"),
+            edit: this._t("ui.rack.dialogTitleEdit"),
+            "delete-confirm": this._t("ui.rack.dialogTitleDeleteConfirm"),
         };
         return b `
       <div class="dialog-overlay" @click=${this._close}>
@@ -8216,7 +9585,7 @@ __decorate([
     r()
 ], RackSettingsDialog.prototype, "_error", void 0);
 RackSettingsDialog = RackSettingsDialog_1 = __decorate([
-    t("rack-settings-dialog")
+    t$1("rack-settings-dialog")
 ], RackSettingsDialog);
 
 let WineListDialog = class WineListDialog extends i {
@@ -8238,6 +9607,10 @@ let WineListDialog = class WineListDialog extends i {
         this._detailWine = null;
         this._showDetail = false;
         this.hasGemini = false;
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     updated(changedProps) {
         if (changedProps.has("open") && this.open) {
@@ -8274,7 +9647,7 @@ let WineListDialog = class WineListDialog extends i {
             }
             const data = result;
             if (!data || !Array.isArray(data.wines)) {
-                this._error = "No wines found in the image. Try a clearer photo.";
+                this._error = this._t("ui.wineList.noWinesFoundImage");
                 this._phase = "capture";
                 return;
             }
@@ -8300,7 +9673,7 @@ let WineListDialog = class WineListDialog extends i {
             this._phase = "results";
         }
         catch (err) {
-            this._error = `Extraction failed: ${err?.message || err}`;
+            this._error = this._t("ui.wineList.extractionFailed", { error: err?.message || err });
             this._phase = "capture";
         }
     }
@@ -8434,12 +9807,12 @@ let WineListDialog = class WineListDialog extends i {
             return null;
         const ratio = listPrice / marketPrice;
         if (ratio <= 1.5)
-            return { label: "Great Value", color: "#2e7d32" };
+            return { label: this._t("ui.wineList.greatValue"), color: "#2e7d32" };
         if (ratio <= 2.0)
-            return { label: "Fair Price", color: "#558b2f" };
+            return { label: this._t("ui.wineList.fairPrice"), color: "#558b2f" };
         if (ratio <= 3.0)
-            return { label: "Typical", color: "#f57f17" };
-        return { label: "Premium", color: "#c62828" };
+            return { label: this._t("ui.wineList.typical"), color: "#f57f17" };
+        return { label: this._t("ui.wineList.premium"), color: "#c62828" };
     }
     _showWineDetail(wine) {
         // Convert WineListItem to Wine-like object for the detail dialog
@@ -8512,7 +9885,7 @@ let WineListDialog = class WineListDialog extends i {
         <div class="wl-info">
           <div class="wl-name">
             ${wine.winery ? `${wine.winery} ` : ""}${wine.name}
-            ${cellarMatch ? b `<span class="wl-cellar-badge">IN CELLAR</span>` : A}
+            ${cellarMatch ? b `<span class="wl-cellar-badge">${this._t("ui.wineList.inCellarBadge")}</span>` : A}
           </div>
           <div class="wl-meta">
             ${wine.vintage || "NV"} ${wine.region ? `\u2022 ${wine.region}` : ""}
@@ -8558,16 +9931,16 @@ let WineListDialog = class WineListDialog extends i {
                 ? b `<div class="wl-detail-row" style="font-style:italic">${wine.ai_description}</div>`
                 : A}
                   ${wine.ai_drink_window
-                ? b `<div class="wl-detail-row"><span class="wl-detail-label">Drink window:</span>${wine.ai_drink_window}</div>`
+                ? b `<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.drinkWindowLabel")}</span>${wine.ai_drink_window}</div>`
                 : A}
                   ${wine.glass_price
-                ? b `<div class="wl-detail-row"><span class="wl-detail-label">By the glass:</span>${this._formatPrice(wine.glass_price, this._currency)}</div>`
+                ? b `<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.byTheGlassLabel")}</span>${this._formatPrice(wine.glass_price, this._currency)}</div>`
                 : A}
                   ${wine.bottle_size && wine.bottle_size !== "750ml"
-                ? b `<div class="wl-detail-row"><span class="wl-detail-label">Size:</span>${wine.bottle_size}</div>`
+                ? b `<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.sizeLabel")}</span>${wine.bottle_size}</div>`
                 : A}
                   ${wine.vivino_rating
-                ? b `<div class="wl-detail-row"><span class="wl-detail-label">Vivino:</span>${wine.vivino_rating.toFixed(1)}${wine.vivino_ratings_count ? ` (${wine.vivino_ratings_count.toLocaleString()} ratings)` : ""}</div>`
+                ? b `<div class="wl-detail-row"><span class="wl-detail-label">${this._t("ui.wineList.vivinoLabel")}</span>${wine.vivino_rating.toFixed(1)}${wine.vivino_ratings_count ? this._t("ui.wineDetail.ratingsCountSuffix", { count: wine.vivino_ratings_count.toLocaleString() }) : ""}</div>`
                 : A}
                 </div>
               `
@@ -8580,14 +9953,14 @@ let WineListDialog = class WineListDialog extends i {
             ?disabled=${added}
             @click=${() => !added && this._addToCellar(wine)}
           >
-            ${added ? "\u2713" : "+ Add"}
+            ${added ? "\u2713" : this._t("ui.wineList.addBtn")}
           </button>
           <button
             class="wl-buy-btn ${this._buyListIndices.has(wine.index) ? "added" : ""}"
             ?disabled=${this._buyListIndices.has(wine.index)}
             @click=${() => !this._buyListIndices.has(wine.index) && this._addToBuyList(wine)}
           >
-            ${this._buyListIndices.has(wine.index) ? "\u2713" : "\uD83D\uDED2 Buy"}
+            ${this._buyListIndices.has(wine.index) ? "\u2713" : this._t("ui.wineList.buyBtn")}
           </button>
         </div>
       </div>
@@ -8604,10 +9977,10 @@ let WineListDialog = class WineListDialog extends i {
           <div class="header">
             <span class="header-title">
               ${this._phase === "capture"
-            ? "\uD83C\uDF7D\uFE0F Scan List"
+            ? this._t("ui.wineList.scanTitle")
             : this._restaurantName
                 ? `\uD83C\uDF7D\uFE0F ${this._restaurantName}`
-                : "\uD83C\uDF7D\uFE0F Scanned List"}
+                : this._t("ui.wineList.scannedListTitle")}
             </span>
             <button class="close-btn" @click=${this._close}>\u2715</button>
           </div>
@@ -8618,16 +9991,18 @@ let WineListDialog = class WineListDialog extends i {
                 ? b `<div class="error-msg">${this._error}</div>`
                 : A}
                 ${this._wines.length > 0
-                ? b `<div class="header-subtitle">${this._wines.length} wines already scanned. Take another photo to add more.</div>`
-                : b `<div class="header-subtitle">Take a photo of a wine list or receipt to see ratings, scores, and value.</div>`}
+                ? b `<div class="header-subtitle">${this._wines.length > 1
+                    ? this._t("ui.wineList.alreadyScannedHintMany", { n: this._wines.length })
+                    : this._t("ui.wineList.alreadyScannedHintOne", { n: this._wines.length })}</div>`
+                : b `<div class="header-subtitle">${this._t("ui.wineList.captureSubtitle")}</div>`}
                 <div style="padding: 0 16px 16px">
-                  <label-camera .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
+                  <label-camera .hass=${this.hass} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
                 </div>
                 ${this._wines.length > 0
                 ? b `
                       <div class="footer-actions">
                         <button class="btn btn-primary" @click=${() => (this._phase = "results")}>
-                          Back to Results (${this._wines.length})
+                          ${this._t("ui.wineList.backToResults", { n: this._wines.length })}
                         </button>
                       </div>
                     `
@@ -8639,9 +10014,9 @@ let WineListDialog = class WineListDialog extends i {
             ? b `
                 <div class="extracting">
                   <div class="spinner"></div>
-                  <div>Analyzing list...</div>
-                  <div style="font-size:0.85em">Gemini is reading wines and scoring them</div>
-                  <div style="font-size:0.78em; color: var(--secondary-text-color); margin-top: 8px;">Long lists may take up to 3 minutes</div>
+                  <div>${this._t("ui.wineList.analyzingList")}</div>
+                  <div style="font-size:0.85em">${this._t("ui.wineList.geminiReading")}</div>
+                  <div style="font-size:0.78em; color: var(--secondary-text-color); margin-top: 8px;">${this._t("ui.wineList.longListsHint")}</div>
                 </div>
               `
             : A}
@@ -8649,8 +10024,10 @@ let WineListDialog = class WineListDialog extends i {
           ${this._phase === "results"
             ? b `
                 <div class="header-subtitle">
-                  ${total} wine${total !== 1 ? "s" : ""} found
-                  ${this._currency !== "USD" ? ` \u2022 Prices in ${this._currency}` : ""}
+                  ${total === 1
+                ? this._t("ui.wineList.winesFoundOne", { n: total })
+                : this._t("ui.wineList.winesFoundMany", { n: total })}
+                  ${this._currency !== "USD" ? this._t("ui.wineList.pricesInCurrency", { currency: this._currency }) : ""}
                 </div>
 
                 <!-- Vivino enrichment progress -->
@@ -8680,7 +10057,7 @@ let WineListDialog = class WineListDialog extends i {
                           style="background:#8e24aa"
                           @click=${this._startVivinoEnrichment}
                         >
-                          \uD83C\uDF47 Get Vivino Scores
+                          ${this._t("ui.wineList.getVivinoScoresBtn")}
                         </button>
                       `
                 : A}
@@ -8689,7 +10066,7 @@ let WineListDialog = class WineListDialog extends i {
                     style="background:#00695c"
                     @click=${this._scanAnotherPage}
                   >
-                    \uD83D\uDCF7 Scan Another Page
+                    ${this._t("ui.wineList.scanAnotherPageBtn")}
                   </button>
                 </div>
               `
@@ -9080,7 +10457,7 @@ __decorate([
     n({ type: Boolean })
 ], WineListDialog.prototype, "hasGemini", void 0);
 WineListDialog = __decorate([
-    t("wine-list-dialog")
+    t$1("wine-list-dialog")
 ], WineListDialog);
 
 // Persisted so the inventory reopens the way it was left; the search query is
@@ -9176,6 +10553,10 @@ let InventoryDialog = class InventoryDialog extends i {
         const message = this._formatError(err);
         console.error(`Cork Dork: ${context}`, err);
         return message;
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     updated(changedProps) {
         if (changedProps.has("open") && this.open) {
@@ -9368,39 +10749,39 @@ let InventoryDialog = class InventoryDialog extends i {
         this._confirmEnrichRetry = false;
         if (!wines.length)
             return;
-        const sourceLabel = source === "vivino" ? "Vivino" : "the AI";
+        const sourceLabel = source === "vivino" ? "Vivino" : this._t("ui.inventory.whatAiInfer");
         this._enriching = source;
-        this._statusMsg = `Refreshing ${wines.length} wines via ${sourceLabel}…`;
+        this._statusMsg = this._t("ui.inventory.refreshingWines", { n: wines.length, source: sourceLabel });
         try {
             const result = await this.hass.callWS({
                 type: source === "vivino" ? "wine_cellar/batch_refresh_vivino" : "wine_cellar/batch_analyze_wines",
                 wine_ids: wines.map((w) => w.id),
             });
             if (result?.error) {
-                this._statusMsg = `Refresh failed: ${result.error}`;
+                this._statusMsg = this._t("ui.inventory.refreshFailed", { error: result.error });
             }
             else {
                 const updated = result?.updated ?? 0;
                 const unchanged = result?.unchanged ?? 0;
                 const errors = result?.errors ?? 0;
                 const source = sourceLabel;
-                const parts = [`${updated} updated`];
+                const parts = [this._t("ui.inventory.enrichUpdated", { n: updated })];
                 if (unchanged)
-                    parts.push(`${unchanged} had nothing new on ${source}`);
+                    parts.push(this._t("ui.inventory.enrichUnchanged", { n: unchanged, source }));
                 if (errors)
-                    parts.push(`${errors} could not be reached`);
+                    parts.push(this._t("ui.inventory.enrichErrors", { n: errors }));
                 this._statusMsg =
                     `${parts.join(", ")}.` +
                         (unchanged
                             ? retry
-                                ? " Their check date is updated — try again later."
-                                : " Their check date is updated; they move to the retry line."
+                                ? " " + this._t("ui.inventory.enrichRetryNote")
+                                : " " + this._t("ui.inventory.enrichMoveToRetryNote")
                             : "");
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
             }
         }
         catch (err) {
-            this._statusMsg = `Refresh failed: ${this._logStatus("enrich refresh failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.refreshFailed", { error: this._logStatus("enrich refresh failed", err) });
         }
         this._enriching = "";
     }
@@ -9557,7 +10938,7 @@ let InventoryDialog = class InventoryDialog extends i {
             await this.hass.callWS({ type: "wine_cellar/clear_wine_history" });
             this._historyItems = [];
             this._loadStorageInfo();
-            this._statusMsg = "History cleared";
+            this._statusMsg = this._t("ui.inventory.historyCleared");
         }
         catch (err) {
             console.error("Failed to clear history", err);
@@ -9567,20 +10948,17 @@ let InventoryDialog = class InventoryDialog extends i {
         try {
             await this.hass.callWS({ type: "wine_cellar/restore_wine", history_id: historyId });
             this._historyItems = this._historyItems.filter((i) => i.id !== historyId);
-            this._statusMsg = "Wine restored to Unassigned";
+            this._statusMsg = this._t("ui.inventory.wineRestoredUnassigned");
             this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
         }
         catch (err) {
             console.error("Failed to restore wine from history", err);
-            this._statusMsg = "Failed to restore wine";
+            this._statusMsg = this._t("ui.inventory.restoreWineFailed");
         }
     }
     _formatReason(reason) {
-        const map = {
-            drank: "Drank", gifted: "Gifted", sold: "Sold",
-            broken: "Broken", spoiled: "Spoiled", other: "Other",
-        };
-        return map[reason] || reason;
+        const labels = getRemovalReasons(this.hass?.language);
+        return labels.find((r) => r.id === reason)?.label || reason;
     }
     _formatDate(iso) {
         if (!iso)
@@ -9594,14 +10972,14 @@ let InventoryDialog = class InventoryDialog extends i {
     }
     _renderHistory() {
         if (this._historyLoading) {
-            return b `<div class="inv-empty">Loading history...</div>`;
+            return b `<div class="inv-empty">${this._t("ui.inventory.loadingHistory")}</div>`;
         }
         if (this._historyItems.length === 0) {
             return b `
         ${this._renderStorageInfo()}
-        <div class="inv-empty">No removal history yet</div>
+        <div class="inv-empty">${this._t("ui.inventory.noHistory")}</div>
         <div class="inv-footer">
-          <span class="inv-count">0 wines removed</span>
+          <span class="inv-count">${this._t("ui.inventory.winesRemoved", { n: 0 })}</span>
         </div>
       `;
         }
@@ -9623,18 +11001,18 @@ let InventoryDialog = class InventoryDialog extends i {
             <div class="inv-right">
               ${item.price ? b `<div class="inv-price">${this.currency} ${item.price.toFixed(0)}</div>` : A}
               <div class="inv-location">${this._formatDate(item.removed_at)}</div>
-              <button class="inv-btn" style="margin-top:4px" @click=${() => this._restoreFromHistory(item.id)}>Restore</button>
+              <button class="inv-btn" style="margin-top:4px" @click=${() => this._restoreFromHistory(item.id)}>${this._t("ui.inventory.restoreBtn")}</button>
             </div>
           </div>
         `)}
       </div>
       <div class="inv-footer">
-        <span class="inv-count">${this._historyItems.length} wines removed</span>
+        <span class="inv-count">${this._t("ui.inventory.winesRemoved", { n: this._historyItems.length })}</span>
         ${this._statusMsg
             ? b `<div class="inv-status">${this._statusMsg}</div>`
             : A}
         <div class="inv-footer-btns">
-          <button class="inv-btn" @click=${this._clearHistory}>Clear History</button>
+          <button class="inv-btn" @click=${this._clearHistory}>${this._t("ui.inventory.clearHistoryBtn")}</button>
         </div>
       </div>
     `;
@@ -9659,7 +11037,7 @@ let InventoryDialog = class InventoryDialog extends i {
             this._confirmEnrichRetry = retry;
         }}
         >
-          ${this._enriching === source ? "Working…" : `${label} (${wines.length})`}
+          ${this._enriching === source ? this._t("ui.inventory.working") : `${label} (${wines.length})`}
         </button>
       </div>
     `;
@@ -9674,13 +11052,10 @@ let InventoryDialog = class InventoryDialog extends i {
         }
         return b `
       <div class="inv-enrich">
-        ${this._renderEnrichRow("vivino", needVivino, false, b `<strong>${needVivino.length}</strong> missing pairings or description, never
-            checked against Vivino`, "Fill from Vivino")}
-        ${this._renderEnrichRow("ai", needAI, false, b `<strong>${needAI.length}</strong> missing a drink window or verdict, never
-            analyzed by AI`, "Analyze with AI")}
-        ${this._renderEnrichRow("vivino", missVivino, true, b `<strong>${missVivino.length}</strong> checked against Vivino, still nothing —
-            Vivino does add bottles over time`, "Retry Vivino")}
-        ${this._renderEnrichRow("ai", missAI, true, b `<strong>${missAI.length}</strong> analyzed by AI, still without a verdict`, "Retry AI")}
+        ${this._renderEnrichRow("vivino", needVivino, false, b `<strong>${needVivino.length}</strong> ${this._t("ui.inventory.enrichMissingVivino")}`, this._t("ui.inventory.fillFromVivino"))}
+        ${this._renderEnrichRow("ai", needAI, false, b `<strong>${needAI.length}</strong> ${this._t("ui.inventory.enrichMissingAI")}`, this._t("ui.inventory.analyzeWithAi"))}
+        ${this._renderEnrichRow("vivino", missVivino, true, b `<strong>${missVivino.length}</strong> ${this._t("ui.inventory.enrichRetryVivino")}`, this._t("ui.inventory.retryVivino"))}
+        ${this._renderEnrichRow("ai", missAI, true, b `<strong>${missAI.length}</strong> ${this._t("ui.inventory.enrichRetryAI")}`, this._t("ui.inventory.retryAI"))}
       </div>
     `;
     }
@@ -9702,36 +11077,33 @@ let InventoryDialog = class InventoryDialog extends i {
           <h3>
             ${source === "vivino"
             ? retry
-                ? "🍇 Retry Vivino?"
-                : "🍇 Fill from Vivino?"
+                ? this._t("ui.inventory.retryVivinoQ")
+                : this._t("ui.inventory.fillFromVivinoQ")
             : retry
-                ? "🤖 Retry AI analysis?"
-                : "🤖 Analyze with AI?"}
+                ? this._t("ui.inventory.retryAiQ")
+                : this._t("ui.inventory.analyzeWithAiQ")}
           </h3>
           <p>
-            ${count} wine${count > 1 ? "s" : ""} will be looked up one at a time. This is a
-            slow, rate-limited network call — expect it to run for a while, and leave the
-            dialog open until it finishes.
+            ${count > 1
+            ? this._t("ui.inventory.enrichConfirmBodyMany", { count })
+            : this._t("ui.inventory.enrichConfirmBodyOne", { count })}
           </p>
           <div class="inv-confirm-stats">
             ${retry
-            ? b `These were already checked and came back empty. The check date is
-                  updated either way, so you can always see when the last attempt was.`
-            : b `Some will come back with nothing new — not every bottle exists in
-                  ${source === "vivino" ? "Vivino's catalogue" : "what the AI can infer"}.
-                  Those move to the retry line below rather than staying here.`}
+            ? this._t("ui.inventory.retryExplain")
+            : this._t("ui.inventory.newExplain", { source: source === "vivino" ? this._t("ui.inventory.vivinoCatalogue") : this._t("ui.inventory.whatAiInfer") })}
           </div>
           <div class="inv-confirm-stats">
             ${source === "vivino"
-            ? "Fills food pairings, description, rating and the label photo where Vivino has them. Existing values are kept."
-            : "Fills the drinking verdict, drink window and critic scores where the AI can infer them. Existing values are kept."}
+            ? this._t("ui.inventory.vivinoFillsExplain")
+            : this._t("ui.inventory.aiFillsExplain")}
           </div>
           <div class="inv-confirm-btns">
             <button class="inv-confirm-cancel" @click=${() => (this._confirmEnrich = "")}>
-              Cancel
+              ${this._t("ui.common.cancel")}
             </button>
             <button class="inv-confirm-go" @click=${() => this._runEnrich(source, retry)}>
-              Start
+              ${this._t("ui.common.start")}
             </button>
           </div>
         </div>
@@ -9748,14 +11120,9 @@ let InventoryDialog = class InventoryDialog extends i {
         const heavy = info.history_bytes > 512 * 1024;
         return b `
       <div class="inv-storage-info ${heavy ? "heavy" : ""}">
-        Database ${this._formatBytes(info.total_bytes)} ·
-        history ${this._formatBytes(info.history_bytes)} (${share}%) ·
-        ${info.wines_count} wines, ${info.history_count} archived
+        ${this._t("ui.inventory.dbSize", { total: this._formatBytes(info.total_bytes), history: this._formatBytes(info.history_bytes), share, wines: info.wines_count, archived: info.history_count })}
         ${heavy
-            ? b `<br /><small
-              >Home Assistant rewrites this whole file on every change —
-              clearing old history speeds up every edit.</small
-            >`
+            ? b `<br /><small>${this._t("ui.inventory.heavyHistoryHint")}</small>`
             : A}
       </div>
     `;
@@ -9808,10 +11175,10 @@ let InventoryDialog = class InventoryDialog extends i {
             const result = await this.hass.callWS({ type: "wine_cellar/get_backup" });
             const json = JSON.stringify(result, null, 2);
             this._downloadFile(json, `wine-cellar-backup-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
-            this._statusMsg = `Backup saved — ${result.wines?.length || 0} wines, ${result.cabinets?.length || 0} racks, ${result.buy_list?.length || 0} buy list`;
+            this._statusMsg = this._t("ui.inventory.backupSaved", { wines: result.wines?.length || 0, cabinets: result.cabinets?.length || 0, buyList: result.buy_list?.length || 0 });
         }
         catch (err) {
-            this._statusMsg = `Backup failed: ${this._logStatus("local backup save failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.backupFailed", { error: this._logStatus("local backup save failed", err) });
         }
         this._backingUp = false;
     }
@@ -9833,11 +11200,11 @@ let InventoryDialog = class InventoryDialog extends i {
             wines = this._parseCSV(await file.text());
         }
         catch (err) {
-            this._statusMsg = `Import failed: ${this._logStatus("CSV parse failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.importFailed", { error: this._logStatus("CSV parse failed", err) });
             return;
         }
         if (wines.length === 0) {
-            this._statusMsg = "No wines found in CSV file.";
+            this._statusMsg = this._t("ui.inventory.noWinesInCsv");
             return;
         }
         // A CSV exported from here carries each bottle's ID. When those IDs match
@@ -9868,15 +11235,17 @@ let InventoryDialog = class InventoryDialog extends i {
             const updated = result.updated || 0;
             const skipped = result.location_skipped || 0;
             const base = updated
-                ? `Updated ${updated} wines${added ? `, added ${added} new` : ""}.`
-                : `Imported ${added} wines successfully!`;
+                ? this._t("ui.inventory.importUpdated", { updated, addedPart: added ? this._t("ui.inventory.importAddedPart", { n: added }) : "" })
+                : this._t("ui.inventory.importSuccess", { n: added });
             this._statusMsg = skipped
-                ? `${base} ${skipped} row${skipped > 1 ? "s" : ""} kept their previous spot — the location given was unknown, out of range or already taken.`
+                ? `${base} ${skipped > 1
+                    ? this._t("ui.inventory.importSkippedNoteMany", { skipped })
+                    : this._t("ui.inventory.importSkippedNoteOne", { skipped })}`
                 : base;
             this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
         }
         catch (err) {
-            this._statusMsg = `Import failed: ${this._logStatus("wine import failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.importFailed", { error: this._logStatus("wine import failed", err) });
         }
         this._importing = false;
     }
@@ -10037,18 +11406,18 @@ let InventoryDialog = class InventoryDialog extends i {
             const text = await file.text();
             const data = JSON.parse(text);
             if (!data.wines || !Array.isArray(data.wines)) {
-                this._statusMsg = "Invalid backup file: missing wines array.";
+                this._statusMsg = this._t("ui.inventory.invalidBackupWines");
                 return;
             }
             if (!data.cabinets || !Array.isArray(data.cabinets)) {
-                this._statusMsg = "Invalid backup file: missing cabinets array.";
+                this._statusMsg = this._t("ui.inventory.invalidBackupCabinets");
                 return;
             }
             this._restoreData = data;
             this._confirmRestore = true;
         }
         catch (err) {
-            this._statusMsg = `Invalid JSON file: ${this._logStatus("invalid restore JSON", err)}`;
+            this._statusMsg = this._t("ui.inventory.invalidJsonFile", { error: this._logStatus("invalid restore JSON", err) });
         }
     }
     async _executeRestore() {
@@ -10063,15 +11432,15 @@ let InventoryDialog = class InventoryDialog extends i {
                 backup: this._restoreData,
             });
             if (result.error) {
-                this._statusMsg = `Restore failed: ${result.error}`;
+                this._statusMsg = this._t("ui.inventory.restoreFailed", { error: result.error });
             }
             else {
-                this._statusMsg = `Restored ${result.wines} wines, ${result.cabinets} racks, ${result.buy_list} buy list items!`;
+                this._statusMsg = this._t("ui.inventory.restoredCount", { wines: result.wines, cabinets: result.cabinets, buyList: result.buy_list });
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
             }
         }
         catch (err) {
-            this._statusMsg = `Restore failed: ${this._logStatus("local restore failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.restoreFailed", { error: this._logStatus("local restore failed", err) });
         }
         this._restoring = false;
         this._restoreData = null;
@@ -10079,22 +11448,22 @@ let InventoryDialog = class InventoryDialog extends i {
     // ── Cloud Sync (Google Drive / file system) ──────────────────
     async _serverBackupSave() {
         this._serverBackingUp = true;
-        this._serverBackupLabel = "Saving…";
+        this._serverBackupLabel = this._t("ui.inventory.savingEllipsis");
         this._statusMsg = "";
         try {
             const result = await this.hass.callWS({ type: "wine_cellar/server_backup_save" });
             if (result && result.error) {
-                this._statusMsg = `Server backup failed: ${result.error}`;
+                this._statusMsg = this._t("ui.inventory.serverBackupFailed", { error: result.error });
                 this._serverBackupLabel = "";
             }
             else {
-                this._statusMsg = `Saved ${result?.wines ?? "?"} wines, ${result?.cabinets ?? "?"} racks to server`;
-                this._serverBackupLabel = "✅ Saved!";
+                this._statusMsg = this._t("ui.inventory.savedToServer", { wines: result?.wines ?? "?", cabinets: result?.cabinets ?? "?" });
+                this._serverBackupLabel = this._t("ui.inventory.savedCheckmark");
                 setTimeout(() => { this._serverBackupLabel = ""; }, 4000);
             }
         }
         catch (err) {
-            this._statusMsg = `Server backup failed: ${this._logStatus("server backup save failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.serverBackupFailed", { error: this._logStatus("server backup save failed", err) });
             this._serverBackupLabel = "";
         }
         this._serverBackingUp = false;
@@ -10111,7 +11480,7 @@ let InventoryDialog = class InventoryDialog extends i {
                 this._backupKeepChoices = result.keep_choices;
         }
         catch (err) {
-            this._statusMsg = `Failed to list backups: ${this._logStatus("server backup list failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.listBackupsFailed", { error: this._logStatus("server backup list failed", err) });
             this._serverBackups = [];
         }
     }
@@ -10133,11 +11502,11 @@ let InventoryDialog = class InventoryDialog extends i {
             });
             this._statusMsg =
                 keep === 0
-                    ? "Keeping every server backup."
-                    : `Keeping the ${keep} most recent server backups.`;
+                    ? this._t("ui.inventory.keepEveryBackup")
+                    : this._t("ui.inventory.keepNBackups", { n: keep });
         }
         catch (err) {
-            this._statusMsg = `Could not save retention: ${this._logStatus("backup retention save failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.retentionSaveFailed", { error: this._logStatus("backup retention save failed", err) });
         }
     }
     async _serverBackupDelete(filename) {
@@ -10147,14 +11516,14 @@ let InventoryDialog = class InventoryDialog extends i {
                 filename,
             });
             if (result?.error) {
-                this._statusMsg = `Delete failed: ${result.error}`;
+                this._statusMsg = this._t("ui.inventory.deleteFailed", { error: result.error });
                 return;
             }
             this._serverBackups = this._serverBackups.filter((b) => b.filename !== filename);
-            this._statusMsg = `Deleted ${filename}`;
+            this._statusMsg = this._t("ui.inventory.deletedFile", { filename });
         }
         catch (err) {
-            this._statusMsg = `Delete failed: ${this._logStatus("server backup delete failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.deleteFailed", { error: this._logStatus("server backup delete failed", err) });
         }
     }
     async _loadStorageInfo() {
@@ -10172,15 +11541,15 @@ let InventoryDialog = class InventoryDialog extends i {
         try {
             const result = await this.hass.callWS({ type: "wine_cellar/server_backup_restore", filename });
             if (result.error) {
-                this._statusMsg = `Restore failed: ${result.error}`;
+                this._statusMsg = this._t("ui.inventory.restoreFailed", { error: result.error });
             }
             else {
-                this._statusMsg = `Restored ${result.wines} wines, ${result.cabinets} racks from ${filename}`;
+                this._statusMsg = this._t("ui.inventory.restoredFromServer", { wines: result.wines, cabinets: result.cabinets, filename });
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
             }
         }
         catch (err) {
-            this._statusMsg = `Restore failed: ${this._logStatus("server backup restore failed", err)}`;
+            this._statusMsg = this._t("ui.inventory.restoreFailed", { error: this._logStatus("server backup restore failed", err) });
         }
         this._serverRestoring = false;
     }
@@ -10216,89 +11585,87 @@ let InventoryDialog = class InventoryDialog extends i {
         return b `
       <div class="inv-filter-panel">
         <label class="inv-filter-field">
-          <span>Ready to drink</span>
+          <span>${this._t("ui.inventory.readyToDrink")}</span>
           <select
             @change=${(e) => {
             this._dispositionFilter = e.target.value;
             this._savePrefs();
         }}
           >
-            <option value="all" ?selected=${this._dispositionFilter === "all"}>Any</option>
-            <option value="D" ?selected=${this._dispositionFilter === "D"}>Drink now</option>
-            <option value="H" ?selected=${this._dispositionFilter === "H"}>Hold</option>
-            <option value="P" ?selected=${this._dispositionFilter === "P"}>Past peak</option>
+            <option value="all" ?selected=${this._dispositionFilter === "all"}>${this._t("ui.common.any")}</option>
+            <option value="D" ?selected=${this._dispositionFilter === "D"}>${this._t("ui.inventory.filterDrinkNow")}</option>
+            <option value="H" ?selected=${this._dispositionFilter === "H"}>${this._t("ui.inventory.filterHold")}</option>
+            <option value="P" ?selected=${this._dispositionFilter === "P"}>${this._t("ui.inventory.filterPastPeak")}</option>
             <option value="none" ?selected=${this._dispositionFilter === "none"}>
-              Not analyzed
+              ${this._t("ui.inventory.filterNotAnalyzed")}
             </option>
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Pairs with</span>
+          <span>${this._t("ui.inventory.pairsWith")}</span>
           <select
             @change=${(e) => {
             this._foodFilter = e.target.value;
             this._savePrefs();
         }}
           >
-            <option value="all" ?selected=${this._foodFilter === "all"}>Any food</option>
+            <option value="all" ?selected=${this._foodFilter === "all"}>${this._t("ui.inventory.anyFood")}</option>
             ${foodOptions.map((f) => b `<option value=${f} ?selected=${this._foodFilter === f}>${f}</option>`)}
           </select>
           ${missingPairings
             ? b `<small class="inv-filter-hint"
-                >${missingPairings} wine${missingPairings > 1 ? "s have" : " has"} no pairing
-                data. Only Vivino supplies pairings — use “Fill from Vivino” below the
-                list.</small
+                >${missingPairings > 1 ? this._t("ui.inventory.missingPairingsHintMany", { n: missingPairings }) : this._t("ui.inventory.missingPairingsHintOne", { n: missingPairings })}</small
               >`
             : A}
         </label>
 
         <label class="inv-filter-field">
-          <span>Country</span>
+          <span>${this._t("ui.inventory.country")}</span>
           <select
             @change=${(e) => {
             this._countryFilter = e.target.value;
             this._savePrefs();
         }}
           >
-            <option value="all" ?selected=${this._countryFilter === "all"}>Any</option>
+            <option value="all" ?selected=${this._countryFilter === "all"}>${this._t("ui.common.any")}</option>
             ${countryOptions.map((c) => b `<option value=${c} ?selected=${this._countryFilter === c}>${c}</option>`)}
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Grape</span>
+          <span>${this._t("ui.inventory.grape")}</span>
           <select
             @change=${(e) => {
             this._grapeFilter = e.target.value;
             this._savePrefs();
         }}
           >
-            <option value="all" ?selected=${this._grapeFilter === "all"}>Any</option>
+            <option value="all" ?selected=${this._grapeFilter === "all"}>${this._t("ui.common.any")}</option>
             ${grapeOptions.map((g) => b `<option value=${g} ?selected=${this._grapeFilter === g}>${g}</option>`)}
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Cabinet</span>
+          <span>${this._t("ui.inventory.cabinet")}</span>
           <select
             @change=${(e) => {
             this._cabinetFilter = e.target.value;
             this._savePrefs();
         }}
           >
-            <option value="all" ?selected=${this._cabinetFilter === "all"}>Any</option>
+            <option value="all" ?selected=${this._cabinetFilter === "all"}>${this._t("ui.common.any")}</option>
             ${this.cabinets.map((c) => b `<option value=${c.id} ?selected=${this._cabinetFilter === c.id}>
                   ${c.name}
                 </option>`)}
             <option value="unassigned" ?selected=${this._cabinetFilter === "unassigned"}>
-              Unassigned
+              ${this._t("wineLocation.unassigned")}
             </option>
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Min rating</span>
+          <span>${this._t("ui.inventory.minRating")}</span>
           <select
             @change=${(e) => {
             this._minRating = Number(e.target.value);
@@ -10306,32 +11673,32 @@ let InventoryDialog = class InventoryDialog extends i {
         }}
           >
             ${[0, 3, 3.5, 4, 4.5].map((r) => b `<option value=${r} ?selected=${this._minRating === r}>
-                  ${r === 0 ? "Any" : `★ ${r}+`}
+                  ${r === 0 ? this._t("ui.common.any") : `★ ${r}+`}
                 </option>`)}
           </select>
         </label>
 
         <label class="inv-filter-field">
-          <span>Max price</span>
+          <span>${this._t("ui.inventory.maxPrice")}</span>
           <input
             type="number"
             min="0"
-            placeholder="Any"
+            placeholder="${this._t("ui.common.any")}"
             .value=${this._maxPrice === null ? "" : String(this._maxPrice)}
             @change=${(e) => {
             this._maxPrice = this._numberOrNull(e);
             this._savePrefs();
         }}
           />
-          <small class="inv-filter-hint">Priced wines only.</small>
+          <small class="inv-filter-hint">${this._t("ui.inventory.pricedOnly")}</small>
         </label>
 
         <label class="inv-filter-field">
-          <span>Vintage</span>
+          <span>${this._t("ui.inventory.vintage")}</span>
           <div class="inv-filter-range">
             <input
               type="number"
-              placeholder="From"
+              placeholder="${this._t("ui.inventory.fromPlaceholder")}"
               .value=${this._vintageMin === null ? "" : String(this._vintageMin)}
               @change=${(e) => {
             this._vintageMin = this._numberOrNull(e);
@@ -10340,7 +11707,7 @@ let InventoryDialog = class InventoryDialog extends i {
             />
             <input
               type="number"
-              placeholder="To"
+              placeholder="${this._t("ui.inventory.toPlaceholder")}"
               .value=${this._vintageMax === null ? "" : String(this._vintageMax)}
               @change=${(e) => {
             this._vintageMax = this._numberOrNull(e);
@@ -10354,7 +11721,7 @@ let InventoryDialog = class InventoryDialog extends i {
     }
     _renderWineItem(wine) {
         const typeColor = WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red;
-        const location = getWineLocation(wine, this.cabinets).text;
+        const location = getWineLocation(wine, this.cabinets, this.hass?.language).text;
         // Sorting by drink-by is useless if the value stays invisible.
         const drinkBy = drinkByYear(wine);
         const displayPrice = wine.retail_price || wine.price;
@@ -10383,15 +11750,15 @@ let InventoryDialog = class InventoryDialog extends i {
                         ? "#c62828"
                         : "inherit"}"
                     >${wine.disposition === "D"
-                ? "Drink"
+                ? this._t("ui.disposition.drink")
                 : wine.disposition === "H"
-                    ? "Hold"
+                    ? this._t("ui.disposition.hold")
                     : wine.disposition === "P"
-                        ? "Past Peak"
+                        ? this._t("ui.disposition.pastPeak")
                         : ""}</span
                   >`
             : A}${drinkBy
-            ? b ` · <span class="inv-drink-by">by ${drinkBy}</span>`
+            ? b ` · <span class="inv-drink-by">${this._t("ui.inventory.byYear", { year: drinkBy })}</span>`
             : A}
           </div>
         </div>
@@ -10413,42 +11780,42 @@ let InventoryDialog = class InventoryDialog extends i {
         const allStats = this._computeStats(narrowed ? filteredWines : this.wines);
         const missingPairings = this._winesWithoutPairings();
         const sortOptions = [
-            { value: "name", label: "Name" },
-            { value: "winery", label: "Winery" },
-            { value: "vintage", label: "Vintage" },
-            { value: "type", label: "Type" },
-            { value: "rating", label: "Rating" },
-            { value: "user_rating", label: "My Rating" },
-            { value: "price", label: "Price" },
-            { value: "drink_by", label: "Drink By" },
-            { value: "urgency", label: "Urgency" },
-            { value: "purchase_date", label: "Purchase Date" },
-            { value: "added_at", label: "Date Added" },
-            { value: "cabinet", label: "Cabinet" },
+            { value: "name", label: this._t("ui.inventory.sort.name") },
+            { value: "winery", label: this._t("ui.inventory.sort.winery") },
+            { value: "vintage", label: this._t("ui.inventory.sort.vintage") },
+            { value: "type", label: this._t("ui.inventory.sort.type") },
+            { value: "rating", label: this._t("ui.inventory.sort.rating") },
+            { value: "user_rating", label: this._t("ui.inventory.sort.myRating") },
+            { value: "price", label: this._t("ui.inventory.sort.price") },
+            { value: "drink_by", label: this._t("ui.inventory.sort.drinkBy") },
+            { value: "urgency", label: this._t("ui.inventory.sort.urgency") },
+            { value: "purchase_date", label: this._t("ui.inventory.sort.purchaseDate") },
+            { value: "added_at", label: this._t("ui.inventory.sort.dateAdded") },
+            { value: "cabinet", label: this._t("ui.inventory.sort.cabinet") },
         ];
         const presets = [
-            { id: "all", label: "All", hint: "Every wine in the cellar" },
+            { id: "all", label: this._t("ui.inventory.preset.allLabel"), hint: this._t("ui.inventory.preset.allHint") },
             {
                 id: "drink_this_year",
-                label: "Drink this year",
-                hint: `Drink-by year ${new Date().getFullYear()} or earlier, or marked "Drink now" with no year. Excludes past peak.`,
+                label: this._t("ui.inventory.preset.drinkThisYearLabel"),
+                hint: this._t("ui.inventory.preset.drinkThisYearHint", { year: new Date().getFullYear() }),
             },
-            { id: "past_peak", label: "Past peak", hint: 'Marked "Past peak" by the AI analysis' },
-            { id: "unrated", label: "Not rated", hint: "You have not given these a personal star rating" },
+            { id: "past_peak", label: this._t("ui.inventory.preset.pastPeakLabel"), hint: this._t("ui.inventory.preset.pastPeakHint") },
+            { id: "unrated", label: this._t("ui.inventory.preset.unratedLabel"), hint: this._t("ui.inventory.preset.unratedHint") },
             {
                 id: "incomplete",
-                label: "Missing data",
-                hint: "Missing at least one of: food pairings, description, drink window, label photo",
+                label: this._t("ui.inventory.preset.incompleteLabel"),
+                hint: this._t("ui.inventory.preset.incompleteHint"),
             },
-            { id: "recent", label: "Added recently", hint: "Added to the cellar in the last 30 days" },
+            { id: "recent", label: this._t("ui.inventory.preset.recentLabel"), hint: this._t("ui.inventory.preset.recentHint") },
         ];
         const filters = [
-            { id: "all", label: "All" },
-            { id: "red", label: "Red" },
-            { id: "white", label: "White" },
-            { id: "rosé", label: "Rosé" },
-            { id: "sparkling", label: "Sparkling" },
-            { id: "dessert", label: "Dessert" },
+            { id: "all", label: this._t("ui.inventory.preset.allLabel") },
+            { id: "red", label: this._t("wineType.red") },
+            { id: "white", label: this._t("wineType.white") },
+            { id: "rosé", label: this._t("wineType.rosé") },
+            { id: "sparkling", label: this._t("wineType.sparkling") },
+            { id: "dessert", label: this._t("wineType.dessert") },
         ];
         const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;
         return b `
@@ -10456,7 +11823,7 @@ let InventoryDialog = class InventoryDialog extends i {
         <div class="dialog" style="max-width:800px;position:relative" @click=${(e) => e.stopPropagation()}>
           <!-- Header -->
           <div class="inv-header">
-            <span class="inv-header-title">📦 Inventory</span>
+            <span class="inv-header-title">${this._t("ui.inventory.title")}</span>
             <button class="inv-close" @click=${this._close}>✕</button>
           </div>
 
@@ -10465,11 +11832,11 @@ let InventoryDialog = class InventoryDialog extends i {
             <button
               class="${this._viewMode === "inventory" ? "active" : ""}"
               @click=${() => { this._viewMode = "inventory"; }}
-            >Inventory</button>
+            >${this._t("ui.inventory.tabInventory")}</button>
             <button
               class="${this._viewMode === "history" ? "active" : ""}"
               @click=${() => this._switchToHistory()}
-            >History</button>
+            >${this._t("ui.inventory.tabHistory")}</button>
           </div>
 
           ${this._viewMode === "history" ? this._renderHistory() : b `
@@ -10477,7 +11844,7 @@ let InventoryDialog = class InventoryDialog extends i {
           <div class="inv-stats">
             <div class="stat">
               <span class="stat-value">${allStats.count}</span>
-              ${narrowed ? `of ${this.wines.length} bottles` : "bottles"}
+              ${narrowed ? this._t("ui.inventory.ofNBottles", { n: this.wines.length }) : this._t("ui.card.statBottles")}
             </div>
             ${allStats.totalValue
             ? b `
@@ -10485,7 +11852,7 @@ let InventoryDialog = class InventoryDialog extends i {
                     <span class="stat-value"
                       >${this.currency} ${allStats.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span
                     >
-                    est. value
+                    ${this._t("ui.inventory.estValue")}
                   </div>
                 `
             : A}
@@ -10496,7 +11863,7 @@ let InventoryDialog = class InventoryDialog extends i {
                     style="background:${WINE_TYPE_COLORS[type] || "#999"}"
                   ></span>
                   <span class="stat-value">${count}</span>
-                  ${WINE_TYPE_LABELS[type] || type}
+                  ${getWineTypeLabels(this.hass?.language)[type] || type}
                 </div>
               `)}
           </div>
@@ -10507,7 +11874,7 @@ let InventoryDialog = class InventoryDialog extends i {
               <span class="inv-search-icon">🔍</span>
               <input
                 type="text"
-                placeholder="Search wines..."
+                placeholder="${this._t('ui.inventory.searchPlaceholder')}"
                 .value=${this._searchQuery}
                 @input=${(e) => {
             this._searchQuery = e.target.value;
@@ -10531,7 +11898,7 @@ let InventoryDialog = class InventoryDialog extends i {
             this._sortDir = this._sortDir === "asc" ? "desc" : "asc";
             this._savePrefs();
         }}
-                title="${this._sortDir === "asc" ? "Ascending" : "Descending"}"
+                title="${this._sortDir === "asc" ? this._t('ui.inventory.ascending') : this._t('ui.inventory.descending')}"
               >
                 ${this._sortDir === "asc" ? "↑" : "↓"}
               </button>
@@ -10540,9 +11907,9 @@ let InventoryDialog = class InventoryDialog extends i {
                 @click=${() => {
             this._showFilters = !this._showFilters;
         }}
-                title="More filters"
+                title="${this._t('ui.inventory.moreFiltersTitle')}"
               >
-                ⚙︎ Filters${activeFilters
+                ${this._t('ui.inventory.filtersBtn')}${activeFilters
             ? b `<span class="inv-filter-badge">${activeFilters}</span>`
             : A}
               </button>
@@ -10586,12 +11953,12 @@ let InventoryDialog = class InventoryDialog extends i {
             ? b `
                 <div class="inv-active-filters">
                   <span
-                    >${filteredWines.length} of ${this.wines.length} wines shown${activeFilters
-                ? ` · ${activeFilters} filter${activeFilters > 1 ? "s" : ""} active`
+                    >${this._t("ui.inventory.winesShown", { shown: filteredWines.length, total: this.wines.length })}${activeFilters
+                ? this._t("ui.inventory.filtersActive", { n: activeFilters, plural: activeFilters > 1 ? "s" : "" })
                 : ""}</span
                   >
                   <button class="inv-clear-filters" @click=${this._clearFilters}>
-                    Clear all
+                    ${this._t("ui.inventory.clearAll")}
                   </button>
                 </div>
               `
@@ -10602,7 +11969,7 @@ let InventoryDialog = class InventoryDialog extends i {
           <!-- Wine List -->
           <div class="inv-list">
             ${filteredWines.length === 0
-            ? b `<div class="inv-empty">No wines match your search</div>`
+            ? b `<div class="inv-empty">${this._t("ui.card.noSearchResults")}</div>`
             : filteredWines.map((w) => this._renderWineItem(w))}
           </div>
 
@@ -10610,8 +11977,8 @@ let InventoryDialog = class InventoryDialog extends i {
           <div class="inv-footer">
             <span class="inv-count">
               ${filteredWines.length === this.wines.length
-            ? `${filteredWines.length} wines`
-            : `${filteredWines.length} of ${this.wines.length} wines`}
+            ? this._t("ui.inventory.footerCountAll", { n: filteredWines.length })
+            : this._t("ui.inventory.footerCountFiltered", { shown: filteredWines.length, total: this.wines.length })}
             </span>
             ${this._statusMsg
             ? b `<div class="inv-status">${this._statusMsg}</div>`
@@ -10621,49 +11988,49 @@ let InventoryDialog = class InventoryDialog extends i {
                 class="inv-btn"
                 @click=${this._serverBackupSave}
                 ?disabled=${busy}
-                title="Save timestamped backup to HA server"
+                title="${this._t('ui.inventory.saveServerBackupTitle')}"
               >
-                ${this._serverBackupLabel || "Server Backup"}
+                ${this._serverBackupLabel || this._t("ui.inventory.serverBackupBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._serverBackupShowRestore}
                 ?disabled=${busy}
-                title="Restore from a server backup"
+                title="${this._t('ui.inventory.restoreServerBackupTitle')}"
               >
-                ${this._serverRestoring ? "Restoring…" : "Server Restore"}
+                ${this._serverRestoring ? this._t("ui.inventory.restoringEllipsis") : this._t("ui.inventory.serverRestoreBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._backupJSON}
                 ?disabled=${busy}
-                title="Download full cellar backup as JSON"
+                title="${this._t('ui.inventory.downloadBackupTitle')}"
               >
-                ${this._backingUp ? "Saving…" : "Download"}
+                ${this._backingUp ? this._t("ui.inventory.savingEllipsis") : this._t("ui.inventory.downloadBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._triggerRestore}
                 ?disabled=${busy}
-                title="Restore cellar from a JSON backup file"
+                title="${this._t('ui.inventory.restoreFromFileTitle')}"
               >
-                ${this._restoring ? "Restoring…" : "Upload"}
+                ${this._restoring ? this._t("ui.inventory.restoringEllipsis") : this._t("ui.inventory.uploadBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._triggerImportCSV}
                 ?disabled=${busy}
-                title="Import wines from a CSV file"
+                title="${this._t('ui.inventory.importCsvTitle')}"
               >
-                ${this._importing ? "Importing…" : "Import CSV"}
+                ${this._importing ? this._t("ui.inventory.importingEllipsis") : this._t("ui.inventory.importCsvBtn")}
               </button>
               <button
                 class="inv-btn"
                 @click=${this._exportCSV}
                 ?disabled=${busy}
-                title="Export wines as CSV"
+                title="${this._t('ui.inventory.exportCsvTitle')}"
               >
-                Export CSV
+                ${this._t("ui.inventory.exportCsvBtn")}
               </button>
             </div>
           </div>
@@ -10691,24 +12058,23 @@ let InventoryDialog = class InventoryDialog extends i {
             ? b `
                 <div class="inv-confirm-overlay" @click=${() => (this._showServerRestore = false)}>
                   <div class="inv-confirm-box" style="max-width:420px" @click=${(e) => e.stopPropagation()}>
-                    <h3>Server Backups</h3>
+                    <h3>${this._t("ui.inventory.serverBackupsTitle")}</h3>
                     <label class="inv-keep-row">
-                      <span>Keep the last</span>
+                      <span>${this._t("ui.inventory.keepTheLast")}</span>
                       <select
                         @change=${(e) => this._setBackupKeep(Number(e.target.value))}
                       >
                         ${this._backupKeepChoices.map((n) => b `<option value=${n} ?selected=${this._backupKeep === n}>
-                            ${n === 0 ? "All (never delete)" : `${n} backups`}
+                            ${n === 0 ? this._t("ui.inventory.allNeverDelete") : this._t("ui.inventory.nBackups", { n })}
                           </option>`)}
                       </select>
                     </label>
                     ${this._serverBackups.length === 0
-                ? b `<p>No server backups found. Use "Server Backup" to create one.</p>`
+                ? b `<p>${this._t("ui.inventory.noServerBackups")}</p>`
                 : b `
                         <p>
-                          Select a backup to restore — this will <strong>replace</strong> all
-                          current data. ${this._serverBackups.length} stored,
-                          ${this._formatBytes(this._serverBackups.reduce((t, b) => t + (b.size || 0), 0))} on disk.
+                          ${this._t("ui.inventory.selectBackupToRestore1")} <strong>${this._t("ui.common.replace")}</strong>
+                          ${this._t("ui.inventory.selectBackupToRestore2", { n: this._serverBackups.length, size: this._formatBytes(this._serverBackups.reduce((t, b) => t + (b.size || 0), 0)) })}
                         </p>
                         <div class="inv-backup-list">
                           ${this._serverBackups.map((b$1) => b `
@@ -10720,13 +12086,13 @@ let InventoryDialog = class InventoryDialog extends i {
                                   <div>${b$1.timestamp ? new Date(b$1.timestamp).toLocaleString() : b$1.filename}</div>
                                   <div class="inv-backup-meta">
                                     ${b$1.error
-                    ? "unreadable file"
-                    : `${b$1.wines} wines, ${b$1.cabinets} racks · ${this._formatBytes(b$1.size || 0)}`}
+                    ? this._t("ui.inventory.unreadableFile")
+                    : this._t("ui.inventory.backupMeta", { wines: b$1.wines, cabinets: b$1.cabinets, size: this._formatBytes(b$1.size || 0) })}
                                   </div>
                                 </button>
                                 <button
                                   class="inv-backup-del"
-                                  title="Delete this backup"
+                                  title="${this._t('ui.inventory.deleteThisBackup')}"
                                   @click=${() => this._serverBackupDelete(b$1.filename)}
                                 >
                                   🗑
@@ -10737,7 +12103,7 @@ let InventoryDialog = class InventoryDialog extends i {
                       `}
                     <div class="inv-confirm-btns">
                       <button class="inv-confirm-cancel" @click=${() => (this._showServerRestore = false)}>
-                        Close
+                        ${this._t("ui.common.close")}
                       </button>
                     </div>
                   </div>
@@ -10752,19 +12118,16 @@ let InventoryDialog = class InventoryDialog extends i {
             ? b `
                 <div class="inv-confirm-overlay" @click=${() => (this._confirmImport = false)}>
                   <div class="inv-confirm-box" @click=${(e) => e.stopPropagation()}>
-                    <h3>📄 Update existing wines?</h3>
+                    <h3>${this._t("ui.inventory.updateExistingQ")}</h3>
                     <p>
-                      This CSV looks like an edited export — some rows carry the ID of a
-                      wine already in your cellar.
+                      ${this._t("ui.inventory.csvEditedExportNote")}
                     </p>
                     <div class="inv-confirm-stats">
-                      <strong>${this._importMatches}</strong> row${this._importMatches > 1 ? "s" : ""}
-                      match existing wines ·
-                      <strong>${this._pendingImport.length - this._importMatches}</strong> new
+                      <strong>${this._importMatches}</strong> ${this._t("ui.inventory.rowsMatchExisting", { plural: this._importMatches > 1 ? "s" : "" })} ·
+                      <strong>${this._pendingImport.length - this._importMatches}</strong> ${this._t("ui.common.new", { plural: this._pendingImport.length - this._importMatches > 1 ? "x" : "" })}
                       <br />
                       <small>
-                        Updating only touches the columns present in the file; blank cells
-                        leave the stored value alone.
+                        ${this._t("ui.inventory.updateOnlyTouchesNote")}
                       </small>
                     </div>
                     <div class="inv-confirm-btns">
@@ -10772,13 +12135,13 @@ let InventoryDialog = class InventoryDialog extends i {
                         class="inv-confirm-cancel"
                         @click=${() => this._runImport(this._pendingImport, "add")}
                       >
-                        Add all as new
+                        ${this._t("ui.inventory.addAllAsNew")}
                       </button>
                       <button
                         class="inv-confirm-go"
                         @click=${() => this._runImport(this._pendingImport, "update")}
                       >
-                        Update ${this._importMatches} wine${this._importMatches > 1 ? "s" : ""}
+                        ${this._t("ui.inventory.updateNWines", { n: this._importMatches, plural: this._importMatches > 1 ? "s" : "" })}
                       </button>
                     </div>
                   </div>
@@ -10791,26 +12154,25 @@ let InventoryDialog = class InventoryDialog extends i {
             ? b `
                 <div class="inv-confirm-overlay" @click=${() => (this._confirmRestore = false)}>
                   <div class="inv-confirm-box" @click=${(e) => e.stopPropagation()}>
-                    <h3>🔄 Restore Backup?</h3>
+                    <h3>${this._t("ui.inventory.restoreBackupQ")}</h3>
                     <p>
-                      This will <strong>replace</strong> all your current cellar data with the backup.
-                      This action cannot be undone.
+                      ${this._t("ui.inventory.restoreWillReplaceNote")}
                     </p>
                     <div class="inv-confirm-stats">
-                      Backup contains:<br />
-                      <strong>${this._restoreData.wines?.length || 0}</strong> wines ·
-                      <strong>${this._restoreData.cabinets?.length || 0}</strong> racks ·
-                      <strong>${this._restoreData.buy_list?.length || 0}</strong> buy list items
+                      ${this._t("ui.inventory.backupContains")}<br />
+                      <strong>${this._restoreData.wines?.length || 0}</strong> ${this._t("ui.inventory.winesWord")} ·
+                      <strong>${this._restoreData.cabinets?.length || 0}</strong> ${this._t("ui.inventory.racksWord")} ·
+                      <strong>${this._restoreData.buy_list?.length || 0}</strong> ${this._t("ui.inventory.buyListItemsWord")}
                       ${this._restoreData.timestamp
-                ? b `<br /><small>Created: ${new Date(this._restoreData.timestamp).toLocaleString()}</small>`
+                ? b `<br /><small>${this._t("ui.inventory.createdLabel", { date: new Date(this._restoreData.timestamp).toLocaleString() })}</small>`
                 : A}
                     </div>
                     <div class="inv-confirm-btns">
                       <button class="inv-confirm-cancel" @click=${() => (this._confirmRestore = false)}>
-                        Cancel
+                        ${this._t("ui.common.cancel")}
                       </button>
                       <button class="inv-confirm-go" @click=${this._executeRestore}>
-                        Restore Now
+                        ${this._t("ui.inventory.restoreNowBtn")}
                       </button>
                     </div>
                   </div>
@@ -11658,7 +13020,7 @@ __decorate([
     r()
 ], InventoryDialog.prototype, "_historyLoading", void 0);
 InventoryDialog = __decorate([
-    t("inventory-dialog")
+    t$1("inventory-dialog")
 ], InventoryDialog);
 
 let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
@@ -11670,6 +13032,10 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.supportedLanguages = ["en", "fr", "de"];
         this.metadataCurrency = "USD";
         this.supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     _close() {
         this.dispatchEvent(new CustomEvent("close"));
@@ -11690,8 +13056,8 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
       <div class="dialog-overlay" @click=${this._close}>
         <div class="dialog" style="max-width:420px;padding:20px 24px" @click=${(e) => e.stopPropagation()}>
           <div class="dialog-top-bar" style="justify-content:space-between;padding:0 0 8px">
-            <span style="font-weight:600;color:var(--wc-text)">Vivino / AI Settings</span>
-            <button class="icon-btn close-btn" title="Close" @click=${this._close}>✕</button>
+            <span style="font-weight:600;color:var(--wc-text)">${this._t("ui.vivinoAiSettings.title")}</span>
+            <button class="icon-btn close-btn" title="${this._t('ui.common.close')}" @click=${this._close}>✕</button>
           </div>
 
           <div class="settings-row">
@@ -11701,12 +13067,12 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
                 .checked=${this.aiFallbackAlways}
                 @change=${(e) => this._setFallback(e.target.checked)}
               />
-              Always try AI when Vivino finds no match
+              ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
             </label>
           </div>
 
           <div class="settings-row">
-            <span class="settings-label">Vivino/AI language</span>
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
             <div class="pill-group">
               ${this.supportedLanguages.map((lang) => b `
                 <button
@@ -11718,7 +13084,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
           </div>
 
           <div class="settings-row">
-            <span class="settings-label">Currency</span>
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
             <div class="pill-group">
               ${this.supportedCurrencies.map((cur) => b `
                 <button
@@ -11730,33 +13096,38 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
           </div>
 
           <div class="info-section">
-            <h3 class="info-title">🍇 Vivino vs 🤖 AI — What Each Provides</h3>
+            <h3 class="info-title">🍇🤖 ${this._t("ui.vivinoAiSettings.infoTitle")}</h3>
 
             <div class="info-block">
-              <div class="info-block-title">🍇 Vivino provides:</div>
+              <div class="info-block-title">🍇 ${this._t("ui.vivinoAiSettings.vivinoProvidesTitle")}</div>
               <ul>
-                <li>Bottle photo</li>
-                <li>Community rating (★) and number of ratings</li>
-                <li>Market price</li>
-                <li>Food pairings</li>
-                <li>Alcohol %</li>
-                <li>Grape variety, region, country, type (when found)</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoBottlePhoto")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoCommunityRating")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoMarketPrice")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoFoodPairings")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoAlcohol")}</li>
+                <li>${this._t("ui.vivinoAiSettings.vivinoGrapeInfo")}</li>
               </ul>
             </div>
 
             <div class="info-block">
-              <div class="info-block-title">🤖 AI provides:</div>
+              <div class="info-block-title">🤖 ${this._t("ui.vivinoAiSettings.aiProvidesTitle")}</div>
               <ul>
-                <li>Estimated price (only fills in when Vivino has none)</li>
-                <li>Tasting description</li>
-                <li>Critic scores (Wine Spectator, Robert Parker, Jeb Dunnuck, Antonio Galloni)</li>
-                <li>Drink Now / Hold / Past Peak + drinking window</li>
-                <li>Grape variety, region, country, type — only when scanning a label photo, not on a refresh</li>
+                <li>${this._t("ui.vivinoAiSettings.aiEstimatedPrice")}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiTastingDescription")}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiCriticScores")}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiDispositionInfo", {
+            drinkNow: this._t("ui.disposition.drinkNow"),
+            hold: this._t("ui.disposition.hold"),
+            pastPeak: this._t("ui.disposition.pastPeak"),
+            window: this._t("ui.vivinoAiSettings.drinkingWindow"),
+        })}</li>
+                <li>${this._t("ui.vivinoAiSettings.aiGrapeInfo")}</li>
               </ul>
             </div>
 
             <p class="info-note">
-              AI never provides a photo, a Vivino community rating, or food pairings — when Vivino can't find a confident match, AI fills in what it can (mainly price, description, and critic scores), not everything Vivino would have.
+              ${this._t("ui.vivinoAiSettings.infoNote")}
             </p>
           </div>
         </div>
@@ -11854,6 +13225,9 @@ VivinoAiSettingsDialog.styles = [
     `,
 ];
 __decorate([
+    n({ attribute: false })
+], VivinoAiSettingsDialog.prototype, "hass", void 0);
+__decorate([
     n({ type: Boolean })
 ], VivinoAiSettingsDialog.prototype, "open", void 0);
 __decorate([
@@ -11872,7 +13246,7 @@ __decorate([
     n({ attribute: false })
 ], VivinoAiSettingsDialog.prototype, "supportedCurrencies", void 0);
 VivinoAiSettingsDialog = __decorate([
-    t("vivino-ai-settings-dialog")
+    t$1("vivino-ai-settings-dialog")
 ], VivinoAiSettingsDialog);
 
 // How long an incoming change waits before the card re-fetches, and the floor
@@ -12124,6 +13498,12 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         return wines;
     }
+    // Shorthand for t(key, this.hass?.language, params) — every call site in
+    // this file needs the current display language, so this saves repeating
+    // `this.hass?.language` at every t() call.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
+    }
     _showToast(message) {
         this._toast = message;
         // Each toast gets its own full 2.5s: the previous timer would otherwise
@@ -12282,7 +13662,7 @@ let WineCellarCard = class WineCellarCard extends i {
         // If we have a copied wine, paste it in this zone instead of opening panel
         if (this._copiedWine) {
             if (!hasRoom) {
-                this._showToast(`"${storageRow.name || "Zone"}" is full — cannot paste here.`);
+                this._showToast(this._t("toast.zoneFull", { zone: storageRow.name || "Zone" }));
                 return;
             }
             this._pasteWine(cabinet.id, null, null, nextDepth, zone);
@@ -12291,7 +13671,7 @@ let WineCellarCard = class WineCellarCard extends i {
         // If moving wine, drop it in this zone instead of opening panel
         if (this._movingWine) {
             if (!hasRoom) {
-                this._showToast(`"${storageRow.name || "Zone"}" is full — cannot move here.`);
+                this._showToast(this._t("toast.zoneFullMove", { zone: storageRow.name || "Zone" }));
                 return;
             }
             this._executeMoveWine(cabinet.id, null, null, zone);
@@ -12299,7 +13679,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         if (this._movingBuyListItem) {
             if (!hasRoom) {
-                this._showToast(`"${storageRow.name || "Zone"}" is full — cannot move here.`);
+                this._showToast(this._t("toast.zoneFullMove", { zone: storageRow.name || "Zone" }));
                 return;
             }
             this._executeMoveTocellar(cabinet.id, null, null, zone);
@@ -12357,7 +13737,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             console.error("Failed to resize zone:", err);
-            this._showToast("Failed to resize zone");
+            this._showToast(this._t("toast.zoneResizeFailed"));
         }
     }
     _addBulkSlot() {
@@ -12382,8 +13762,8 @@ let WineCellarCard = class WineCellarCard extends i {
             return;
         const wineAtSlot = this._zonePanelWines[slotIndex];
         const warning = wineAtSlot
-            ? `Delete Slot ${slotIndex + 1}? "${wineAtSlot.name}" will be moved to Unassigned.`
-            : `Delete Slot ${slotIndex + 1}?`;
+            ? this._t("toast.deleteSlotConfirmNamed", { n: slotIndex + 1, name: wineAtSlot.name })
+            : this._t("toast.deleteSlotConfirm", { n: slotIndex + 1 });
         if (!window.confirm(warning))
             return;
         try {
@@ -12425,11 +13805,11 @@ let WineCellarCard = class WineCellarCard extends i {
             else {
                 await this._updateStorageRow({ capacity: Math.max(0, (this._zonePanelStorageRow.capacity || 1) - 1) });
             }
-            this._showToast(wineAtSlot ? "Slot deleted, wine unassigned" : "Slot deleted");
+            this._showToast(wineAtSlot ? this._t("toast.slotDeletedUnassigned") : this._t("toast.slotDeleted"));
         }
         catch (err) {
             console.error("Failed to delete slot:", err);
-            this._showToast("Failed to delete slot");
+            this._showToast(this._t("toast.deleteSlotFailed"));
         }
     }
     _onZonePanelSlotClick(slotIndex, wine) {
@@ -12498,12 +13878,12 @@ let WineCellarCard = class WineCellarCard extends i {
         wines.splice(targetIndex, 0, moved);
         try {
             await this._reorderZone(this._zonePanelCabinet.id, this._zonePanelZone, wines.map((w) => w.id));
-            this._showToast("Wine reordered");
+            this._showToast(this._t("toast.wineReordered"));
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to reorder wine:", err);
-            this._showToast("Failed to reorder wine");
+            this._showToast(this._t("toast.reorderFailed"));
         }
     }
     // Box mode: move/swap into a specific slot depth.
@@ -12534,12 +13914,12 @@ let WineCellarCard = class WineCellarCard extends i {
                     depth: draggedWine.depth || 0,
                 });
             }
-            this._showToast("Wine reordered");
+            this._showToast(this._t("toast.wineReordered"));
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to reorder wine:", err);
-            this._showToast("Failed to reorder wine");
+            this._showToast(this._t("toast.reorderFailed"));
         }
     }
     // Renumber the bin's slots to match when bottles were added.
@@ -12571,24 +13951,24 @@ let WineCellarCard = class WineCellarCard extends i {
         this._zoneSorting = true;
         try {
             await this._reorderZone(this._zonePanelCabinet.id, this._zonePanelZone, ordered.map((w) => w.id));
-            this._showToast(direction === "newest" ? "Newest bottles first" : "Oldest bottles first");
+            this._showToast(direction === "newest" ? this._t("toast.newestFirstToast") : this._t("toast.oldestFirstToast"));
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to sort zone:", err);
-            this._showToast("Failed to sort");
+            this._showToast(this._t("toast.sortFailed"));
         }
         this._zoneSorting = false;
     }
     _getZoneSlotLabel(_type, index) {
-        return `Slot ${index + 1}`;
+        return this._t("ui.card.slot", { n: index + 1 });
     }
     // Opens the right side panel for a wine's location and highlights its slot,
     // both in the panel and on the rack drawing.
     _locateWine(wine) {
-        const loc = getWineLocation(wine, this._cabinets);
+        const loc = getWineLocation(wine, this._cabinets, this.hass?.language);
         if (!loc.cabinet) {
-            this._showToast("This wine is unassigned");
+            this._showToast(this._t("toast.wineUnassigned"));
             return;
         }
         // An active search replaces the rack drawing with a flat result list, so
@@ -12609,7 +13989,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._openZonePanel(loc.cabinet, loc.zone, loc.storageRow);
         }
         else {
-            this._showToast(`In ${loc.text}`);
+            this._showToast(this._t("toast.inLocation", { location: loc.text }));
         }
         this.updateComplete.then(async () => {
             // The panel slot and the rack cell live in different scroll containers,
@@ -12688,7 +14068,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             console.error("Failed to resize rack:", err);
-            this._showToast("Failed to resize rack");
+            this._showToast(this._t("toast.rackResizeFailed"));
         }
     }
     // A rack is a strict rows×cols rectangle, so only the trailing slot can be
@@ -12705,13 +14085,13 @@ let WineCellarCard = class WineCellarCard extends i {
             return;
         const { rows, cols } = this._rackPanelCabinet;
         if (rows <= 1 && cols <= 1) {
-            this._showToast("Rack can't get any smaller");
+            this._showToast(this._t("toast.rackTooSmall"));
             return;
         }
         const wine = this._rackPanelWines.find((w) => w.row === row && w.col === col);
         const warning = wine
-            ? `Delete this slot? "${wine.name}" will be moved to Unassigned.`
-            : "Delete this slot?";
+            ? this._t("toast.deleteThisSlotConfirmNamed", { name: wine.name })
+            : this._t("toast.deleteThisSlotConfirm");
         if (!window.confirm(warning))
             return;
         try {
@@ -12728,11 +14108,11 @@ let WineCellarCard = class WineCellarCard extends i {
             else {
                 await this._resizeRack({ rows: rows - 1 });
             }
-            this._showToast(wine ? "Slot deleted, wine unassigned" : "Slot deleted");
+            this._showToast(wine ? this._t("toast.slotDeletedUnassigned") : this._t("toast.slotDeleted"));
         }
         catch (err) {
             console.error("Failed to delete slot:", err);
-            this._showToast("Failed to delete slot");
+            this._showToast(this._t("toast.deleteSlotFailed"));
         }
     }
     _onRackPanelSlotClick(row, col, wine) {
@@ -12821,12 +14201,12 @@ let WineCellarCard = class WineCellarCard extends i {
                     zone: "",
                 });
             }
-            this._showToast("Wine reordered");
+            this._showToast(this._t("toast.wineReordered"));
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to reorder wine:", err);
-            this._showToast("Failed to reorder wine");
+            this._showToast(this._t("toast.reorderFailed"));
         }
     }
     async _executeMoveWine(cabinetId, row, col, zone, depth = 0) {
@@ -12846,13 +14226,13 @@ let WineCellarCard = class WineCellarCard extends i {
             });
             if (zone)
                 await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
-            this._showToast(`Moved "${this._movingWine.name}"`);
+            this._showToast(this._t("toast.wineMoved", { name: this._movingWine.name }));
             this._movingWine = null;
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to move wine:", err);
-            this._showToast("Failed to move wine");
+            this._showToast(this._t("toast.moveFailed"));
         }
     }
     async _onWineDrop(e) {
@@ -12887,12 +14267,12 @@ let WineCellarCard = class WineCellarCard extends i {
                     zone: d.targetZone,
                     wine_ids: zoneWines.map((w) => w.id),
                 });
-                this._showToast("Wine reordered");
+                this._showToast(this._t("toast.wineReordered"));
                 await this._loadData();
             }
             catch (err) {
                 console.error("Failed to reorder wine:", err);
-                this._showToast("Failed to reorder wine");
+                this._showToast(this._t("toast.reorderFailed"));
             }
             return;
         }
@@ -12949,7 +14329,7 @@ let WineCellarCard = class WineCellarCard extends i {
                 const capacity = storageRow?.capacity || 20;
                 targetDepth = this._firstFreeDepth(d.targetCabinetId, d.targetZone, d.wineId);
                 if (storageRow && (occupants.length >= capacity || targetDepth >= capacity)) {
-                    this._showToast(`"${storageRow.name || "Zone"}" is full — cannot move here.`);
+                    this._showToast(this._t("toast.zoneFullMove", { zone: storageRow.name || "Zone" }));
                     return;
                 }
             }
@@ -12972,7 +14352,7 @@ let WineCellarCard = class WineCellarCard extends i {
             // Same container (rack/bin/box) = reordering; a different one = an
             // actual move between containers.
             const sameContainer = d.sourceCabinetId === d.targetCabinetId;
-            this._showToast(sameContainer ? "Wine reordered" : targetWine ? "Swapped wines" : "Wine moved");
+            this._showToast(sameContainer ? this._t("toast.wineReordered") : targetWine ? this._t("toast.wineSwapped") : this._t("toast.wineMovedShort"));
             await this._loadData();
         }
         catch (err) {
@@ -12983,18 +14363,18 @@ let WineCellarCard = class WineCellarCard extends i {
                 }
                 catch (undoErr) {
                     console.error("Failed to undo half-completed swap:", undoErr);
-                    this._showToast("Move failed and could not be undone — check both slots");
+                    this._showToast(this._t("toast.moveUndoFailed"));
                     await this._loadData();
                     return;
                 }
             }
-            this._showToast("Failed to move wine");
+            this._showToast(this._t("toast.moveFailed"));
             await this._loadData();
         }
     }
     _copyWine(wine) {
         this._copiedWine = wine;
-        this._showToast(`Copied "${wine.name}" — tap empty cells or bulk/box zones to paste`);
+        this._showToast(this._t("toast.wineCopied", { name: wine.name }));
         this._showDetail = false;
         // Close any open side panel and show every rack, so the whole cellar is reachable to paste into.
         this._zonePanelOpen = false;
@@ -13050,11 +14430,11 @@ let WineCellarCard = class WineCellarCard extends i {
             const pasted = result?.wine?.id;
             if (zone && pasted)
                 await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
-            this._showToast("Wine pasted! Tap more empty cells or click ✕ to stop.");
+            this._showToast(this._t("toast.winePasted"));
             await this._loadData();
         }
         catch {
-            this._showToast("Failed to paste wine.");
+            this._showToast(this._t("toast.pasteFailed"));
         }
     }
     // --- Batch AI Analysis ---
@@ -13068,24 +14448,24 @@ let WineCellarCard = class WineCellarCard extends i {
     async _runBatchAnalyzeWines() {
         this._showBatchAiConfirm = false;
         this._analyzing = true;
-        this._showToast("Running full AI analysis on all wines...");
+        this._showToast(this._t("toast.aiBatchRunning"));
         try {
             const result = await this.hass.callWS({
                 type: "wine_cellar/batch_analyze_wines",
             });
             if (result.error) {
-                this._showToast(`AI Batch failed: ${result.error}`);
+                this._showToast(this._t("toast.aiBatchFailedError", { error: result.error }));
             }
             else {
-                const parts = [`AI Batch complete! ${result.updated}/${result.total} updated`];
+                const parts = [this._t("toast.aiBatchComplete", { updated: result.updated, total: result.total })];
                 if (result.errors > 0)
-                    parts.push(`(${result.errors} errors)`);
+                    parts.push(this._t("toast.errorsCount", { n: result.errors }));
                 this._showToast(parts.join(" "));
                 await this._loadData();
             }
         }
         catch (err) {
-            this._showToast("AI Batch analysis failed.");
+            this._showToast(this._t("toast.aiBatchFailed"));
         }
         this._analyzing = false;
     }
@@ -13129,7 +14509,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             this._dismissedArrangements = previous;
-            this._showToast("Failed to dismiss the suggestion");
+            this._showToast(this._t("toast.dismissSuggestionFailed"));
         }
     }
     // --- Metadata language (Vivino/AI) ---
@@ -13146,7 +14526,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             this._metadataLanguage = previous;
-            this._showToast("Failed to change language");
+            this._showToast(this._t("toast.changeLanguageFailed"));
         }
     }
     async _setMetadataCurrency(currency) {
@@ -13162,7 +14542,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             this._metadataCurrency = previous;
-            this._showToast("Failed to change currency");
+            this._showToast(this._t("toast.changeCurrencyFailed"));
         }
     }
     async _setAiFallbackAlways(value) {
@@ -13178,7 +14558,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             this._aiFallbackAlways = previous;
-            this._showToast("Failed to change AI fallback setting");
+            this._showToast(this._t("toast.changeAiFallbackFailed"));
         }
     }
     // --- Batch Vivino Refresh ---
@@ -13189,7 +14569,7 @@ let WineCellarCard = class WineCellarCard extends i {
     async _runBatchVivino(photoMode) {
         this._showBatchVivinoConfirm = false;
         this._batchVivino = true;
-        this._showToast("Refreshing all wines from Vivino...");
+        this._showToast(this._t("toast.vivinoRefreshing"));
         try {
             const result = await this.hass.callWS({
                 type: "wine_cellar/batch_refresh_vivino",
@@ -13197,56 +14577,58 @@ let WineCellarCard = class WineCellarCard extends i {
                 ai_fallback: this._batchAiFallback ? "use" : "skip",
             });
             if (result.error) {
-                this._showToast(`Vivino Batch failed: ${result.error}`);
+                this._showToast(this._t("toast.vivinoBatchFailedError", { error: result.error }));
             }
             else {
-                const parts = [`Vivino Batch complete! ${result.updated}/${result.total} updated`];
+                const parts = [this._t("toast.vivinoBatchComplete", { updated: result.updated, total: result.total })];
                 if (result.photos_updated)
-                    parts.push(`${result.photos_updated} photos updated`);
+                    parts.push(this._t("toast.vivinoPhotosUpdated", { n: result.photos_updated }));
                 if (result.photos_kept)
-                    parts.push(`${result.photos_kept} kept`);
+                    parts.push(this._t("toast.vivinoPhotosKept", { n: result.photos_kept }));
                 if (result.ai_fallback_used)
-                    parts.push(`${result.ai_fallback_used} used AI instead`);
+                    parts.push(this._t("toast.vivinoAiFallbackUsed", { n: result.ai_fallback_used }));
                 const unresolvedMismatch = (result.mismatched || 0) - (result.ai_fallback_used || 0);
                 if (unresolvedMismatch > 0)
-                    parts.push(`${unresolvedMismatch} no match at all`);
+                    parts.push(this._t("toast.vivinoNoMatch", { n: unresolvedMismatch }));
                 if (result.errors > 0)
-                    parts.push(`(${result.errors} errors)`);
+                    parts.push(this._t("toast.errorsCount", { n: result.errors }));
                 this._showToast(parts.join(", "));
                 await this._loadData();
             }
         }
         catch (err) {
-            this._showToast("Vivino Batch refresh failed.");
+            this._showToast(this._t("toast.vivinoBatchRefreshFailed"));
         }
         this._batchVivino = false;
     }
     // --- Vivino Account Sync ---
     async _syncVivino() {
         this._vivinoSyncing = true;
-        this._showToast("Syncing your Vivino cellar & wishlist...");
+        this._showToast(this._t("toast.vivinoSyncing"));
         try {
             const result = await this.hass.callWS({
                 type: "wine_cellar/sync_vivino",
             });
             if (result.error) {
-                this._showToast(`Vivino sync failed: ${result.error}`);
+                this._showToast(this._t("toast.vivinoSyncFailedError", { error: result.error }));
             }
             else {
                 const bottles = (result.cellar_imported || 0) + (result.my_wines_imported || 0);
                 const parts = [
-                    `Vivino sync complete! ${bottles} bottle${bottles === 1 ? "" : "s"} imported`,
+                    bottles === 1
+                        ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
+                        : this._t("toast.vivinoSyncCompleteMany", { n: bottles }),
                 ];
                 if (result.wishlist_imported > 0)
-                    parts.push(`+ ${result.wishlist_imported} to buy list`);
+                    parts.push(this._t("toast.vivinoWishlistAdded", { n: result.wishlist_imported }));
                 if (result.errors?.length)
-                    parts.push(`(${result.errors.length} errors)`);
+                    parts.push(this._t("toast.errorsCount", { n: result.errors.length }));
                 this._showToast(parts.join(" "));
                 await this._loadData();
             }
         }
         catch (err) {
-            this._showToast("Vivino sync failed.");
+            this._showToast(this._t("toast.vivinoSyncFailed"));
         }
         this._vivinoSyncing = false;
     }
@@ -13262,18 +14644,18 @@ let WineCellarCard = class WineCellarCard extends i {
                 type: "wine_cellar/remove_from_buy_list",
                 item_id: itemId,
             });
-            this._showToast("Removed from buy list");
+            this._showToast(this._t("toast.removedFromBuyList"));
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to remove from buy list", err);
-            this._showToast("Failed to remove from buy list");
+            this._showToast(this._t("toast.removeFromBuyListFailed"));
         }
     }
     _startMoveBuyListItem(item) {
         this._movingBuyListItem = item;
         this._activeTab = "all";
-        this._showToast(`Tap a cell to place "${item.name}"`);
+        this._showToast(this._t("toast.tapToPlace", { name: item.name }));
     }
     async _executeMoveTocellar(cabinetId, row, col, zone, depth = 0) {
         if (!this._movingBuyListItem)
@@ -13291,13 +14673,13 @@ let WineCellarCard = class WineCellarCard extends i {
             const moved = result?.wine?.id;
             if (zone && moved)
                 await this._placeOnTopOfBin(cabinetId, zone, [moved]);
-            this._showToast(`Moved "${this._movingBuyListItem.name}" to cellar`);
+            this._showToast(this._t("toast.movedToCellar", { name: this._movingBuyListItem.name }));
             this._movingBuyListItem = null;
             await this._loadData();
         }
         catch (err) {
             console.error("Failed to move to cellar:", err);
-            this._showToast("Failed to move to cellar");
+            this._showToast(this._t("toast.moveToCellarFailed"));
         }
     }
     async _onRemoveWine(e) {
@@ -13331,7 +14713,7 @@ let WineCellarCard = class WineCellarCard extends i {
         if (this._loading) {
             return b `
         <ha-card>
-          <div class="loading">Loading wine cellar...</div>
+          <div class="loading">${this._t("ui.card.loading")}</div>
         </ha-card>
       `;
         }
@@ -13349,7 +14731,7 @@ let WineCellarCard = class WineCellarCard extends i {
             <span class="title-icon">🍷</span>
             <div class="title-text">
               <div>${title}</div>
-              <div class="title-credit">originally created by @BaconWappedBitcoin</div>
+              <div class="title-credit">${this._t("ui.card.titleCredit")}</div>
             </div>
           </div>
           <div class="header-actions">
@@ -13358,30 +14740,30 @@ let WineCellarCard = class WineCellarCard extends i {
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #1565c0;"
                 @click=${this._batchAnalyzeWines}
-                title="Full AI analysis on all wines (disposition, ratings, price, description)"
+                title="${this._t("ui.card.fullAiAnalysisTitle")}"
                 ?disabled=${this._analyzing || this._batchVivino}
               >
-                ${this._analyzing ? "AI Scanning..." : "🤖 AI Batch Scan"}
+                ${this._analyzing ? this._t("ui.card.aiScanning") : this._t("ui.card.aiBatchScanBtn")}
               </button>
             ` : A}
             <button
               class="btn btn-primary"
               style="font-size: 0.8em; padding: 5px 10px; background: #8e24aa;"
               @click=${this._batchRefreshVivino}
-              title="Refresh all wines from Vivino (ratings, price, description)"
+              title="${this._t("ui.card.refreshVivinoTitle")}"
               ?disabled=${this._batchVivino || this._analyzing}
             >
-              ${this._batchVivino ? "Vivino Scanning..." : "🍇 Vivino Batch Scan"}
+              ${this._batchVivino ? this._t("ui.card.vivinoScanning") : this._t("ui.card.vivinoBatchScanBtn")}
             </button>
             ${this._hasVivinoAccount ? b `
               <button
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #b71c1c;"
                 @click=${this._syncVivino}
-                title="Import your Vivino cellar and wishlist into Cork Dork"
+                title="${this._t("ui.card.importVivinoTitle")}"
                 ?disabled=${this._vivinoSyncing || this._batchVivino || this._analyzing}
               >
-                ${this._vivinoSyncing ? "Vivino Syncing..." : "🔄 Vivino Sync"}
+                ${this._vivinoSyncing ? this._t("ui.card.vivinoSyncing") : this._t("ui.card.vivinoSyncBtn")}
               </button>
             ` : A}
             ${this._hasGemini ? b `
@@ -13389,18 +14771,18 @@ let WineCellarCard = class WineCellarCard extends i {
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #00695c;"
                 @click=${() => (this._showWineList = true)}
-                title="Scan a wine list or receipt for ratings and value"
+                title="${this._t("ui.card.scanListTitle")}"
               >
-                🍽️ Scan List
+                ${this._t("ui.card.scanListBtn")}
               </button>
             ` : A}
             <button
               class="btn btn-primary"
               style="font-size: 0.8em; padding: 5px 10px; background: #37474f;"
               @click=${() => (this._showInventory = true)}
-              title="Browse full cellar inventory"
+              title="${this._t("ui.card.inventoryTitle")}"
             >
-              📦 Inventory
+              ${this._t("ui.card.inventoryBtn")}
             </button>
             <button
               class="btn btn-primary"
@@ -13409,7 +14791,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showAddDialog = true;
         }}
             >
-              + Add Wine
+              ${this._t("ui.card.addWineBtn")}
             </button>
           </div>
         </div>
@@ -13418,8 +14800,8 @@ let WineCellarCard = class WineCellarCard extends i {
         ${this._copiedWine
             ? b `
               <div class="copy-banner">
-                <span>📋 Copying "${this._copiedWine.name}" — tap empty cells or bulk/box zones to place copies</span>
-                <button @click=${() => (this._copiedWine = null)}>✕ Done</button>
+                <span>📋 ${this._t("ui.card.copyBannerText", { name: this._copiedWine.name })}</span>
+                <button @click=${() => (this._copiedWine = null)}>✕ ${this._t("ui.card.doneBtn")}</button>
               </div>
             `
             : A}
@@ -13428,8 +14810,8 @@ let WineCellarCard = class WineCellarCard extends i {
         ${this._movingWine
             ? b `
               <div class="copy-banner">
-                <span>📦 Moving "${this._movingWine.name}" — tap a cell to place it</span>
-                <button @click=${() => (this._movingWine = null)}>✕ Cancel</button>
+                <span>📦 ${this._t("ui.card.moveBannerText", { name: this._movingWine.name })}</span>
+                <button @click=${() => (this._movingWine = null)}>✕ ${this._t("ui.common.cancel")}</button>
               </div>
             `
             : A}
@@ -13438,8 +14820,8 @@ let WineCellarCard = class WineCellarCard extends i {
         ${this._movingBuyListItem
             ? b `
               <div class="buy-list-banner">
-                <span>🛒 Placing "${this._movingBuyListItem.name}" — tap a cell in your cellar</span>
-                <button @click=${() => (this._movingBuyListItem = null)}>✕ Cancel</button>
+                <span>🛒 ${this._t("ui.card.buyListMoveBannerText", { name: this._movingBuyListItem.name })}</span>
+                <button @click=${() => (this._movingBuyListItem = null)}>✕ ${this._t("ui.common.cancel")}</button>
               </div>
             `
             : A}
@@ -13450,21 +14832,21 @@ let WineCellarCard = class WineCellarCard extends i {
               <div class="stats-bar">
                 <div class="stat">
                   <span class="stat-value">${this._stats.total_bottles}</span>
-                  bottles
+                  ${this._t("ui.card.statBottles")}
                 </div>
                 <div class="stat">
                   <span class="stat-value">${this._stats.total_capacity}</span>
-                  capacity
+                  ${this._t("ui.card.statCapacity")}
                 </div>
                 <div class="stat">
                   <span class="stat-value">${this._stats.available_slots}</span>
-                  available
+                  ${this._t("ui.card.statAvailable")}
                 </div>
                 ${this._stats.unplaced_bottles > 0
                 ? b `
-                      <div class="stat" title="Bottles in Unassigned, not yet placed on a rack">
+                      <div class="stat" title="${this._t("ui.card.unplacedTitle")}">
                         <span class="stat-value" style="color:#e65100">${this._stats.unplaced_bottles}</span>
-                        unplaced
+                        ${this._t("ui.card.statUnplaced")}
                       </div>
                     `
                 : A}
@@ -13472,11 +14854,11 @@ let WineCellarCard = class WineCellarCard extends i {
                 ? b `
                       <div
                         class="stat stat-action"
-                        title="Suggestions read from where your bottles already are"
+                        title="${this._t("ui.card.suggestionsTitle")}"
                         @click=${() => (this._showArrangement = true)}
                       >
                         <span class="stat-value">🧹 ${this._arrangementFindings.length}</span>
-                        ${this._arrangementFindings.length === 1 ? "tidy-up" : "tidy-ups"}
+                        ${this._arrangementFindings.length === 1 ? this._t("ui.card.tidyUp") : this._t("ui.card.tidyUps")}
                       </div>
                     `
                 : A}
@@ -13484,7 +14866,7 @@ let WineCellarCard = class WineCellarCard extends i {
                 ? b `
                       <div class="stat">
                         <span class="stat-value">${this._metadataCurrency} ${this._stats.total_value.toLocaleString()}</span>
-                        value
+                        ${this._t("ui.card.statValue")}
                         ${this._stats.total_cost
                     ? b `<span style="font-size:0.75em;color:${this._stats.total_value - this._stats.total_cost >= 0 ? '#2e7d32' : '#c62828'}">${this._stats.total_value - this._stats.total_cost >= 0 ? '+' : ''}${this._metadataCurrency} ${(this._stats.total_value - this._stats.total_cost).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>`
                     : A}
@@ -13501,7 +14883,7 @@ let WineCellarCard = class WineCellarCard extends i {
             class="tab ${this._activeTab === "all" ? "active" : ""}"
             @click=${() => (this._activeTab = "all")}
           >
-            All Sections
+            ${this._t("ui.card.allSections")}
           </button>
           ${this._cabinets.map((cab) => b `
               <button
@@ -13519,7 +14901,7 @@ let WineCellarCard = class WineCellarCard extends i {
                   @click=${() => (this._activeTab = "unassigned")}
                   style="${this._activeTab !== "unassigned" ? "border-color: #e65100; color: #e65100;" : ""}"
                 >
-                  Unassigned (${unassignedWines.length})
+                  ${this._t("ui.card.unassignedTab", { n: unassignedWines.length })}
                 </button>
               `
             : A}
@@ -13528,24 +14910,25 @@ let WineCellarCard = class WineCellarCard extends i {
             @click=${() => (this._activeTab = "buy-list")}
             style="${this._activeTab === "buy-list" ? "border-color: #e65100; color: #e65100;" : ""}"
           >
-            Buy List (${this._buyList.length})
+            ${this._t("ui.card.buyListTab", { n: this._buyList.length })}
           </button>
           <button
             class="tab manage-racks-btn"
             @click=${() => (this._showRackSettings = true)}
           >
-            Manage Racks
+            ${this._t("ui.card.manageRacks")}
           </button>
           <button
             class="tab settings-tab-btn"
             @click=${() => (this._showVivinoAiSettings = true)}
           >
-            ⚙️ Vivino/AI Settings
+            ${this._t("ui.card.vivinoAiSettings")}
           </button>
         </div>
 
         <!-- Search bar -->
         <wine-search-bar
+          .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
           @search-change=${this._onSearch}
@@ -13568,7 +14951,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           @wine-drop=${this._onWineDrop}
                           @wine-longpress=${(e) => {
                     this._movingWine = e.detail.wine;
-                    this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+                    this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
                 }}
                         ></cabinet-grid>
                       `)
@@ -13587,7 +14970,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             @wine-longpress=${(e) => {
                     this._activeTab = "all";
                     this._movingWine = e.detail.wine;
-                    this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+                    this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
                 }}
                           ></cabinet-grid>
                         `)}
@@ -13596,7 +14979,7 @@ let WineCellarCard = class WineCellarCard extends i {
                 ? b `
                     <div style="padding: 8px 16px 2px">
                       <div style="font-size: 0.9em; font-weight: 600; color: var(--wc-text-secondary); margin-bottom: 4px">
-                        📦 Unassigned (${unassignedWines.length})
+                        ${this._t("ui.card.unassignedSectionHeader", { n: unassignedWines.length })}
                       </div>
                     </div>
                     <div class="wine-list" style="border-top: 1px solid var(--wc-border)">
@@ -13621,7 +15004,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                   ${wine.rating ? ` · ★${wine.rating}` : ""}
                                 </div>
                               </div>
-                              <div class="wine-list-location" style="color:#e65100">Unassigned</div>
+                              <div class="wine-list-location" style="color:#e65100">${this._t("wineLocation.unassigned")}</div>
                             </div>
                           `;
                 })}
@@ -13640,10 +15023,10 @@ let WineCellarCard = class WineCellarCard extends i {
                       <div class="empty-state">
                         <div class="empty-state-icon">🛒</div>
                         <div style="font-weight: 500; margin-bottom: 4px">
-                          Your buy list is empty
+                          ${this._t("ui.card.buyListEmpty")}
                         </div>
                         <div style="font-size: 0.9em">
-                          Use 🛒 Buy List in Add Wine, or 🛒 Buy in the list scanner
+                          ${this._t("ui.card.buyListEmptyHint")}
                         </div>
                       </div>
                     `
@@ -13670,14 +15053,14 @@ let WineCellarCard = class WineCellarCard extends i {
                             <button
                               class="bl-cellar-btn"
                               @click=${(e) => { e.stopPropagation(); this._startMoveBuyListItem(item); }}
-                              title="Move to cellar"
+                              title="${this._t("ui.card.moveToCellar")}"
                             >
-                              + Cellar
+                              ${this._t("ui.card.addToCellarBtn")}
                             </button>
                             <button
                               class="bl-remove-btn"
                               @click=${(e) => { e.stopPropagation(); this._removeBuyListItem(item.id); }}
-                              title="Remove from buy list"
+                              title="${this._t("ui.card.removeFromBuyList")}"
                             >
                               ✕
                             </button>
@@ -13694,7 +15077,7 @@ let WineCellarCard = class WineCellarCard extends i {
             ? b `
               <div class="wine-list">
                 <div style="padding: 12px 16px 4px; font-size: 0.85em; color: var(--wc-text-secondary)">
-                  These wines are not assigned to any rack. Tap a wine to view details, then use Move to place it.
+                  ${this._t("ui.card.unassignedHint")}
                 </div>
                 ${unassignedWines.map((wine) => {
                 const typeColor = WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red;
@@ -13720,13 +15103,13 @@ let WineCellarCard = class WineCellarCard extends i {
                             ${wine.disposition
                     ? b ` · <span style="color: ${wine.disposition === "D" ? "#2e7d32" :
                         wine.disposition === "H" ? "#1565c0" :
-                            wine.disposition === "P" ? "#c62828" : "inherit"}">${wine.disposition === "D" ? "Drink" :
-                        wine.disposition === "H" ? "Hold" :
-                            wine.disposition === "P" ? "Past Peak" : ""}</span>`
+                            wine.disposition === "P" ? "#c62828" : "inherit"}">${wine.disposition === "D" ? this._t("ui.disposition.drink") :
+                        wine.disposition === "H" ? this._t("ui.disposition.hold") :
+                            wine.disposition === "P" ? this._t("ui.disposition.pastPeak") : ""}</span>`
                     : A}
                           </div>
                         </div>
-                        <div class="wine-list-location">Unassigned</div>
+                        <div class="wine-list-location">${this._t("wineLocation.unassigned")}</div>
                       </div>
                     `;
             })}
@@ -13741,7 +15124,7 @@ let WineCellarCard = class WineCellarCard extends i {
                 ${filteredWines.length === 0
                 ? b `
                       <div class="empty-state">
-                        <div>No wines match your search</div>
+                        <div>${this._t("ui.card.noSearchResults")}</div>
                       </div>
                     `
                 : filteredWines.map((wine) => {
@@ -13778,9 +15161,9 @@ let WineCellarCard = class WineCellarCard extends i {
                               ${wine.disposition
                         ? b ` · <span style="color: ${wine.disposition === "D" ? "#2e7d32" :
                             wine.disposition === "H" ? "#1565c0" :
-                                wine.disposition === "P" ? "#c62828" : "inherit"}">${wine.disposition === "D" ? "Drink" :
-                            wine.disposition === "H" ? "Hold" :
-                                wine.disposition === "P" ? "Past Peak" : ""}</span>`
+                                wine.disposition === "P" ? "#c62828" : "inherit"}">${wine.disposition === "D" ? this._t("ui.disposition.drink") :
+                            wine.disposition === "H" ? this._t("ui.disposition.hold") :
+                                wine.disposition === "P" ? this._t("ui.disposition.pastPeak") : ""}</span>`
                         : A}
                             </div>
                           </div>
@@ -13798,10 +15181,10 @@ let WineCellarCard = class WineCellarCard extends i {
               <div class="empty-state">
                 <div class="empty-state-icon">🍾</div>
                 <div style="font-weight: 500; margin-bottom: 4px">
-                  Your cellar is empty
+                  ${this._t("ui.card.cellarEmpty")}
                 </div>
                 <div style="font-size: 0.9em">
-                  Tap "Add Wine" to start building your collection
+                  ${this._t("ui.card.cellarEmptyHint")}
                 </div>
               </div>
             `
@@ -13811,9 +15194,9 @@ let WineCellarCard = class WineCellarCard extends i {
         ${this._showBatchVivinoConfirm ? b `
           <div class="dialog-overlay" @click=${() => (this._showBatchVivinoConfirm = false)}>
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
-              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Vivino Batch Scan</h3>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.vivinoBatchScanTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                Some wines already have a photo. What should happen to those photos?
+                ${this._t("ui.card.somePhotosQuestion")}
               </p>
               ${this._hasGemini ? b `
                 <label style="display:flex;align-items:center;gap:6px;justify-content:center;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
@@ -13822,21 +15205,21 @@ let WineCellarCard = class WineCellarCard extends i {
                     .checked=${this._batchAiFallback}
                     @change=${(e) => (this._batchAiFallback = e.target.checked)}
                   />
-                  Try AI for wines with no confident Vivino match
+                  ${this._t("ui.card.tryAiNoMatch")}
                 </label>
               ` : A}
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#8e24aa" @click=${() => this._runBatchVivino("keep")}>
-                  Keep My Existing Photos
+                  ${this._t("ui.card.keepExistingPhotos")}
                 </button>
                 <button
                   style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
                   @click=${() => this._runBatchVivino("replace")}
-                >Replace With Vivino Photos</button>
+                >${this._t("ui.card.replaceWithVivinoPhotos")}</button>
                 <button
                   style="margin-top:4px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                   @click=${() => (this._showBatchVivinoConfirm = false)}
-                >Cancel</button>
+                >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
           </div>
@@ -13846,18 +15229,18 @@ let WineCellarCard = class WineCellarCard extends i {
         ${this._showBatchAiConfirm ? b `
           <div class="dialog-overlay" @click=${() => (this._showBatchAiConfirm = false)}>
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
-              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">Run AI Batch Scan?</h3>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.runAiBatchTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                This will run a full AI analysis on all ${this._wines.length} wines, one API call per bottle. It may take a while and use significant AI quota.
+                ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
               </p>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
-                  Run on ${this._wines.length} Wines
+                  ${this._t("ui.card.runOnNWines", { n: this._wines.length })}
                 </button>
                 <button
                   style="margin-top:4px;padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.8em"
                   @click=${() => (this._showBatchAiConfirm = false)}
-                >Cancel</button>
+                >${this._t("ui.common.cancel")}</button>
               </div>
             </div>
           </div>
@@ -13892,7 +15275,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
-            this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+            this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
         }}
         ></wine-detail-dialog>
 
@@ -13961,7 +15344,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
-            this._showToast(`Tap a cell to move "${e.detail.wine.name}"`);
+            this._showToast(this._t("toast.tapToMove", { name: e.detail.wine.name }));
         }}
           @remove-wine=${this._onRemoveWine}
         ></inventory-dialog>
@@ -13978,6 +15361,7 @@ let WineCellarCard = class WineCellarCard extends i {
 
         <vivino-ai-settings-dialog
           .open=${this._showVivinoAiSettings}
+          .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
@@ -13996,9 +15380,9 @@ let WineCellarCard = class WineCellarCard extends i {
               <div class="depth-panel open">
                 <div class="depth-panel-header">
                   <span class="depth-panel-title">
-                    Row ${(this._depthPanelRow ?? 0) + 1}, Col ${(this._depthPanelCol ?? 0) + 1}
+                    ${this._t("ui.card.depthPanelRowCol", { row: (this._depthPanelRow ?? 0) + 1, col: (this._depthPanelCol ?? 0) + 1 })}
                     <span class="depth-panel-subtitle">
-                      ${this._depthPanelWines.length}/${this._depthPanelMaxDepth} deep
+                      ${this._t("ui.card.depthPanelDeepCount", { n: this._depthPanelWines.length, max: this._depthPanelMaxDepth })}
                     </span>
                   </span>
                   <button class="depth-panel-close" @click=${this._closeDepthPanel}>✕</button>
@@ -14037,7 +15421,7 @@ let WineCellarCard = class WineCellarCard extends i {
                     : b `
                               <div class="depth-slot-empty">
                                 <span class="depth-slot-plus">+</span>
-                                <span>Empty</span>
+                                <span>${this._t("ui.common.empty")}</span>
                               </div>
                             `}
                       </div>
@@ -14061,7 +15445,7 @@ let WineCellarCard = class WineCellarCard extends i {
                     ${this._zonePanelName}
                     <span class="depth-panel-subtitle">
                       ${this._zonePanelWines.length}/${this._zonePanelCapacity}
-                      ${this._zonePanelType === "box" ? "bottles" : "stored"}
+                      ${this._zonePanelType === "box" ? this._t("ui.card.statBottles") : this._t("ui.card.panelStored")}
                     </span>
                   </span>
                   <span class="depth-panel-actions">
@@ -14069,7 +15453,7 @@ let WineCellarCard = class WineCellarCard extends i {
                 ? b `<button
                           class="depth-panel-sort"
                           ?disabled=${this._zoneSorting}
-                          title="Renumber the slots to match when bottles were added"
+                          title="${this._t("ui.card.renumberTitle")}"
                           @click=${() => (this._confirmZoneSort = true)}
                         >
                           ${this._zoneSorting ? "Sorting…" : "↕ Sort by date"}
@@ -14081,26 +15465,24 @@ let WineCellarCard = class WineCellarCard extends i {
                 ${this._confirmZoneSort
                 ? b `
                       <div class="depth-panel-confirm">
-                        <strong>Reorder by date added?</strong>
+                        <strong>${this._t("ui.card.reorderByDateTitle")}</strong>
                         <span>
-                          Every bottle in ${this._zonePanelName} moves to a slot matching when
-                          it was added. Any order you arranged by hand is lost. Slot 1 is the
-                          most accessible position.
+                          ${this._t("ui.card.reorderByDateBody", { zone: this._zonePanelName })}
                         </span>
                         <span class="depth-panel-confirm-btns">
-                          <button @click=${() => (this._confirmZoneSort = false)}>Cancel</button>
+                          <button @click=${() => (this._confirmZoneSort = false)}>${this._t("ui.common.cancel")}</button>
                           <button
-                            title="Slot 1 holds the bottle that has been in this bin longest — for a bin you fill in a row"
+                            title="${this._t("ui.card.oldestFirstTitle")}"
                             @click=${() => this._sortZoneByDateAdded("oldest")}
                           >
-                            Oldest first
+                            ${this._t("ui.card.oldestFirst")}
                           </button>
                           <button
                             class="primary"
-                            title="Slot 1 holds the bottle you added last — for a bin you stack, where the newest sits on top"
+                            title="${this._t("ui.card.newestFirstTitle")}"
                             @click=${() => this._sortZoneByDateAdded("newest")}
                           >
-                            Newest first
+                            ${this._t("ui.card.newestFirst")}
                           </button>
                         </span>
                       </div>
@@ -14131,10 +15513,10 @@ let WineCellarCard = class WineCellarCard extends i {
                             >
                               <span
                                 class="depth-slot-delete"
-                                title="Delete this slot"
+                                title="${this._t("ui.card.deleteThisSlot")}"
                                 @click=${(e) => { e.stopPropagation(); this._deleteZoneSlot(slotIdx); }}
                               >✕</span>
-                              <div class="depth-slot-label">Slot ${slotIdx + 1}</div>
+                              <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotIdx + 1 })}</div>
                               ${wine
                         ? b `
                                     <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
@@ -14157,14 +15539,14 @@ let WineCellarCard = class WineCellarCard extends i {
                         : b `
                                     <div class="depth-slot-empty">
                                       <span class="depth-slot-plus">+</span>
-                                      <span>Empty</span>
+                                      <span>${this._t("ui.common.empty")}</span>
                                     </div>
                                   `}
                             </div>
                           `;
                 })}
                         <div class="depth-panel-grow" @click=${this._addBulkSlot}>
-                          <span class="depth-slot-plus">+</span> Add Slot
+                          <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                         </div>
                       `
                 : b `
@@ -14178,7 +15560,7 @@ let WineCellarCard = class WineCellarCard extends i {
                         return b `
                               ${boxes.length > 1
                             ? b `<div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${bi > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
-                                    Box ${bi + 1} (${boxSize}-pack)
+                                    ${this._t("ui.card.boxHeader", { n: bi + 1, size: boxSize })}
                                   </div>`
                             : A}
                               ${Array.from({ length: boxSize }, (_, slotInBox) => {
@@ -14203,10 +15585,10 @@ let WineCellarCard = class WineCellarCard extends i {
                                   >
                                     <span
                                       class="depth-slot-delete"
-                                      title="Delete this slot"
+                                      title="${this._t("ui.card.deleteThisSlot")}"
                                       @click=${(e) => { e.stopPropagation(); this._deleteZoneSlot(depthIdx); }}
                                     >✕</span>
-                                    <div class="depth-slot-label">Slot ${slotInBox + 1}</div>
+                                    <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInBox + 1 })}</div>
                                     ${wine
                                 ? b `
                                           <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
@@ -14229,7 +15611,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                 : b `
                                           <div class="depth-slot-empty">
                                             <span class="depth-slot-plus">+</span>
-                                            <span>Empty</span>
+                                            <span>${this._t("ui.common.empty")}</span>
                                           </div>
                                         `}
                                   </div>
@@ -14246,7 +15628,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             ${BOX_SIZES.map((s) => b `<option value=${s} ?selected=${s === this._zonePanelNewBoxSize}>${s}-pk</option>`)}
                           </select>
                           <div class="depth-panel-grow" @click=${this._addBoxSlot}>
-                            <span class="depth-slot-plus">+</span> Add Box
+                            <span class="depth-slot-plus">+</span> ${this._t("ui.card.addBox")}
                           </div>
                         </div>
                       `}
@@ -14264,7 +15646,7 @@ let WineCellarCard = class WineCellarCard extends i {
                   <span class="depth-panel-title">
                     ${this._rackPanelCabinet?.name}
                     <span class="depth-panel-subtitle">
-                      ${this._rackPanelWines.length}/${this._getRackSlots().length} bottles
+                      ${this._t("ui.card.rackPanelBottlesCount", { n: this._rackPanelWines.length, max: this._getRackSlots().length })}
                     </span>
                   </span>
                   <button class="depth-panel-close" @click=${this._closeRackPanel}>✕</button>
@@ -14294,12 +15676,12 @@ let WineCellarCard = class WineCellarCard extends i {
                     ? b `
                               <span
                                 class="depth-slot-delete"
-                                title="Delete this slot"
+                                title="${this._t("ui.card.deleteThisSlot")}"
                                 @click=${(e) => { e.stopPropagation(); this._deleteRackSlot(row, col); }}
                               >✕</span>
                             `
                     : A}
-                        <div class="depth-slot-label">Slot ${slotIdx + 1}</div>
+                        <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotIdx + 1 })}</div>
                         ${wine
                     ? b `
                               <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
@@ -14314,7 +15696,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                   <div class="depth-slot-meta">
                                     ${wine.vintage || "NV"}
                                     ${wine.rating ? b ` · ★${wine.rating}` : A}
-                                    ${wines.length > 1 ? b ` · ${wines.length} deep` : A}
+                                    ${wines.length > 1 ? b ` · ${this._t("ui.card.deepSuffix", { n: wines.length })}` : A}
                                   </div>
                                 </div>
                               </div>
@@ -14322,14 +15704,14 @@ let WineCellarCard = class WineCellarCard extends i {
                     : b `
                               <div class="depth-slot-empty">
                                 <span class="depth-slot-plus">+</span>
-                                <span>Empty</span>
+                                <span>${this._t("ui.common.empty")}</span>
                               </div>
                             `}
                       </div>
                     `;
             })}
                   <div class="depth-panel-grow" @click=${this._addRackSlot}>
-                    <span class="depth-slot-plus">+</span> Add Slot
+                    <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                   </div>
                 </div>
               </div>
@@ -14860,7 +16242,7 @@ __decorate([
     r()
 ], WineCellarCard.prototype, "_zoneSorting", void 0);
 WineCellarCard = __decorate([
-    t("wine-cellar-card")
+    t$1("wine-cellar-card")
 ], WineCellarCard);
 // Register the card with Home Assistant
 window.customCards = window.customCards || [];
