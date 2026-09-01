@@ -7,6 +7,8 @@ import {
   StorageRow,
   WineType,
   getWineTypeLabels,
+  producerLabel,
+  varietyLabel,
 } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
@@ -1214,7 +1216,7 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.addWine.wineryLabel")}</label>
+            <label>${producerLabel(this._wineData.type, this.hass?.language)}</label>
             <input
               type="text"
               .value=${this._wineData.winery || ""}
@@ -1293,7 +1295,7 @@ export class AddWineDialog extends LitElement {
         </div>
 
         <div class="form-group">
-          <label>${this._t("ui.addWine.grapeVarietyLabel")}</label>
+          <label>${varietyLabel(this._wineData.type, false, this.hass?.language)}</label>
           <input
             type="text"
             .value=${this._wineData.grape_variety || ""}
@@ -1630,7 +1632,7 @@ export class AddWineDialog extends LitElement {
           ${this._wineData.winery
             ? html`
                 <div class="summary-row">
-                  <span class="summary-label">${this._t("ui.addWine.wineryLabel")}</span>
+                  <span class="summary-label">${producerLabel(this._wineData.type, this.hass?.language)}</span>
                   <span class="summary-value">${this._wineData.winery}</span>
                 </div>
               `

@@ -738,7 +738,15 @@ var wineType$1 = {
 	white: "White",
 	"rosé": "Rosé",
 	sparkling: "Sparkling",
-	dessert: "Dessert"
+	dessert: "Dessert",
+	whisky: "Whisky"
+};
+var bottleFields$1 = {
+	winery: "Winery",
+	distillery: "Distillery",
+	cask: "Cask",
+	grape: "Grape",
+	grapeVariety: "Grape Variety"
 };
 var storageRowType$1 = {
 	bulk: "Bulk Bin",
@@ -1377,6 +1385,7 @@ var toast$1 = {
 };
 var en = {
 	wineType: wineType$1,
+	bottleFields: bottleFields$1,
 	storageRowType: storageRowType$1,
 	removalReason: removalReason$1,
 	wineLocation: wineLocation$1,
@@ -1389,7 +1398,15 @@ var wineType = {
 	white: "Blanc",
 	"rosé": "Rosé",
 	sparkling: "Pétillant",
-	dessert: "Sucré"
+	dessert: "Sucré",
+	whisky: "Whisky"
+};
+var bottleFields = {
+	winery: "Domaine",
+	distillery: "Distillerie",
+	cask: "Fût",
+	grape: "Cépage",
+	grapeVariety: "Cépage"
 };
 var storageRowType = {
 	bulk: "Casier en vrac",
@@ -2028,6 +2045,7 @@ var toast = {
 };
 var fr = {
 	wineType: wineType,
+	bottleFields: bottleFields,
 	storageRowType: storageRowType,
 	removalReason: removalReason,
 	wineLocation: wineLocation,
@@ -2115,6 +2133,7 @@ const WINE_TYPE_COLORS = {
     rosé: "#E8A0BF",
     sparkling: "#D4E09B",
     dessert: "#DAA520",
+    whisky: "#B5651D",
 };
 const WINE_TYPE_LABELS = {
     red: "Red",
@@ -2122,6 +2141,7 @@ const WINE_TYPE_LABELS = {
     rosé: "Rosé",
     sparkling: "Sparkling",
     dessert: "Dessert",
+    whisky: "Whisky",
 };
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
 // — falls back to the English WINE_TYPE_LABELS above for a language with
@@ -2129,6 +2149,18 @@ const WINE_TYPE_LABELS = {
 // exists.
 function getWineTypeLabels(language) {
     return tGroup("wineType", language);
+}
+// Field labels that read wrong for a whisky: the producer is a distillery
+// (or independent bottler) and the "grape variety" field holds the cask.
+function producerLabel(type, language) {
+    const t = tGroup("bottleFields", language);
+    return type === "whisky" ? t.distillery : t.winery;
+}
+function varietyLabel(type, short = false, language) {
+    const t = tGroup("bottleFields", language);
+    if (type === "whisky")
+        return t.cask;
+    return short ? t.grape : t.grapeVariety;
 }
 // Every physical (row, col) grid slot in a cabinet, in display order,
 // skipping rows configured as bulk/box storage zones.
@@ -3257,6 +3289,7 @@ let CabinetGrid = class CabinetGrid extends i {
             "#E8A0BF": "#f5c0d8", // rosé → brighter pink
             "#D4E09B": "#e8f0b8", // sparkling → brighter green
             "#DAA520": "#f0c040", // dessert → brighter gold
+            "#B5651D": "#d9843a", // whisky → brighter amber
         };
         return brightMap[hex] || hex;
     }
@@ -5271,7 +5304,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.wineDetail.wineryLabel")}</label>
+            <label>${producerLabel(d.type, this.hass?.language)}</label>
             <input type="text" .value=${d.winery}
               @input=${(e) => this._updateEditField("winery", e.target.value)} />
           </div>
@@ -5317,7 +5350,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
               @input=${(e) => this._updateEditField("country", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>${this._t("ui.wineDetail.grapeVarietyLabel")}</label>
+            <label>${varietyLabel(d.type, false, this.hass?.language)}</label>
             <input type="text" .value=${d.grape_variety}
               @input=${(e) => this._updateEditField("grape_variety", e.target.value)} />
           </div>
@@ -5600,7 +5633,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                 : A}
                   ${wine.grape_variety
-                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.grapeLabel")}</span><span class="detail-value">${wine.grape_variety}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${varietyLabel(wine.type, true, this.hass?.language)}</span><span class="detail-value">${wine.grape_variety}</span></div>`
                 : A}
                   ${wine.price
                 ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
@@ -7294,7 +7327,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.addWine.wineryLabel")}</label>
+            <label>${producerLabel(this._wineData.type, this.hass?.language)}</label>
             <input
               type="text"
               .value=${this._wineData.winery || ""}
@@ -7363,7 +7396,7 @@ let AddWineDialog = class AddWineDialog extends i {
         </div>
 
         <div class="form-group">
-          <label>${this._t("ui.addWine.grapeVarietyLabel")}</label>
+          <label>${varietyLabel(this._wineData.type, false, this.hass?.language)}</label>
           <input
             type="text"
             .value=${this._wineData.grape_variety || ""}
@@ -7679,7 +7712,7 @@ let AddWineDialog = class AddWineDialog extends i {
           ${this._wineData.winery
             ? b `
                 <div class="summary-row">
-                  <span class="summary-label">${this._t("ui.addWine.wineryLabel")}</span>
+                  <span class="summary-label">${producerLabel(this._wineData.type, this.hass?.language)}</span>
                   <span class="summary-value">${this._wineData.winery}</span>
                 </div>
               `
@@ -8394,6 +8427,7 @@ let WineSearchBar = class WineSearchBar extends i {
             { id: "rosé", label: this._t("wineType.rosé") },
             { id: "sparkling", label: this._t("wineType.sparkling") },
             { id: "dessert", label: this._t("wineType.dessert") },
+            { id: "whisky", label: this._t("wineType.whisky") },
         ];
         return b `
       <div class="search-container">
@@ -11395,7 +11429,7 @@ let InventoryDialog = class InventoryDialog extends i {
             }
             // Validate wine type
             if (wine.type) {
-                const validTypes = ["red", "white", "rosé", "sparkling", "dessert"];
+                const validTypes = Object.keys(WINE_TYPE_LABELS);
                 const lt = wine.type.toLowerCase();
                 if (validTypes.includes(lt)) {
                     wine.type = lt;
@@ -11887,6 +11921,7 @@ let InventoryDialog = class InventoryDialog extends i {
             { id: "rosé", label: this._t("wineType.rosé") },
             { id: "sparkling", label: this._t("wineType.sparkling") },
             { id: "dessert", label: this._t("wineType.dessert") },
+            { id: "whisky", label: this._t("wineType.whisky") },
         ];
         const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;
         return b `
@@ -15104,11 +15139,7 @@ let WineCellarCard = class WineCellarCard extends i {
                       </div>
                     `
                 : this._buyList.map((item) => {
-                    const typeColor = item.type === "red" ? "#722F37"
-                        : item.type === "white" ? "#F5E6CA"
-                            : item.type === "rosé" ? "#E8A0BF"
-                                : item.type === "sparkling" ? "#D4E09B"
-                                    : "#DAA520";
+                    const typeColor = WINE_TYPE_COLORS[item.type] || WINE_TYPE_COLORS.red;
                     return b `
                         <div class="buy-list-card" @click=${() => this._showBuyListDetail(item)} style="cursor:pointer">
                           ${item.image_url
@@ -15216,15 +15247,7 @@ let WineCellarCard = class WineCellarCard extends i {
                         ? b `<img class="wine-list-thumb" src="${wine.image_url}" alt="" />`
                         : b `<div
                                 class="wine-list-dot"
-                                style="background: ${wine.type === "red"
-                            ? "#722F37"
-                            : wine.type === "white"
-                                ? "#F5E6CA"
-                                : wine.type === "rosé"
-                                    ? "#E8A0BF"
-                                    : wine.type === "sparkling"
-                                        ? "#D4E09B"
-                                        : "#DAA520"}"
+                                style="background: ${WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red}"
                               ></div>`}
                           <div class="wine-list-info">
                             <div class="wine-list-name">${wine.name}</div>

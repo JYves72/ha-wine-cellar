@@ -4,7 +4,11 @@ DOMAIN = "wine_cellar"
 STORAGE_KEY = "wine_cellar"
 STORAGE_VERSION = 1
 
-WINE_TYPES = ["red", "white", "rosé", "sparkling", "dessert"]
+# "whisky" is the one non-wine type. It reuses the wine fields (winery =
+# distillery, grape_variety = cask/maturation, vintage = distillation year)
+# so nothing in the storage shape changes. Vivino has no whisky data at
+# all, so every Vivino path skips it and only the AI enrichment applies.
+WINE_TYPES = ["red", "white", "rosé", "sparkling", "dessert", "whisky"]
 
 WINE_TYPE_COLORS = {
     "red": "#722F37",
@@ -12,6 +16,7 @@ WINE_TYPE_COLORS = {
     "rosé": "#E8A0BF",
     "sparkling": "#D4E09B",
     "dessert": "#DAA520",
+    "whisky": "#B5651D",
 }
 
 DEFAULT_CABINETS = [
@@ -107,4 +112,4 @@ VIVINO_AUTO_SYNC_INTERVAL_HOURS = 12
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20260901b"
+FRONTEND_VERSION = "20260901c"

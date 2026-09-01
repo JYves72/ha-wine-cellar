@@ -188,6 +188,7 @@ export class WineSearchBar extends LitElement {
       { id: "rosé", label: this._t("wineType.rosé") },
       { id: "sparkling", label: this._t("wineType.sparkling") },
       { id: "dessert", label: this._t("wineType.dessert") },
+      { id: "whisky", label: this._t("wineType.whisky") },
     ];
 
     return html`

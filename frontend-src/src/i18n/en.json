@@ -4,7 +4,15 @@
     "white": "White",
     "rosé": "Rosé",
     "sparkling": "Sparkling",
-    "dessert": "Dessert"
+    "dessert": "Dessert",
+    "whisky": "Whisky"
+  },
+  "bottleFields": {
+    "winery": "Winery",
+    "distillery": "Distillery",
+    "cask": "Cask",
+    "grape": "Grape",
+    "grapeVariety": "Grape Variety"
   },
   "storageRowType": {
     "bulk": "Bulk Bin",

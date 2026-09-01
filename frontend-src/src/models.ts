@@ -195,7 +195,11 @@ export function getRemovalReasons(language?: string): { id: string; label: strin
   return REMOVAL_REASONS.map((r) => ({ id: r.id, label: labels[r.id] || r.label }));
 }
 
-export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert";
+// "whisky" is the one non-wine type. It reuses the wine fields (winery =
+// distillery, grape_variety = cask/maturation, vintage = distillation year),
+// so nothing in the data shape changes; only the field labels follow the
+// type, see producerLabel/varietyLabel below. Mirrors WINE_TYPES in const.py.
+export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert" | "whisky";
 
 export const WINE_TYPE_COLORS: Record<WineType, string> = {
   red: "#722F37",
@@ -203,6 +207,7 @@ export const WINE_TYPE_COLORS: Record<WineType, string> = {
   rosé: "#E8A0BF",
   sparkling: "#D4E09B",
   dessert: "#DAA520",
+  whisky: "#B5651D",
 };
 
 export const WINE_TYPE_LABELS: Record<WineType, string> = {
@@ -211,6 +216,7 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
   rosé: "Rosé",
   sparkling: "Sparkling",
   dessert: "Dessert",
+  whisky: "Whisky",
 };
 
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
@@ -219,6 +225,19 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
 // exists.
 export function getWineTypeLabels(language?: string): Record<WineType, string> {
   return tGroup("wineType", language) as Record<WineType, string>;
+}
+
+// Field labels that read wrong for a whisky: the producer is a distillery
+// (or independent bottler) and the "grape variety" field holds the cask.
+export function producerLabel(type?: string, language?: string): string {
+  const t = tGroup("bottleFields", language);
+  return type === "whisky" ? t.distillery : t.winery;
+}
+
+export function varietyLabel(type?: string, short = false, language?: string): string {
+  const t = tGroup("bottleFields", language);
+  if (type === "whisky") return t.cask;
+  return short ? t.grape : t.grapeVariety;
 }
 
 // Every physical (row, col) grid slot in a cabinet, in display order,

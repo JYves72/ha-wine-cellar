@@ -4,7 +4,15 @@
     "white": "Blanc",
     "rosé": "Rosé",
     "sparkling": "Pétillant",
-    "dessert": "Sucré"
+    "dessert": "Sucré",
+    "whisky": "Whisky"
+  },
+  "bottleFields": {
+    "winery": "Domaine",
+    "distillery": "Distillerie",
+    "cask": "Fût",
+    "grape": "Cépage",
+    "grapeVariety": "Cépage"
   },
   "storageRowType": {
     "bulk": "Casier en vrac",

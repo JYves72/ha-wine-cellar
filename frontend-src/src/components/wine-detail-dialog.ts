@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Wine, Cabinet, TastingNotes, getWineTypeLabels, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation } from "../models";
+import { Wine, Cabinet, TastingNotes, getWineTypeLabels, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation, producerLabel, varietyLabel } from "../models";
 import { sharedStyles } from "../styles";
 import { resizeImageForStorage } from "../utils/image";
 import { t } from "../i18n";
@@ -1074,7 +1074,7 @@ export class WineDetailDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.wineDetail.wineryLabel")}</label>
+            <label>${producerLabel(d.type, this.hass?.language)}</label>
             <input type="text" .value=${d.winery}
               @input=${(e: Event) => this._updateEditField("winery", (e.target as HTMLInputElement).value)} />
           </div>
@@ -1122,7 +1122,7 @@ export class WineDetailDialog extends LitElement {
               @input=${(e: Event) => this._updateEditField("country", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
-            <label>${this._t("ui.wineDetail.grapeVarietyLabel")}</label>
+            <label>${varietyLabel(d.type, false, this.hass?.language)}</label>
             <input type="text" .value=${d.grape_variety}
               @input=${(e: Event) => this._updateEditField("grape_variety", (e.target as HTMLInputElement).value)} />
           </div>
@@ -1416,7 +1416,7 @@ export class WineDetailDialog extends LitElement {
                     ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                     : nothing}
                   ${wine.grape_variety
-                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.grapeLabel")}</span><span class="detail-value">${wine.grape_variety}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${varietyLabel(wine.type, true, this.hass?.language)}</span><span class="detail-value">${wine.grape_variety}</span></div>`
                     : nothing}
                   ${wine.price
                     ? html`<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`

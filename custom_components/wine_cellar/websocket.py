@@ -61,6 +61,16 @@ def _get_metadata_currency(hass: HomeAssistant) -> str:
     return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
 
 
+def _is_whisky(wine: dict[str, Any]) -> bool:
+    """True for the one non-wine type.
+
+    Vivino is a wine database: a whisky query never matches, and because
+    Vivino answers every query with *something*, the "best match" is a random
+    wine. Every Vivino path skips whisky up front; AI enrichment still applies.
+    """
+    return wine.get("type") == "whisky"
+
+
 def _select_wines(storage: Any, wine_ids: list[str] | None) -> list[dict[str, Any]]:
     """All wines, or just the requested ids, keeping the stored order.
 
@@ -241,7 +251,7 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
     """Background task: enrich a newly added wine with Vivino data."""
     try:
         vivino = hass.data[DOMAIN].get("vivino")
-        if not vivino:
+        if not vivino or _is_whisky(wine):
             return
         parts = []
         if wine.get("winery"):
@@ -310,7 +320,7 @@ async def _auto_enrich_buy_list_item(hass: HomeAssistant, item: dict[str, Any]) 
     """Background task: enrich a buy list item with Vivino data."""
     try:
         vivino = hass.data[DOMAIN].get("vivino")
-        if not vivino:
+        if not vivino or _is_whisky(item):
             return
         parts = []
         if item.get("winery"):
@@ -908,11 +918,13 @@ async def ws_refresh_wine(
     # If this wine's Vivino id is already known from a prior match, look it
     # up directly — no query ambiguity, and its full vintage list lets us
     # pick the exact matching vintage rather than guess from search ranking.
+    # A whisky is never looked up: Vivino has no data for it, so it goes
+    # straight to the no-match path and the AI offer below.
     lookup = None
-    if wine.get("vivino_id"):
+    if wine.get("vivino_id") and not _is_whisky(wine):
         lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
 
-    if not lookup:
+    if not lookup and not _is_whisky(wine):
         if not query:
             connection.send_result(msg["id"], {"error": "No name/winery to search."})
             return
@@ -938,7 +950,11 @@ async def ws_refresh_wine(
         )
         await storage.async_save()
         connection.send_result(msg["id"], {
-            "error": f"No confident Vivino match for '{query}'.",
+            "error": (
+                "Vivino has no whisky data."
+                if _is_whisky(wine)
+                else f"No confident Vivino match for '{query}'."
+            ),
             "no_vivino_match": True,
             "ai_available": hass.data[DOMAIN].get("gemini") is not None,
         })
@@ -1242,11 +1258,13 @@ async def ws_batch_refresh_vivino(
             # If this wine's Vivino id is already known, look it up
             # directly — no query ambiguity, exact vintage from its own
             # vintage list. Falls back to text search if that fails.
+            # A whisky skips Vivino altogether and only gets the AI
+            # fallback below, if the user opted into it for this run.
             lookup = None
-            if wine.get("vivino_id"):
+            if wine.get("vivino_id") and not _is_whisky(wine):
                 lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
 
-            if not lookup:
+            if not lookup and not _is_whisky(wine):
                 if not query:
                     continue
 
@@ -1458,6 +1476,10 @@ async def ws_enrich_wine_vivino(
         return
 
     wine = msg["wine"]
+    if _is_whisky(wine):
+        connection.send_result(msg["id"], {"result": None})
+        return
+
     parts = []
     if wine.get("winery"):
         parts.append(wine["winery"])

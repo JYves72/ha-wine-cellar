@@ -2216,12 +2216,7 @@ export class WineCellarCard extends LitElement {
                       </div>
                     `
                   : this._buyList.map((item) => {
-                      const typeColor =
-                        item.type === "red" ? "#722F37"
-                          : item.type === "white" ? "#F5E6CA"
-                            : item.type === "rosé" ? "#E8A0BF"
-                              : item.type === "sparkling" ? "#D4E09B"
-                                : "#DAA520";
+                      const typeColor = WINE_TYPE_COLORS[item.type as WineType] || WINE_TYPE_COLORS.red;
                       return html`
                         <div class="buy-list-card" @click=${() => this._showBuyListDetail(item)} style="cursor:pointer">
                           ${item.image_url
@@ -2333,17 +2328,7 @@ export class WineCellarCard extends LitElement {
                             ? html`<img class="wine-list-thumb" src="${wine.image_url}" alt="" />`
                             : html`<div
                                 class="wine-list-dot"
-                                style="background: ${
-                                  wine.type === "red"
-                                    ? "#722F37"
-                                    : wine.type === "white"
-                                      ? "#F5E6CA"
-                                      : wine.type === "rosé"
-                                        ? "#E8A0BF"
-                                        : wine.type === "sparkling"
-                                          ? "#D4E09B"
-                                          : "#DAA520"
-                                }"
+                                style="background: ${WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red}"
                               ></div>`}
                           <div class="wine-list-info">
                             <div class="wine-list-name">${wine.name}</div>
