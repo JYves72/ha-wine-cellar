@@ -1000,6 +1000,7 @@ export class AddWineDialog extends LitElement {
       return html`
         <div class="scan-section">
           <barcode-scanner
+            .hass=${this.hass}
             .active=${true}
             @barcode-detected=${this._onBarcodeDetected}
             @scanner-error=${(e: CustomEvent) => { this._error = e.detail.error; this._scanMode = "idle"; }}

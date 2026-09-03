@@ -4,24 +4,27 @@ import { Cabinet, Wine } from "../models";
 import { sharedStyles } from "../styles";
 import { Finding, FindingKind, Move, analyzeArrangement } from "../utils/arrange";
 import { placementIn } from "../utils/location";
+import { t } from "../i18n";
 
-const SECTIONS: { kind: FindingKind; title: string; blurb: string }[] = [
-  {
-    kind: "consolidate",
-    title: "Scattered",
-    blurb: "Bottles of one wine sitting in several places.",
-  },
-  {
-    kind: "outlier",
-    title: "Odd ones out",
-    blurb: "Bins that are almost entirely one kind of wine, with a stray or two.",
-  },
-  {
-    kind: "buried",
-    title: "Hard to reach",
-    blurb: "Bottles due soon, stuck behind ones you meant to keep.",
-  },
-];
+function getSections(language?: string): { kind: FindingKind; title: string; blurb: string }[] {
+  return [
+    {
+      kind: "consolidate",
+      title: t("ui.arrangement.sectionScatteredTitle", language),
+      blurb: t("ui.arrangement.sectionScatteredBlurb", language),
+    },
+    {
+      kind: "outlier",
+      title: t("ui.arrangement.sectionOutlierTitle", language),
+      blurb: t("ui.arrangement.sectionOutlierBlurb", language),
+    },
+    {
+      kind: "buried",
+      title: t("ui.arrangement.sectionBuriedTitle", language),
+      blurb: t("ui.arrangement.sectionBuriedBlurb", language),
+    },
+  ];
+}
 
 // The arrangement report. Deliberately a place you visit rarely — after
 // scanning a cellar in, mostly — and leave empty once the moves are done.
@@ -129,6 +132,11 @@ export class ArrangementDialog extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   private get _findings(): Finding[] {
     return analyzeArrangement(this.wines, this.cabinets, this.dismissed);
   }
@@ -152,7 +160,7 @@ export class ArrangementDialog extends LitElement {
           known.filter((w) => w.id !== move.wine.id)
         );
         if (!patch) {
-          this._error = `${move.toLabel} filled up before the move could be recorded.`;
+          this._error = this._t("ui.arrangement.moveFailedFull", { label: move.toLabel });
           break;
         }
         await this.hass.callWS({
@@ -168,7 +176,7 @@ export class ArrangementDialog extends LitElement {
       }
       this.dispatchEvent(new CustomEvent("moves-applied", { bubbles: true, composed: true }));
     } catch (err: any) {
-      this._error = `Could not record the move: ${err?.message || err}`;
+      this._error = this._t("ui.arrangement.moveRecordError", { detail: err?.message || err });
     } finally {
       this._busy = "";
     }
@@ -187,7 +195,7 @@ export class ArrangementDialog extends LitElement {
   private _renderMove(move: Move) {
     return html`
       <div class="arr-move">
-        <span>${move.wine.name || "Bottle"}${move.wine.vintage ? ` ${move.wine.vintage}` : ""}</span>
+        <span>${move.wine.name || this._t("ui.arrangement.bottleFallback")}${move.wine.vintage ? ` ${move.wine.vintage}` : ""}</span>
         <span class="arr-move-where">${move.fromLabel}</span>
         <span class="arr-move-arrow">→</span>
         <span class="arr-move-where">${move.toLabel}</span>
@@ -209,15 +217,15 @@ export class ArrangementDialog extends LitElement {
             ? html`
                 <button class="btn btn-primary" ?disabled=${busy} @click=${() => this._applyMoves(finding)}>
                   ${busy
-                    ? "Recording..."
+                    ? this._t("ui.arrangement.recordingBtn")
                     : finding.moves.length === 1
-                      ? "I moved it"
-                      : `I moved all ${finding.moves.length}`}
+                      ? this._t("ui.arrangement.movedOneBtn")
+                      : this._t("ui.arrangement.movedAllBtn", { n: finding.moves.length })}
                 </button>
               `
             : nothing}
           <button class="btn btn-outline" ?disabled=${busy} @click=${() => this._dismiss(finding)}>
-            ${finding.moves.length ? "Leave it as it is" : "Noted"}
+            ${finding.moves.length ? this._t("ui.arrangement.leaveAsIsBtn") : this._t("ui.arrangement.notedBtn")}
           </button>
         </div>
       </div>
@@ -231,22 +239,20 @@ export class ArrangementDialog extends LitElement {
     return html`
       <div class="dialog-overlay" @click=${() => this.dispatchEvent(new CustomEvent("close"))}>
         <div class="dialog" style="max-width:620px" @click=${(e: Event) => e.stopPropagation()}>
-          <div class="dialog-header">🧹 Arrangement</div>
+          <div class="dialog-header">${this._t("ui.arrangement.header")}</div>
 
           <div class="dialog-body">
             ${findings.length === 0
               ? html`
                   <div class="arr-empty">
-                    Nothing worth moving. Your cellar agrees with itself.
+                    ${this._t("ui.arrangement.emptyState")}
                   </div>
                 `
               : html`
                   <div class="arr-intro">
-                    Read from where your bottles already are — there are no rules to
-                    configure. Tick a move once you have actually made it; nothing is
-                    recorded before that.
+                    ${this._t("ui.arrangement.intro")}
                   </div>
-                  ${SECTIONS.map((section) => {
+                  ${getSections(this.hass?.language).map((section) => {
                     const inSection = findings.filter((f) => f.kind === section.kind);
                     if (!inSection.length) return nothing;
                     return html`
@@ -263,7 +269,7 @@ export class ArrangementDialog extends LitElement {
 
           <div class="dialog-footer">
             <button class="btn btn-outline" @click=${() => this.dispatchEvent(new CustomEvent("close"))}>
-              Close
+              ${this._t("ui.common.close")}
             </button>
           </div>
         </div>

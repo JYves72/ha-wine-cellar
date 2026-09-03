@@ -2121,6 +2121,7 @@ export class WineCellarCard extends LitElement {
                   ? this._cabinets.map(
                       (cab) => html`
                         <cabinet-grid
+                          .hass=${this.hass}
                           .cabinet=${cab}
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
@@ -2141,6 +2142,7 @@ export class WineCellarCard extends LitElement {
                       .map(
                         (cab) => html`
                           <cabinet-grid
+                            .hass=${this.hass}
                             .cabinet=${cab}
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}

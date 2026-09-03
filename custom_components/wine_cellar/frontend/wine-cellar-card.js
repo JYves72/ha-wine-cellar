@@ -777,6 +777,30 @@ var ui$1 = {
 		hold: "Hold",
 		pastPeak: "Past Peak"
 	},
+	arrangement: {
+		header: "🧹 Arrangement",
+		intro: "Read from where your bottles already are — there are no rules to configure. Tick a move once you have actually made it; nothing is recorded before that.",
+		emptyState: "Nothing worth moving. Your cellar agrees with itself.",
+		sectionScatteredTitle: "Scattered",
+		sectionScatteredBlurb: "Bottles of one wine sitting in several places.",
+		sectionOutlierTitle: "Odd ones out",
+		sectionOutlierBlurb: "Bins that are almost entirely one kind of wine, with a stray or two.",
+		sectionBuriedTitle: "Hard to reach",
+		sectionBuriedBlurb: "Bottles due soon, stuck behind ones you meant to keep.",
+		bottleFallback: "Bottle",
+		recordingBtn: "Recording...",
+		movedOneBtn: "I moved it",
+		movedAllBtn: "I moved all {n}",
+		leaveAsIsBtn: "Leave it as it is",
+		notedBtn: "Noted",
+		moveFailedFull: "{label} filled up before the move could be recorded.",
+		moveRecordError: "Could not record the move: {detail}"
+	},
+	barcode: {
+		notSupported: "Barcode scanning is not supported on this browser. Please enter the barcode manually below.",
+		enterManually: "Enter the barcode manually below.",
+		pointAtBarcode: "Point the camera at the barcode on the bottle"
+	},
 	card: {
 		loading: "Loading wine cellar...",
 		noSearchResults: "No wines match your search",
@@ -848,7 +872,9 @@ var ui$1 = {
 		depthPanelDeepCount: "{n}/{max} deep",
 		rackPanelBottlesCount: "{n}/{max} bottles",
 		boxHeader: "Box {n} ({size}-pack)",
-		deepSuffix: "{n} deep"
+		deepSuffix: "{n} deep",
+		emptyCellTitle: "Empty – Row {row}, Col {col}",
+		reorderRackTitle: "Tap to view and reorder this rack"
 	},
 	inventory: {
 		title: "📦 Inventory",
@@ -1402,6 +1428,30 @@ var ui = {
 		hold: "À garder",
 		pastPeak: "Sur le déclin"
 	},
+	arrangement: {
+		header: "🧹 Rangement",
+		intro: "Basé sur l'emplacement actuel de vos bouteilles — il n'y a aucune règle à configurer. Cochez un déplacement une fois que vous l'avez réellement effectué ; rien n'est enregistré avant cela.",
+		emptyState: "Rien à déplacer. Votre cave est en accord avec elle-même.",
+		sectionScatteredTitle: "Dispersés",
+		sectionScatteredBlurb: "Bouteilles d'un même vin réparties à plusieurs endroits.",
+		sectionOutlierTitle: "Intrus",
+		sectionOutlierBlurb: "Casiers presque entièrement dédiés à un seul type de vin, avec une ou deux exceptions.",
+		sectionBuriedTitle: "Difficiles d'accès",
+		sectionBuriedBlurb: "Bouteilles à boire bientôt, coincées derrière celles que vous comptiez garder.",
+		bottleFallback: "Bouteille",
+		recordingBtn: "Enregistrement...",
+		movedOneBtn: "Je l'ai déplacée",
+		movedAllBtn: "J'ai tout déplacé ({n})",
+		leaveAsIsBtn: "Laisser tel quel",
+		notedBtn: "Noté",
+		moveFailedFull: "{label} s'est rempli avant que le déplacement ait pu être enregistré.",
+		moveRecordError: "Impossible d'enregistrer le déplacement : {detail}"
+	},
+	barcode: {
+		notSupported: "La lecture de code-barres n'est pas prise en charge par ce navigateur. Saisissez le code-barres manuellement ci-dessous.",
+		enterManually: "Saisissez le code-barres manuellement ci-dessous.",
+		pointAtBarcode: "Pointez la caméra vers le code-barres sur la bouteille"
+	},
 	card: {
 		loading: "Chargement de la cave à vin...",
 		noSearchResults: "Aucun vin ne correspond à votre recherche",
@@ -1473,7 +1523,9 @@ var ui = {
 		depthPanelDeepCount: "{n}/{max} en profondeur",
 		rackPanelBottlesCount: "{n}/{max} bouteilles",
 		boxHeader: "Caisse {n} ({size} bouteilles)",
-		deepSuffix: "{n} en profondeur"
+		deepSuffix: "{n} en profondeur",
+		emptyCellTitle: "Vide – Ligne {row}, Col {col}",
+		reorderRackTitle: "Toucher pour voir et réorganiser ce rack"
 	},
 	inventory: {
 		title: "📦 Inventaire",
@@ -2839,23 +2891,25 @@ function analyzeArrangement(wines, cabinets, dismissed = []) {
         .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
 }
 
-const SECTIONS = [
-    {
-        kind: "consolidate",
-        title: "Scattered",
-        blurb: "Bottles of one wine sitting in several places.",
-    },
-    {
-        kind: "outlier",
-        title: "Odd ones out",
-        blurb: "Bins that are almost entirely one kind of wine, with a stray or two.",
-    },
-    {
-        kind: "buried",
-        title: "Hard to reach",
-        blurb: "Bottles due soon, stuck behind ones you meant to keep.",
-    },
-];
+function getSections(language) {
+    return [
+        {
+            kind: "consolidate",
+            title: t("ui.arrangement.sectionScatteredTitle", language),
+            blurb: t("ui.arrangement.sectionScatteredBlurb", language),
+        },
+        {
+            kind: "outlier",
+            title: t("ui.arrangement.sectionOutlierTitle", language),
+            blurb: t("ui.arrangement.sectionOutlierBlurb", language),
+        },
+        {
+            kind: "buried",
+            title: t("ui.arrangement.sectionBuriedTitle", language),
+            blurb: t("ui.arrangement.sectionBuriedBlurb", language),
+        },
+    ];
+}
 // The arrangement report. Deliberately a place you visit rarely — after
 // scanning a cellar in, mostly — and leave empty once the moves are done.
 //
@@ -2872,6 +2926,10 @@ let ArrangementDialog = class ArrangementDialog extends i {
         this.dismissed = [];
         this._busy = "";
         this._error = "";
+    }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
     }
     get _findings() {
         return analyzeArrangement(this.wines, this.cabinets, this.dismissed);
@@ -2891,7 +2949,7 @@ let ArrangementDialog = class ArrangementDialog extends i {
                 // since, and the cellar may have changed under us.
                 const patch = placementIn(move.to, cabinet, known.filter((w) => w.id !== move.wine.id));
                 if (!patch) {
-                    this._error = `${move.toLabel} filled up before the move could be recorded.`;
+                    this._error = this._t("ui.arrangement.moveFailedFull", { label: move.toLabel });
                     break;
                 }
                 await this.hass.callWS({
@@ -2908,7 +2966,7 @@ let ArrangementDialog = class ArrangementDialog extends i {
             this.dispatchEvent(new CustomEvent("moves-applied", { bubbles: true, composed: true }));
         }
         catch (err) {
-            this._error = `Could not record the move: ${err?.message || err}`;
+            this._error = this._t("ui.arrangement.moveRecordError", { detail: err?.message || err });
         }
         finally {
             this._busy = "";
@@ -2924,7 +2982,7 @@ let ArrangementDialog = class ArrangementDialog extends i {
     _renderMove(move) {
         return b `
       <div class="arr-move">
-        <span>${move.wine.name || "Bottle"}${move.wine.vintage ? ` ${move.wine.vintage}` : ""}</span>
+        <span>${move.wine.name || this._t("ui.arrangement.bottleFallback")}${move.wine.vintage ? ` ${move.wine.vintage}` : ""}</span>
         <span class="arr-move-where">${move.fromLabel}</span>
         <span class="arr-move-arrow">→</span>
         <span class="arr-move-where">${move.toLabel}</span>
@@ -2945,15 +3003,15 @@ let ArrangementDialog = class ArrangementDialog extends i {
             ? b `
                 <button class="btn btn-primary" ?disabled=${busy} @click=${() => this._applyMoves(finding)}>
                   ${busy
-                ? "Recording..."
+                ? this._t("ui.arrangement.recordingBtn")
                 : finding.moves.length === 1
-                    ? "I moved it"
-                    : `I moved all ${finding.moves.length}`}
+                    ? this._t("ui.arrangement.movedOneBtn")
+                    : this._t("ui.arrangement.movedAllBtn", { n: finding.moves.length })}
                 </button>
               `
             : A}
           <button class="btn btn-outline" ?disabled=${busy} @click=${() => this._dismiss(finding)}>
-            ${finding.moves.length ? "Leave it as it is" : "Noted"}
+            ${finding.moves.length ? this._t("ui.arrangement.leaveAsIsBtn") : this._t("ui.arrangement.notedBtn")}
           </button>
         </div>
       </div>
@@ -2966,22 +3024,20 @@ let ArrangementDialog = class ArrangementDialog extends i {
         return b `
       <div class="dialog-overlay" @click=${() => this.dispatchEvent(new CustomEvent("close"))}>
         <div class="dialog" style="max-width:620px" @click=${(e) => e.stopPropagation()}>
-          <div class="dialog-header">🧹 Arrangement</div>
+          <div class="dialog-header">${this._t("ui.arrangement.header")}</div>
 
           <div class="dialog-body">
             ${findings.length === 0
             ? b `
                   <div class="arr-empty">
-                    Nothing worth moving. Your cellar agrees with itself.
+                    ${this._t("ui.arrangement.emptyState")}
                   </div>
                 `
             : b `
                   <div class="arr-intro">
-                    Read from where your bottles already are — there are no rules to
-                    configure. Tick a move once you have actually made it; nothing is
-                    recorded before that.
+                    ${this._t("ui.arrangement.intro")}
                   </div>
-                  ${SECTIONS.map((section) => {
+                  ${getSections(this.hass?.language).map((section) => {
                 const inSection = findings.filter((f) => f.kind === section.kind);
                 if (!inSection.length)
                     return A;
@@ -2999,7 +3055,7 @@ let ArrangementDialog = class ArrangementDialog extends i {
 
           <div class="dialog-footer">
             <button class="btn btn-outline" @click=${() => this.dispatchEvent(new CustomEvent("close"))}>
-              Close
+              ${this._t("ui.common.close")}
             </button>
           </div>
         </div>
@@ -3130,6 +3186,10 @@ let CabinetGrid = class CabinetGrid extends i {
         // --- Long press (mobile move) ---
         this._longPressTimer = null;
     }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
+    }
     _getWinesAt(row, col) {
         return this.wines.filter((w) => w.cabinet_id === this.cabinet.id && w.row === row && w.col === col);
     }
@@ -3142,7 +3202,7 @@ let CabinetGrid = class CabinetGrid extends i {
         return (rows || []).find((s) => s.row === row);
     }
     _getStorageRowName(row) {
-        return this._getStorageRowConfig(row)?.name || "Storage";
+        return this._getStorageRowConfig(row)?.name || this._t("wineLocation.storage");
     }
     _getBottomZoneWines() {
         return this.wines.filter((w) => w.cabinet_id === this.cabinet.id && w.zone === "bottom");
@@ -3315,7 +3375,7 @@ let CabinetGrid = class CabinetGrid extends i {
     }
     _renderStorageZone(row) {
         const sr = this._getStorageRowConfig(row);
-        const zoneName = sr?.name || "Storage";
+        const zoneName = sr?.name || this._t("wineLocation.storage");
         const zoneType = sr?.type || "bulk";
         const capacity = sr?.capacity || 20;
         const zoneId = `storage-${row}`;
@@ -3399,7 +3459,7 @@ let CabinetGrid = class CabinetGrid extends i {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${seg.size}-pk</div>
+              <div class="zone-box-size">${this._t("ui.card.boxSizeOption", { s: seg.size })}</div>
             </div>
           `)}
         </div>
@@ -3442,7 +3502,7 @@ let CabinetGrid = class CabinetGrid extends i {
               @drop=${(e) => this._onDrop(e, row, col)}
               title=${frontWine
                 ? `${frontWine.name} (${frontWine.vintage || "NV"})${frontWine.rating ? ` ★${frontWine.rating}` : ""}${wineCount > 1 ? ` [${wineCount}/${cabinetDepth} deep]` : ""}`
-                : `Empty - Row ${row + 1}, Col ${col + 1}`}
+                : this._t("ui.card.emptyCellTitle", { row: row + 1, col: col + 1 })}
             >
               ${frontWine
                 ? b `
@@ -3513,7 +3573,7 @@ let CabinetGrid = class CabinetGrid extends i {
         @drop=${(e) => this._onDrop(e, row, col)}
         title=${frontWine
             ? `${frontWine.name} (${frontWine.vintage || "NV"})${frontWine.rating ? ` ★${frontWine.rating}` : ""}${wineCount > 1 ? ` [${wineCount}/${cabinetDepth} deep]` : ""}`
-            : `Empty - Row ${row + 1}, Col ${col + 1}`}
+            : this._t("ui.card.emptyCellTitle", { row: row + 1, col: col + 1 })}
       >
         ${frontWine
             ? b `
@@ -3565,7 +3625,7 @@ let CabinetGrid = class CabinetGrid extends i {
         <div
           class="cabinet-name ${hasGridRows ? "clickable" : ""}"
           @click=${hasGridRows ? () => this._onRackClick() : A}
-          title=${hasGridRows ? "Tap to view and reorder this rack" : ""}
+          title=${hasGridRows ? this._t("ui.card.reorderRackTitle") : ""}
         >${this.cabinet.name}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) => storageRows.has(row)
@@ -4126,6 +4186,9 @@ CabinetGrid.styles = [
       }
     `,
 ];
+__decorate([
+    n({ attribute: false })
+], CabinetGrid.prototype, "hass", void 0);
 __decorate([
     n({ attribute: false })
 ], CabinetGrid.prototype, "cabinet", void 0);
@@ -6359,6 +6422,10 @@ let BarcodeScanner = class BarcodeScanner extends i {
         this._detector = null;
         this._rafId = 0;
     }
+    // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
+    }
     updated(changedProps) {
         if (changedProps.has("active")) {
             if (this.active) {
@@ -6379,7 +6446,7 @@ let BarcodeScanner = class BarcodeScanner extends i {
         this._error = "";
         // Check for BarcodeDetector support
         if (!("BarcodeDetector" in window)) {
-            this._error = "Barcode scanning is not supported on this browser. Please enter the barcode manually below.";
+            this._error = this._t("ui.barcode.notSupported");
             this.dispatchEvent(new CustomEvent("scanner-error", {
                 detail: { error: this._error },
                 bubbles: true,
@@ -6387,9 +6454,9 @@ let BarcodeScanner = class BarcodeScanner extends i {
             }));
             return;
         }
-        const blocked = cameraBlockedReason();
+        const blocked = cameraBlockedReason(this.hass?.language);
         if (blocked) {
-            this._error = `${blocked} Enter the barcode manually below.`;
+            this._error = `${blocked} ${this._t("ui.barcode.enterManually")}`;
             this.dispatchEvent(new CustomEvent("scanner-error", {
                 detail: { error: this._error },
                 bubbles: true,
@@ -6415,7 +6482,7 @@ let BarcodeScanner = class BarcodeScanner extends i {
             this._scanFrame();
         }
         catch (err) {
-            this._error = `${describeCameraError(err)} Enter the barcode manually below.`;
+            this._error = `${describeCameraError(err, this.hass?.language)} ${this._t("ui.barcode.enterManually")}`;
             this.dispatchEvent(new CustomEvent("scanner-error", {
                 detail: { error: this._error },
                 bubbles: true,
@@ -6477,7 +6544,7 @@ let BarcodeScanner = class BarcodeScanner extends i {
                 <div class="scan-line"></div>
               </div>
             </div>
-            <div class="hint">Point the camera at the barcode on the bottle</div>
+            <div class="hint">${this._t("ui.barcode.pointAtBarcode")}</div>
           `}
     `;
     }
@@ -6564,6 +6631,9 @@ BarcodeScanner.styles = [
       }
     `,
 ];
+__decorate([
+    n({ attribute: false })
+], BarcodeScanner.prototype, "hass", void 0);
 __decorate([
     n({ type: Boolean })
 ], BarcodeScanner.prototype, "active", void 0);
@@ -7019,6 +7089,7 @@ let AddWineDialog = class AddWineDialog extends i {
             return b `
         <div class="scan-section">
           <barcode-scanner
+            .hass=${this.hass}
             .active=${true}
             @barcode-detected=${this._onBarcodeDetected}
             @scanner-error=${(e) => { this._error = e.detail.error; this._scanMode = "idle"; }}
@@ -14941,6 +15012,7 @@ let WineCellarCard = class WineCellarCard extends i {
                 ${this._activeTab === "all"
                 ? this._cabinets.map((cab) => b `
                         <cabinet-grid
+                          .hass=${this.hass}
                           .cabinet=${cab}
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
@@ -14959,6 +15031,7 @@ let WineCellarCard = class WineCellarCard extends i {
                     .filter((c) => c.id === this._activeTab)
                     .map((cab) => b `
                           <cabinet-grid
+                            .hass=${this.hass}
                             .cabinet=${cab}
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}

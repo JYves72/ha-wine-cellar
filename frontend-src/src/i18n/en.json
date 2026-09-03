@@ -43,6 +43,30 @@
       "hold": "Hold",
       "pastPeak": "Past Peak"
     },
+    "arrangement": {
+      "header": "🧹 Arrangement",
+      "intro": "Read from where your bottles already are — there are no rules to configure. Tick a move once you have actually made it; nothing is recorded before that.",
+      "emptyState": "Nothing worth moving. Your cellar agrees with itself.",
+      "sectionScatteredTitle": "Scattered",
+      "sectionScatteredBlurb": "Bottles of one wine sitting in several places.",
+      "sectionOutlierTitle": "Odd ones out",
+      "sectionOutlierBlurb": "Bins that are almost entirely one kind of wine, with a stray or two.",
+      "sectionBuriedTitle": "Hard to reach",
+      "sectionBuriedBlurb": "Bottles due soon, stuck behind ones you meant to keep.",
+      "bottleFallback": "Bottle",
+      "recordingBtn": "Recording...",
+      "movedOneBtn": "I moved it",
+      "movedAllBtn": "I moved all {n}",
+      "leaveAsIsBtn": "Leave it as it is",
+      "notedBtn": "Noted",
+      "moveFailedFull": "{label} filled up before the move could be recorded.",
+      "moveRecordError": "Could not record the move: {detail}"
+    },
+    "barcode": {
+      "notSupported": "Barcode scanning is not supported on this browser. Please enter the barcode manually below.",
+      "enterManually": "Enter the barcode manually below.",
+      "pointAtBarcode": "Point the camera at the barcode on the bottle"
+    },
     "card": {
       "loading": "Loading wine cellar...",
       "noSearchResults": "No wines match your search",
@@ -114,7 +138,9 @@
       "depthPanelDeepCount": "{n}/{max} deep",
       "rackPanelBottlesCount": "{n}/{max} bottles",
       "boxHeader": "Box {n} ({size}-pack)",
-      "deepSuffix": "{n} deep"
+      "deepSuffix": "{n} deep",
+      "emptyCellTitle": "Empty – Row {row}, Col {col}",
+      "reorderRackTitle": "Tap to view and reorder this rack"
     },
     "inventory": {
       "title": "📦 Inventory",
