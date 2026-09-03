@@ -43,6 +43,30 @@
       "hold": "À garder",
       "pastPeak": "Sur le déclin"
     },
+    "arrangement": {
+      "header": "🧹 Rangement",
+      "intro": "Basé sur l'emplacement actuel de vos bouteilles — il n'y a aucune règle à configurer. Cochez un déplacement une fois que vous l'avez réellement effectué ; rien n'est enregistré avant cela.",
+      "emptyState": "Rien à déplacer. Votre cave est en accord avec elle-même.",
+      "sectionScatteredTitle": "Dispersés",
+      "sectionScatteredBlurb": "Bouteilles d'un même vin réparties à plusieurs endroits.",
+      "sectionOutlierTitle": "Intrus",
+      "sectionOutlierBlurb": "Casiers presque entièrement dédiés à un seul type de vin, avec une ou deux exceptions.",
+      "sectionBuriedTitle": "Difficiles d'accès",
+      "sectionBuriedBlurb": "Bouteilles à boire bientôt, coincées derrière celles que vous comptiez garder.",
+      "bottleFallback": "Bouteille",
+      "recordingBtn": "Enregistrement...",
+      "movedOneBtn": "Je l'ai déplacée",
+      "movedAllBtn": "J'ai tout déplacé ({n})",
+      "leaveAsIsBtn": "Laisser tel quel",
+      "notedBtn": "Noté",
+      "moveFailedFull": "{label} s'est rempli avant que le déplacement ait pu être enregistré.",
+      "moveRecordError": "Impossible d'enregistrer le déplacement : {detail}"
+    },
+    "barcode": {
+      "notSupported": "La lecture de code-barres n'est pas prise en charge par ce navigateur. Saisissez le code-barres manuellement ci-dessous.",
+      "enterManually": "Saisissez le code-barres manuellement ci-dessous.",
+      "pointAtBarcode": "Pointez la caméra vers le code-barres sur la bouteille"
+    },
     "card": {
       "loading": "Chargement de la cave à vin...",
       "noSearchResults": "Aucun vin ne correspond à votre recherche",
@@ -114,7 +138,9 @@
       "depthPanelDeepCount": "{n}/{max} en profondeur",
       "rackPanelBottlesCount": "{n}/{max} bouteilles",
       "boxHeader": "Caisse {n} ({size} bouteilles)",
-      "deepSuffix": "{n} en profondeur"
+      "deepSuffix": "{n} en profondeur",
+      "emptyCellTitle": "Vide – Ligne {row}, Col {col}",
+      "reorderRackTitle": "Toucher pour voir et réorganiser ce rack"
     },
     "inventory": {
       "title": "📦 Inventaire",

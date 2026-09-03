@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "../styles";
 import { cameraBlockedReason, describeCameraError } from "../utils/camera";
+import { t } from "../i18n";
 
 declare global {
   interface Window {
@@ -11,6 +12,7 @@ declare global {
 
 @customElement("barcode-scanner")
 export class BarcodeScanner extends LitElement {
+  @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) active = false;
 
   @state() private _error = "";
@@ -103,6 +105,11 @@ export class BarcodeScanner extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   updated(changedProps: Map<string, unknown>) {
     if (changedProps.has("active")) {
       if (this.active) {
@@ -124,7 +131,7 @@ export class BarcodeScanner extends LitElement {
 
     // Check for BarcodeDetector support
     if (!("BarcodeDetector" in window)) {
-      this._error = "Barcode scanning is not supported on this browser. Please enter the barcode manually below.";
+      this._error = this._t("ui.barcode.notSupported");
       this.dispatchEvent(
         new CustomEvent("scanner-error", {
           detail: { error: this._error },
@@ -135,9 +142,9 @@ export class BarcodeScanner extends LitElement {
       return;
     }
 
-    const blocked = cameraBlockedReason();
+    const blocked = cameraBlockedReason(this.hass?.language);
     if (blocked) {
-      this._error = `${blocked} Enter the barcode manually below.`;
+      this._error = `${blocked} ${this._t("ui.barcode.enterManually")}`;
       this.dispatchEvent(
         new CustomEvent("scanner-error", {
           detail: { error: this._error },
@@ -168,7 +175,7 @@ export class BarcodeScanner extends LitElement {
       this._scanning = true;
       this._scanFrame();
     } catch (err: any) {
-      this._error = `${describeCameraError(err)} Enter the barcode manually below.`;
+      this._error = `${describeCameraError(err, this.hass?.language)} ${this._t("ui.barcode.enterManually")}`;
       this.dispatchEvent(
         new CustomEvent("scanner-error", {
           detail: { error: this._error },
@@ -239,7 +246,7 @@ export class BarcodeScanner extends LitElement {
                 <div class="scan-line"></div>
               </div>
             </div>
-            <div class="hint">Point the camera at the barcode on the bottle</div>
+            <div class="hint">${this._t("ui.barcode.pointAtBarcode")}</div>
           `}
     `;
   }

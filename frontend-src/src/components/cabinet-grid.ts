@@ -2,9 +2,11 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType } from "../models";
 import { sharedStyles } from "../styles";
+import { t } from "../i18n";
 
 @customElement("cabinet-grid")
 export class CabinetGrid extends LitElement {
+  @property({ attribute: false }) hass: any;
   @property({ attribute: false }) cabinet!: Cabinet;
   @property({ attribute: false }) wines: Wine[] = [];
   // Set briefly by "locate" so the bottle is marked on the rack drawing too,
@@ -535,6 +537,11 @@ export class CabinetGrid extends LitElement {
     `,
   ];
 
+  // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
+  private _t(key: string, params?: Record<string, string | number>): string {
+    return t(key, this.hass?.language, params);
+  }
+
   private _getWinesAt(row: number, col: number): Wine[] {
     return this.wines.filter(
       (w) =>
@@ -553,7 +560,7 @@ export class CabinetGrid extends LitElement {
   }
 
   private _getStorageRowName(row: number): string {
-    return this._getStorageRowConfig(row)?.name || "Storage";
+    return this._getStorageRowConfig(row)?.name || this._t("wineLocation.storage");
   }
 
   private _getBottomZoneWines(): Wine[] {
@@ -750,7 +757,7 @@ export class CabinetGrid extends LitElement {
 
   private _renderStorageZone(row: number) {
     const sr = this._getStorageRowConfig(row);
-    const zoneName = sr?.name || "Storage";
+    const zoneName = sr?.name || this._t("wineLocation.storage");
     const zoneType = sr?.type || "bulk";
     const capacity = sr?.capacity || 20;
     const zoneId = `storage-${row}`;
@@ -839,7 +846,7 @@ export class CabinetGrid extends LitElement {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${seg.size}-pk</div>
+              <div class="zone-box-size">${this._t("ui.card.boxSizeOption", { s: seg.size })}</div>
             </div>
           `)}
         </div>
@@ -884,7 +891,7 @@ export class CabinetGrid extends LitElement {
               @drop=${(e: DragEvent) => this._onDrop(e, row, col)}
               title=${frontWine
                 ? `${frontWine.name} (${frontWine.vintage || "NV"})${frontWine.rating ? ` ★${frontWine.rating}` : ""}${wineCount > 1 ? ` [${wineCount}/${cabinetDepth} deep]` : ""}`
-                : `Empty - Row ${row + 1}, Col ${col + 1}`}
+                : this._t("ui.card.emptyCellTitle", { row: row + 1, col: col + 1 })}
             >
               ${frontWine
                 ? html`
@@ -958,7 +965,7 @@ export class CabinetGrid extends LitElement {
         @drop=${(e: DragEvent) => this._onDrop(e, row, col)}
         title=${frontWine
           ? `${frontWine.name} (${frontWine.vintage || "NV"})${frontWine.rating ? ` ★${frontWine.rating}` : ""}${wineCount > 1 ? ` [${wineCount}/${cabinetDepth} deep]` : ""}`
-          : `Empty - Row ${row + 1}, Col ${col + 1}`}
+          : this._t("ui.card.emptyCellTitle", { row: row + 1, col: col + 1 })}
       >
         ${frontWine
           ? html`
@@ -1017,7 +1024,7 @@ export class CabinetGrid extends LitElement {
         <div
           class="cabinet-name ${hasGridRows ? "clickable" : ""}"
           @click=${hasGridRows ? () => this._onRackClick() : nothing}
-          title=${hasGridRows ? "Tap to view and reorder this rack" : ""}
+          title=${hasGridRows ? this._t("ui.card.reorderRackTitle") : ""}
         >${this.cabinet.name}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) =>
