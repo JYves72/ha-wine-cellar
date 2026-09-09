@@ -405,7 +405,6 @@ export class CabinetGrid extends LitElement {
         flex: 1;
         aspect-ratio: 1;
         min-width: 0;
-        max-width: 28px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.12);
         border: 1px solid rgba(255, 255, 255, 0.25);
@@ -924,7 +923,7 @@ export class CabinetGrid extends LitElement {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${this._t("ui.card.boxSizeOption", { s: seg.size })}</div>
+              <div class="zone-box-size">${this._t("ui.rack.boxSizeOption", { s: seg.size })}</div>
             </div>
           `)}
         </div>

@@ -1259,8 +1259,8 @@ var ui$1 = {
 		failedToReorderRacks: "Failed to reorder racks.",
 		gridDimensions: "{rows} × {cols} grid",
 		gridDeepSuffix: " × {depth} deep",
-		bottlesCountSuffix: " · {n} bottles",
-		storageCountSuffix: " · {n} storage",
+		bottlesCountSuffix: " · {n} bottle{plural}",
+		storageCountSuffix: " · {n} storage row{plural}",
 		moveUpTitle: "Move up",
 		moveDownTitle: "Move down",
 		delBtn: "Del",
@@ -1979,8 +1979,8 @@ var ui = {
 		failedToReorderRacks: "Échec de la réorganisation des racks.",
 		gridDimensions: "grille {rows} × {cols}",
 		gridDeepSuffix: " × {depth} en profondeur",
-		bottlesCountSuffix: " · {n} bouteilles",
-		storageCountSuffix: " · {n} stockage",
+		bottlesCountSuffix: " · {n} bouteille{plural}",
+		storageCountSuffix: " · {n} zone{plural} de stockage",
 		moveUpTitle: "Monter",
 		moveDownTitle: "Descendre",
 		delBtn: "Suppr",
@@ -3655,7 +3655,7 @@ let CabinetGrid = class CabinetGrid extends i {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${this._t("ui.card.boxSizeOption", { s: seg.size })}</div>
+              <div class="zone-box-size">${this._t("ui.rack.boxSizeOption", { s: seg.size })}</div>
             </div>
           `)}
         </div>
@@ -4294,7 +4294,6 @@ CabinetGrid.styles = [
         flex: 1;
         aspect-ratio: 1;
         min-width: 0;
-        max-width: 28px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.12);
         border: 1px solid rgba(255, 255, 255, 0.25);
@@ -9109,51 +9108,60 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const b = Math.max(0, back);
         return Array.from({ length: Math.max(1, count) }, (_, i) => i % 2 === 0 ? { front: f, back: b } : { front: b, back: f });
     }
-    // The front/back/level-count every shelf in the rack currently shares —
-    // read from the first one, since all shelves in "shelf" style are kept
-    // in lockstep by _applyShelfTemplate.
-    _shelfTemplate() {
-        const first = this._shelfRows()[0];
-        const lvl0 = first?.shelf_levels?.[0];
-        return {
-            front: lvl0?.front ?? 4,
-            back: lvl0?.back ?? 0,
-            levels: first?.shelf_levels?.length ?? 1,
-        };
+    // Front/back are shared by every shelf in the rack; how many rows each
+    // shelf has is that shelf's own choice (a fridge shelf can be one board
+    // or two stacked ones) — read the shared pair from the first shelf,
+    // since _applySharedFrontBack keeps it in lockstep across all of them.
+    _sharedShelfFrontBack() {
+        const lvl0 = this._shelfRows()[0]?.shelf_levels?.[0];
+        return { front: lvl0?.front ?? 4, back: lvl0?.back ?? 0 };
     }
-    _applyShelfTemplate(front, back, levelCount) {
-        const levels = RackSettingsDialog_1._buildAlternatingLevels(front, back, levelCount);
+    // Re-derives every shelf's levels from a new shared front/back, keeping
+    // each shelf's own level count exactly as it was.
+    _applySharedFrontBack(front, back) {
+        const f = Math.max(0, front);
+        const b = Math.max(0, back);
+        this._editStorageRows = this._editStorageRows.map((sr) => {
+            if (sr.type !== "shelf")
+                return sr;
+            const levels = RackSettingsDialog_1._buildAlternatingLevels(f, b, sr.shelf_levels?.length || 1);
+            const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+            return { ...sr, shelf_levels: levels, capacity };
+        });
+    }
+    _setSharedFront(value) {
+        this._applySharedFrontBack(value, this._sharedShelfFrontBack().back);
+    }
+    _setSharedBack(value) {
+        this._applySharedFrontBack(this._sharedShelfFrontBack().front, value);
+    }
+    // Changes just this one shelf's row count, using the shared front/back.
+    _setShelfLevelCountAt(index, count) {
+        count = Math.max(1, Math.min(6, count));
+        const { front, back } = this._sharedShelfFrontBack();
+        const rows = this._shelfRows();
+        if (!rows[index])
+            return;
+        const levels = RackSettingsDialog_1._buildAlternatingLevels(front, back, count);
         const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
-        this._editStorageRows = this._editStorageRows.map((sr) => sr.type === "shelf" ? { ...sr, shelf_levels: levels, capacity } : sr);
-    }
-    _setShelfFront(value) {
-        const t = this._shelfTemplate();
-        this._applyShelfTemplate(value, t.back, t.levels);
-    }
-    _setShelfBack(value) {
-        const t = this._shelfTemplate();
-        this._applyShelfTemplate(t.front, value, t.levels);
-    }
-    _setShelfLevelCount(value) {
-        const t = this._shelfTemplate();
-        this._applyShelfTemplate(t.front, t.back, Math.max(1, Math.min(6, value)));
+        rows[index] = { ...rows[index], shelf_levels: levels, capacity };
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
     }
     // Rebuilds the shelf list to the requested count, applying the shared
-    // front/back/level template to any new ones and keeping existing shelves'
-    // own names (by position) rather than starting them over.
+    // front/back to any new ones (starting at 1 row each — a second row is
+    // an explicit per-shelf choice, not assumed) and keeping existing
+    // shelves' own name and row count (by position) rather than resetting
+    // them.
     _setShelfCount(count) {
         count = Math.max(1, Math.min(20, count));
-        const t = this._shelfTemplate();
-        const levels = RackSettingsDialog_1._buildAlternatingLevels(t.front, t.back, t.levels);
-        const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+        const { front, back } = this._sharedShelfFrontBack();
         const existing = this._shelfRows();
-        const rows = Array.from({ length: count }, (_, i) => ({
-            row: i,
-            name: existing[i]?.name || "",
-            type: "shelf",
-            capacity,
-            shelf_levels: levels,
-        }));
+        const rows = Array.from({ length: count }, (_, i) => {
+            const prior = existing[i];
+            const levels = RackSettingsDialog_1._buildAlternatingLevels(front, back, prior?.shelf_levels?.length || 1);
+            const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+            return { row: i, name: prior?.name || "", type: "shelf", capacity, shelf_levels: levels };
+        });
         this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
     }
     _updateShelfName(index, name) {
@@ -9389,8 +9397,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
                       ${isPureStorage ? A : b `${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}`}
-                      ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id) })}
-                      ${storageCount > 0 ? this._t("ui.rack.storageCountSuffix", { n: storageCount }) : ""}
+                      ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
+                      ${storageCount > 0 ? this._t("ui.rack.storageCountSuffix", { n: storageCount, plural: storageCount === 1 ? "" : "s" }) : ""}
                     </div>
                   </div>
                   <div class="rack-actions">
@@ -9478,7 +9486,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       `;
         }
         if (this._cabinetStyle === "shelf") {
-            const t = this._shelfTemplate();
+            const shared = this._sharedShelfFrontBack();
             const shelves = this._shelfRows();
             return b `
         <div class="stepper-row">
@@ -9493,46 +9501,48 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfFrontLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setShelfFront(t.front - 1)} ?disabled=${t.front <= 0}>−</button>
-              <span class="stepper-value">${t.front}</span>
-              <button class="stepper-btn" @click=${() => this._setShelfFront(t.front + 1)} ?disabled=${t.front >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSharedFront(shared.front - 1)} ?disabled=${shared.front <= 0}>−</button>
+              <span class="stepper-value">${shared.front}</span>
+              <button class="stepper-btn" @click=${() => this._setSharedFront(shared.front + 1)} ?disabled=${shared.front >= 30}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfBackLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setShelfBack(t.back - 1)} ?disabled=${t.back <= 0}>−</button>
-              <span class="stepper-value">${t.back}</span>
-              <button class="stepper-btn" @click=${() => this._setShelfBack(t.back + 1)} ?disabled=${t.back >= 30}>+</button>
-            </div>
-          </div>
-          <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.shelfLevelsLabel")}</div>
-            <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setShelfLevelCount(t.levels - 1)} ?disabled=${t.levels <= 1}>−</button>
-              <span class="stepper-value">${t.levels}</span>
-              <button class="stepper-btn" @click=${() => this._setShelfLevelCount(t.levels + 1)} ?disabled=${t.levels >= 6}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSharedBack(shared.back - 1)} ?disabled=${shared.back <= 0}>−</button>
+              <span class="stepper-value">${shared.back}</span>
+              <button class="stepper-btn" @click=${() => this._setSharedBack(shared.back + 1)} ?disabled=${shared.back >= 30}>+</button>
             </div>
           </div>
         </div>
         <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0 0 8px">${this._t("ui.rack.shelfAlternateHint")}</p>
 
-        <!-- One name field per shelf — everything else is shared above -->
+        <!-- Name + row count per shelf — front/back are shared above,
+             but how many boards each shelf has is its own choice. -->
         <div class="row-list">
-          ${shelves.map((sr, i) => b `
-            <div class="row-entry storage">
-              <span class="row-num">${i + 1}</span>
-              <input
-                type="text"
-                class="row-name-input"
-                style="flex:1"
-                .value=${sr.name || ""}
-                @input=${(e) => this._updateShelfName(i, e.target.value)}
-                placeholder="${this._t('ui.rack.shelfNamePlaceholder', { n: i + 1 })}"
-              />
-              <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
-            </div>
-          `)}
+          ${shelves.map((sr, i) => {
+                const levelCount = sr.shelf_levels?.length || 1;
+                return b `
+              <div class="row-entry storage">
+                <span class="row-num">${i + 1}</span>
+                <input
+                  type="text"
+                  class="row-name-input"
+                  style="flex:1"
+                  .value=${sr.name || ""}
+                  @input=${(e) => this._updateShelfName(i, e.target.value)}
+                  placeholder="${this._t('ui.rack.shelfNamePlaceholder', { n: i + 1 })}"
+                />
+                <span class="row-type-info" style="flex:0;font-size:0.7em">${this._t('ui.rack.shelfLevelsLabel')}</span>
+                <div class="row-cap-stepper">
+                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(i, levelCount - 1)} ?disabled=${levelCount <= 1}>−</button>
+                  <span class="stepper-val-sm">${levelCount}</span>
+                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(i, levelCount + 1)} ?disabled=${levelCount >= 6}>+</button>
+                </div>
+                <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
+              </div>
+            `;
+            })}
         </div>
       `;
         }
