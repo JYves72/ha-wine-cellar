@@ -43,6 +43,10 @@ export interface Wine {
   tasting_notes: TastingNotes | null;
   added_at: string;
   disposition: string;
+  // "auto" when disposition.py's date-based rule set this; absent or any
+  // other value means Gemini AI or a human set it, which the auto-recompute
+  // never overwrites.
+  disposition_source?: string;
   drink_window: string;
   ai_ratings: Record<string, number> | null;
   // `*_updated_at` is when the data last actually changed; `*_checked_at` is

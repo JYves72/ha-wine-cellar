@@ -20,7 +20,7 @@ from homeassistant.core import (
 from homeassistant.components import persistent_notification
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_time_change, async_track_time_interval
 
 from .const import (
     CONF_AI_API_KEY,
@@ -39,6 +39,7 @@ from .const import (
     VIVINO_AUTO_SYNC_INTERVAL_HOURS,
 )
 from . import photos
+from .disposition import recompute_all
 from .vivino import VivinoClient
 from .vivino_account import VivinoAccountClient, async_sync_from_vivino
 from .websocket import async_register_websocket_commands
@@ -47,6 +48,11 @@ from .wine_storage import WineCellarStorage
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
+
+# Local hour (HA's configured timezone) for the daily disposition catch-up.
+# Chosen to be well outside normal usage; see _setup_disposition_recompute.
+_DISPOSITION_CHECK_HOUR = 3
+_DISPOSITION_CHECK_MINUTE = 5
 
 
 def _build_ai_client(hass: HomeAssistant, entry: ConfigEntry) -> Any | None:
@@ -258,6 +264,53 @@ def _setup_vivino_account(hass: HomeAssistant, entry: ConfigEntry) -> None:
         )
 
 
+async def _async_run_disposition_recompute(
+    hass: HomeAssistant, storage: WineCellarStorage, *, reason: str
+) -> None:
+    """Recompute the date-based `disposition` badge and persist if changed.
+
+    Safe to call as often as you like - it's a no-op once every eligible
+    wine already matches what the rule in disposition.py says it should be.
+    See disposition.py for what "eligible" means (never clobbers a Gemini
+    AI or manually-set classification).
+    """
+    changed = recompute_all(storage.wines)
+    if changed:
+        await storage.async_save()
+        hass.bus.async_fire(f"{DOMAIN}_updated")
+        _LOGGER.info(
+            "Cork Dork: recomputed disposition for %d wine(s) (%s)", changed, reason
+        )
+
+
+def _setup_disposition_recompute(
+    hass: HomeAssistant, entry: ConfigEntry, storage: WineCellarStorage
+) -> None:
+    """Wire up the recurring drink-now/hold/past-peak recompute.
+
+    Runs once at startup (so a year rollover while HA was offline is caught
+    immediately) and then once a day (so a rollover that happens while HA
+    stays running for a long stretch is still caught, without needing a
+    fragile once-a-year-on-Jan-1 trigger).
+    """
+    hass.async_create_task(
+        _async_run_disposition_recompute(hass, storage, reason="startup")
+    )
+
+    async def _daily_check(_now: Any) -> None:
+        await _async_run_disposition_recompute(hass, storage, reason="daily check")
+
+    entry.async_on_unload(
+        async_track_time_change(
+            hass,
+            _daily_check,
+            hour=_DISPOSITION_CHECK_HOUR,
+            minute=_DISPOSITION_CHECK_MINUTE,
+            second=0,
+        )
+    )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Cork Dork from a config entry."""
     domain_data = hass.data.setdefault(DOMAIN, {})
@@ -341,6 +394,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Initialize Vivino account connection if credentials are configured
     _setup_vivino_account(hass, entry)
+
+    # Keep the drink-now/hold/past-peak badge current without needing Gemini
+    # AI or manual intervention. See disposition.py for the rule and why
+    # this can't just run once at add-time.
+    _setup_disposition_recompute(hass, entry, storage)
 
     # Register services
     await _async_register_services(hass, storage, vivino)
