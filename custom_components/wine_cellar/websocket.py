@@ -256,6 +256,17 @@ def _cabinet_shape_error(fields: dict[str, Any]) -> str | None:
                     isinstance(b, bool) or not isinstance(b, int) or b < 0 for b in boxes
                 ):
                     return "box sizes must be whole numbers of 0 or more"
+            shelf_levels = entry.get("shelf_levels")
+            if shelf_levels is not None:
+                if not isinstance(shelf_levels, list) or any(
+                    not isinstance(level, dict)
+                    or any(
+                        isinstance(level.get(lane), bool) or not isinstance(level.get(lane, 0), int) or level.get(lane, 0) < 0
+                        for lane in ("front", "back")
+                    )
+                    for level in shelf_levels
+                ):
+                    return "shelf levels must have whole-number front/back counts of 0 or more"
     return None
 
 

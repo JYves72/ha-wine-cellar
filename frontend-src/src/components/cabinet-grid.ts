@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType } from "../models";
+import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
@@ -127,7 +127,8 @@ export class CabinetGrid extends LitElement {
         overflow: hidden;
       }
 
-      .cell .wine-thumb {
+      .cell .wine-thumb,
+      .zone-shelf-dot .wine-thumb {
         position: absolute;
         width: 100%;
         height: 100%;
@@ -207,7 +208,8 @@ export class CabinetGrid extends LitElement {
         }
       }
 
-      .cell .disposition {
+      .cell .disposition,
+      .zone-shelf-dot .disposition {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -229,17 +231,20 @@ export class CabinetGrid extends LitElement {
       }
 
       .cell .disposition.drink,
-      .zone-bottle .disposition.drink {
+      .zone-bottle .disposition.drink,
+      .zone-shelf-dot .disposition.drink {
         background: #2e7d32;
       }
 
       .cell .disposition.hold,
-      .zone-bottle .disposition.hold {
+      .zone-bottle .disposition.hold,
+      .zone-shelf-dot .disposition.hold {
         background: #1565c0;
       }
 
       .cell .disposition.past,
-      .zone-bottle .disposition.past {
+      .zone-bottle .disposition.past,
+      .zone-shelf-dot .disposition.past {
         background: #c62828;
       }
 
@@ -368,6 +373,134 @@ export class CabinetGrid extends LitElement {
 
       .zone-bottle:hover {
         transform: scale(1.1);
+      }
+
+      /* Fridge-style shelf: front/back lanes per board. Every dot in the
+         shelf shares one size (set inline from the longest lane anywhere
+         in it), so a shorter lane is centered with wider gaps instead of
+         rendering smaller dots — deliberately not the receding-stagger
+         look of a real photographed shelf. Background is dark like the
+         classic grid's interior, with each board getting its own
+         golden ledge (matching .row::after) instead of the whole zone
+         being solid gold. */
+      .zone-shelf {
+        background: linear-gradient(180deg, #1a1a3a 0%, #0d0d2b 100%);
+      }
+
+      .zone-shelf-levels {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding: 2px 0;
+      }
+
+      .zone-shelf-level {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        position: relative;
+        padding-bottom: 5px;
+      }
+
+      /* Board-to-board seam within the SAME étagère: thin, since it's just
+         marking where one stacked board ends and the next begins. */
+      .zone-shelf-level::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 20%;
+        right: 20%;
+        height: 1px;
+        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
+        opacity: 0.6;
+      }
+
+      /* The bottom-most board of the étagère: this ledge marks the end of
+         the whole étagère (before the next one), so it stays full-width
+         and full weight instead of the thin board-to-board seam above. */
+      .zone-shelf-level.last::after {
+        left: 0;
+        right: 0;
+        height: 3px;
+        opacity: 1;
+        border-radius: 0 0 2px 2px;
+      }
+
+      .zone-shelf-lane {
+        display: flex;
+        justify-content: center;
+        gap: 2px;
+        width: 100%;
+      }
+
+      .zone-shelf-lane-label {
+        font-size: 0.8em;
+        font-weight: 600;
+        line-height: 1.2;
+        color: #fff;
+        text-align: center;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+      }
+
+      /* Same empty/filled treatment as a classic grid cell — a faint,
+         dashed outline when empty, a solid ring in the wine's colour
+         when filled — rather than the paler, always-visible dot this
+         used to be. Hover/drag-over states below deliberately mirror
+         .cell's exactly, so a shelf dot enlarges on hover/drag-over the
+         same way a grid cell does. */
+      .zone-shelf-dot {
+        position: relative;
+        flex-shrink: 0;
+        aspect-ratio: 1;
+        min-width: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.15);
+        cursor: pointer;
+        overflow: hidden;
+        container-type: inline-size;
+        z-index: 1;
+        transition: all 0.2s;
+      }
+
+      .zone-shelf-dot:not(.filled):hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .zone-shelf-dot.filled {
+        border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+          0 0 8px rgba(50, 100, 255, 0.15);
+      }
+
+      .zone-shelf-dot.filled:hover {
+        transform: scale(1.15);
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
+          0 0 16px rgba(50, 100, 255, 0.3);
+      }
+
+      .zone-shelf-dot[draggable="true"] {
+        cursor: grab;
+      }
+
+      .zone-shelf-dot[draggable="true"]:active {
+        cursor: grabbing;
+      }
+
+      .zone-shelf-dot.drag-source {
+        opacity: 0.35;
+        transform: scale(0.9);
+      }
+
+      .zone-shelf-dot.drag-over {
+        box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.8);
+        transform: scale(1.1);
+        background: rgba(66, 165, 245, 0.15) !important;
+        z-index: 10;
       }
 
       /* Drag and drop */
@@ -500,11 +633,6 @@ export class CabinetGrid extends LitElement {
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
       }
 
-      .zone-box-size {
-        font-size: 0.55em;
-        color: rgba(255, 255, 255, 0.5);
-      }
-
       /* Phone: tighter spacing, smaller elements */
       @media (max-width: 599px) {
         .cabinet {
@@ -617,13 +745,17 @@ export class CabinetGrid extends LitElement {
     );
   }
 
-  private _onZoneClick(wine?: Wine, zone = "bottom") {
+  private _onZoneClick(wine?: Wine, zone = "bottom", depth?: number) {
     this.dispatchEvent(
       new CustomEvent("zone-click", {
         detail: {
           cabinet: this.cabinet,
           zone,
           wine,
+          // Set only for zones with per-slot addressing (shelf): the exact
+          // slot clicked, so the card places/pastes there instead of
+          // picking a depth itself.
+          depth,
         },
         bubbles: true,
         composed: true,
@@ -697,6 +829,7 @@ export class CabinetGrid extends LitElement {
       row: row ?? null,
       col: col ?? null,
       zone: zone || "",
+      depth: wine.depth ?? null,
     }));
     e.dataTransfer.effectAllowed = "move";
     (e.currentTarget as HTMLElement).classList.add("drag-source");
@@ -717,12 +850,39 @@ export class CabinetGrid extends LitElement {
     this._dragOverCell = null;
   }
 
-  private _onDrop(e: DragEvent, targetRow?: number, targetCol?: number, targetZone?: string, targetWine?: Wine) {
+  private _onDrop(e: DragEvent, targetRow?: number, targetCol?: number, targetZone?: string, targetWine?: Wine, explicitDepth?: number) {
     e.preventDefault();
     this._dragOverCell = null;
     if (!e.dataTransfer) return;
     try {
       const source = JSON.parse(e.dataTransfer.getData("text/plain"));
+
+      // Slot zones (shelf) pass their own exact depth — the drop target
+      // IS the slot, so skip the "nearest chip" reorder heuristic used
+      // for freeform bulk-zone drops and let the card swap/place exactly
+      // there instead of picking a depth itself.
+      if (explicitDepth !== undefined) {
+        this.dispatchEvent(new CustomEvent("wine-drop", {
+          detail: {
+            wineId: source.wineId,
+            sourceCabinetId: source.cabinetId,
+            sourceRow: source.row,
+            sourceCol: source.col,
+            sourceZone: source.zone,
+            sourceDepth: source.depth ?? null,
+            targetCabinetId: this.cabinet.id,
+            targetRow: null,
+            targetCol: null,
+            targetZone: targetZone || "",
+            targetWineId: targetWine?.id ?? null,
+            targetDepth: explicitDepth,
+            explicitDepth: true,
+          },
+          bubbles: true,
+          composed: true,
+        }));
+        return;
+      }
 
       // Bulk-zone reordering: figure out which bottle the drop landed
       // nearest to (and which half of it), so dropping anywhere in the zone
@@ -782,7 +942,9 @@ export class CabinetGrid extends LitElement {
 
   private _renderStorageZone(row: number) {
     const sr = this._getStorageRowConfig(row);
-    const zoneName = sr?.name || this._t("wineLocation.storage");
+    // No generic "Storage" filler when unnamed — the icon and count already
+    // say what this is; an unnamed zone just shows those two.
+    const zoneName = sr?.name || "";
     const zoneType = sr?.type || "bulk";
     const capacity = sr?.capacity || 20;
     const zoneId = `storage-${row}`;
@@ -792,6 +954,9 @@ export class CabinetGrid extends LitElement {
 
     if (zoneType === "box") {
       return this._renderBoxZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
+    }
+    if (zoneType === "shelf") {
+      return this._renderShelfZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
     }
     // Default: bulk
     return this._renderBulkZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
@@ -804,7 +969,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">◇ ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         ${wines.map((wine) => {
           const disp = wine.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
@@ -866,7 +1031,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">📦 ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         <div class="zone-box-grid">
           ${boxSegments.map((seg) => html`
             <div class="zone-box-item ${seg.wineCount > 0 ? "has-wine" : ""} ${seg.hasHighlight ? "locate-highlight" : ""} ${seg.hasRemoval ? "removal-highlight" : ""}">
@@ -874,7 +1039,96 @@ export class CabinetGrid extends LitElement {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${this._t("ui.card.boxSizeOption", { s: seg.size })}</div>
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
+  // Fridge-style shelf: one or more physical boards stacked bottom-to-top,
+  // each with its own front and back lane. Every slot has a fixed physical
+  // position (unlike a bulk/box pile), so — like a classic grid cell —
+  // each dot is its own click/drag/drop target: click an empty one to add
+  // there, click an occupied one to open it, drop exactly on the dot you
+  // choose. There is no zone side panel for shelves.
+  private _renderShelfZone(zoneId: string, zoneKey: string, name: string, capacity: number, wines: Wine[], isDragOver: boolean, sr: StorageRow) {
+    const levelsData = sr.shelf_levels || [];
+    const groups = getShelfSlotGroups(levelsData);
+    const byLevel = new Map<number, { front?: ShelfSlotGroup; back?: ShelfSlotGroup }>();
+    for (const g of groups) {
+      const entry = byLevel.get(g.level) || {};
+      entry[g.lane] = g;
+      byLevel.set(g.level, entry);
+    }
+    // Level 0 is the bottom board (see models.ts) — reverse for display,
+    // since flex-direction: column lays out children top-to-bottom.
+    const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
+
+    // One dot size for the whole shelf, sized off whichever lane is
+    // longest anywhere in it — so a 3-bottle back row doesn't render
+    // bigger dots than a 4-bottle front row. The shorter lane just ends
+    // up centered with more gap, the way a real shelf looks, rather than
+    // the receding stagger of a photo (the user explicitly didn't want
+    // that reproduced here).
+    const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
+    const dotBasis = `${100 / maxCount}%`;
+
+    const renderDots = (group: ShelfSlotGroup) => html`
+      <div class="zone-shelf-lane ${group.lane}">
+        ${Array.from({ length: group.size }, (_, i) => {
+          const depth = group.start + i;
+          const dotKey = `${zoneKey}-${depth}`;
+          const wine = wines.find((w) => (w.depth || 0) === depth);
+          const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+          const ring = wine ? this._brightenColor(bg) : "";
+          const disp = wine?.disposition || "";
+          const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+          return html`<span
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+            draggable=${wine ? "true" : "false"}
+            @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+            @dragstart=${wine ? (e: DragEvent) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : nothing}
+            @dragend=${(e: DragEvent) => this._onDragEnd(e)}
+            @dragover=${(e: DragEvent) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+            @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
+            @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+            @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
+            @touchend=${() => this._onTouchEnd()}
+            @touchmove=${() => this._onTouchMove()}
+          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}</span>`;
+        })}
+      </div>
+    `;
+
+    // Back lane's label sits above its dots, front lane's below — so each
+    // board reads top-to-bottom as "Back / [dots] / [dots] / Front",
+    // making it clear both rows belong to the same physical board.
+    const renderBack = (group: ShelfSlotGroup | undefined) => {
+      if (!group) return nothing;
+      return html`
+        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfBack")}</div>
+        ${renderDots(group)}
+      `;
+    };
+    const renderFront = (group: ShelfSlotGroup | undefined) => {
+      if (!group) return nothing;
+      return html`
+        ${renderDots(group)}
+        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfFront")}</div>
+      `;
+    };
+
+    return html`
+      <div class="bottom-zone zone-shelf">
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
+        <div class="zone-shelf-levels">
+          ${levels.map(([, lanes], idx) => html`
+            <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
+              ${renderBack(lanes.back)}
+              ${renderFront(lanes.front)}
             </div>
           `)}
         </div>
@@ -1049,13 +1303,18 @@ export class CabinetGrid extends LitElement {
     const { rows, cols } = this.cabinet;
     const storageRows = this._getStorageRowSet();
     const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
+    // Shelf racks have no row/col slots of their own, but the title should
+    // still open the equivalent browsable panel (handled by the card,
+    // which tells the two apart from the cabinet's own storage_rows).
+    const hasShelfRows = (this.cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
+    const titleClickable = hasGridRows || hasShelfRows;
 
     return html`
       <div class="cabinet">
         <div
-          class="cabinet-name ${hasGridRows ? "clickable" : ""}"
-          @click=${hasGridRows ? () => this._onRackClick() : nothing}
-          title=${hasGridRows ? this._t("ui.card.reorderRackTitle") : ""}
+          class="cabinet-name ${titleClickable ? "clickable" : ""}"
+          @click=${titleClickable ? () => this._onRackClick() : nothing}
+          title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
         >${this.cabinet.name}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) =>

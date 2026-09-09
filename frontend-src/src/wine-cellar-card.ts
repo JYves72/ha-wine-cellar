@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "./styles";
-import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation } from "./models";
+import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation, getShelfSlotGroups, ShelfSlotGroup } from "./models";
 import { t } from "./i18n";
 import { matchesQuery } from "./utils/search";
 import { Finding, analyzeArrangement } from "./utils/arrange";
@@ -137,6 +137,15 @@ export class WineCellarCard extends LitElement {
   @state() private _rackPanelWines: Wine[] = [];
   @state() private _rackPanelDragWineId: string | null = null;
   @state() private _rackPanelDragOverKey: string | null = null;
+
+  // Shelf panel (shelf-style cabinets: every board/lane across every shelf
+  // in the rack, list + reorder — the shelf equivalent of the rack panel
+  // above, since a shelf cabinet has no row/col slots of its own).
+  @state() private _shelfPanelOpen = false;
+  @state() private _shelfPanelCabinet: Cabinet | null = null;
+  @state() private _shelfPanelWines: Wine[] = [];
+  @state() private _shelfPanelDragWineId: string | null = null;
+  @state() private _shelfPanelDragOverKey: string | null = null;
 
   // Briefly highlights a wine's slot after "locate" is used from the detail dialog.
   @state() private _highlightWineId: string | null = null;
@@ -692,6 +701,8 @@ export class WineCellarCard extends LitElement {
       this._refreshZonePanel();
       // Refresh rack panel if open
       this._refreshRackPanel();
+      // Refresh shelf panel if open
+      this._refreshShelfPanel();
     } catch (err) {
       console.error("Cork Dork: Failed to load data", err);
     }
@@ -830,7 +841,11 @@ export class WineCellarCard extends LitElement {
   }
 
   private _onZoneClick(e: CustomEvent) {
-    const { wine, cabinet, zone } = e.detail;
+    const { wine, cabinet, zone, depth } = e.detail;
+    // Slot zones (shelf) send the exact depth clicked — that slot is
+    // authoritative, so skip the "first free"/on-top-of-pile placement
+    // used for bulk/box and land exactly there instead.
+    const hasExactDepth = depth !== undefined;
 
     // Picking the bottle for a pending Vivino removal takes precedence
     if (this._removalFocusVid && wine && this._removalHighlightIds.includes(wine.id)) {
@@ -840,20 +855,22 @@ export class WineCellarCard extends LitElement {
 
     // If we have a copied wine and clicked empty zone space, paste it here
     if (this._copiedWine && !wine) {
-      const nextDepth = this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
-      this._pasteWine(cabinet.id, null, null, nextDepth, zone || "bottom");
+      const nextDepth = hasExactDepth
+        ? depth
+        : this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
+      this._pasteWine(cabinet.id, null, null, nextDepth, zone || "bottom", hasExactDepth);
       return;
     }
 
     // If we're moving a wine, place it in this zone
     if (this._movingWine && !wine) {
-      this._executeMoveWine(cabinet.id, null, null, zone || "bottom");
+      this._executeMoveWine(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
       return;
     }
 
     // If we're placing a buy list item, move it to cellar
     if (this._movingBuyListItem && !wine) {
-      this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom");
+      this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
       return;
     }
 
@@ -862,7 +879,7 @@ export class WineCellarCard extends LitElement {
       this._detailMode = "cellar";
       this._showDetail = true;
     } else {
-      this._addPreselect = { cabinet: cabinet.id, row: null, col: null, zone: zone || "bottom", depth: 0 };
+      this._addPreselect = { cabinet: cabinet.id, row: null, col: null, zone: zone || "bottom", depth: hasExactDepth ? depth : 0 };
       this._showAddDialog = true;
     }
   }
@@ -1064,6 +1081,16 @@ export class WineCellarCard extends LitElement {
           offset += boxes[i];
         }
         await this._updateStorageRow({ boxes, capacity: boxes.reduce((sum, b) => sum + b, 0) });
+      } else if (this._zonePanelType === "shelf") {
+        const group = getShelfSlotGroups(this._zonePanelStorageRow.shelf_levels)
+          .find((g) => slotIndex >= g.start && slotIndex < g.start + g.size);
+        if (group) {
+          const levels = (this._zonePanelStorageRow.shelf_levels || []).map((lvl, i) =>
+            i === group.level ? { ...lvl, [group.lane]: Math.max(0, lvl[group.lane] - 1) } : lvl
+          );
+          const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+          await this._updateStorageRow({ shelf_levels: levels, capacity });
+        }
       } else {
         await this._updateStorageRow({ capacity: Math.max(0, (this._zonePanelStorageRow.capacity || 1) - 1) });
       }
@@ -1260,6 +1287,8 @@ export class WineCellarCard extends LitElement {
 
     if (wine.row !== null && wine.col !== null) {
       this._openRackPanel(loc.cabinet);
+    } else if (loc.storageRow?.type === "shelf") {
+      this._openShelfPanel(loc.cabinet);
     } else if (loc.zone && loc.zone !== "bottom" && loc.storageRow) {
       this._openZonePanel(loc.cabinet, loc.zone, loc.storageRow);
     } else {
@@ -1294,7 +1323,15 @@ export class WineCellarCard extends LitElement {
 
   // --- Rack panel (grid-slot cabinets: list + reorder) ---
   private _onRackClick(e: CustomEvent) {
-    this._openRackPanel(e.detail.cabinet);
+    const cabinet: Cabinet = e.detail.cabinet;
+    // A cabinet is entirely one rack style — never a mix of grid rows and
+    // shelf storage rows — so this alone decides which panel applies.
+    const hasShelfRows = (cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
+    if (hasShelfRows) {
+      this._openShelfPanel(cabinet);
+    } else {
+      this._openRackPanel(cabinet);
+    }
   }
 
   private _openRackPanel(cabinet: Cabinet) {
@@ -1312,6 +1349,115 @@ export class WineCellarCard extends LitElement {
     const fresh = this._cabinets.find((c) => c.id === this._rackPanelCabinet!.id);
     if (fresh) this._rackPanelCabinet = fresh;
     this._rackPanelWines = this._wines.filter((w) => w.cabinet_id === this._rackPanelCabinet!.id && w.row !== null && w.col !== null);
+  }
+
+  // --- Shelf panel (shelf-style cabinets: every board/lane, list + reorder) ---
+  // The shelf equivalent of the rack panel above: a shelf cabinet can have
+  // several named shelves (each its own storage_rows entry with its own
+  // zone id), so this aggregates all of them into one browsable list
+  // instead of the grid's single row/col addressing.
+  private _openShelfPanel(cabinet: Cabinet) {
+    this._shelfPanelCabinet = cabinet;
+    this._shelfPanelWines = this._wines.filter((w) => w.cabinet_id === cabinet.id && (w.zone || "").startsWith("storage-"));
+    this._shelfPanelOpen = true;
+  }
+
+  private _closeShelfPanel() {
+    this._shelfPanelOpen = false;
+  }
+
+  private _refreshShelfPanel() {
+    if (!this._shelfPanelOpen || !this._shelfPanelCabinet) return;
+    const fresh = this._cabinets.find((c) => c.id === this._shelfPanelCabinet!.id);
+    if (fresh) this._shelfPanelCabinet = fresh;
+    this._shelfPanelWines = this._wines.filter((w) => w.cabinet_id === this._shelfPanelCabinet!.id && (w.zone || "").startsWith("storage-"));
+  }
+
+  private _getShelfPanelRows(): StorageRow[] {
+    return (this._shelfPanelCabinet?.storage_rows || []).filter((sr) => sr.type === "shelf");
+  }
+
+  private _onShelfPanelSlotClick(zone: string, depth: number, wine?: Wine) {
+    if (!this._shelfPanelCabinet) return;
+    if (wine) {
+      this._selectedWine = wine;
+      this._detailMode = "cellar";
+      this._showDetail = true;
+      return;
+    }
+    if (this._copiedWine) {
+      this._pasteWine(this._shelfPanelCabinet.id, null, null, depth, zone, true);
+      return;
+    }
+    if (this._movingWine) {
+      this._executeMoveWine(this._shelfPanelCabinet.id, null, null, zone, depth, true);
+      return;
+    }
+    this._addPreselect = { cabinet: this._shelfPanelCabinet.id, row: null, col: null, zone, depth };
+    this._showAddDialog = true;
+  }
+
+  private _onShelfPanelDragStart(e: DragEvent, wine: Wine) {
+    this._shelfPanelDragWineId = wine.id;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", JSON.stringify({
+        wineId: wine.id,
+        cabinetId: wine.cabinet_id,
+        row: wine.row ?? null,
+        col: wine.col ?? null,
+        zone: wine.zone || "",
+        depth: wine.depth ?? null,
+      }));
+    }
+  }
+
+  private _onShelfPanelDragEnd() {
+    this._shelfPanelDragWineId = null;
+    this._shelfPanelDragOverKey = null;
+  }
+
+  private _onShelfPanelDragOver(e: DragEvent, key: string) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    this._shelfPanelDragOverKey = key;
+  }
+
+  // Exact-slot swap/place — every shelf slot has a fixed physical position,
+  // so (unlike bulk) this never falls back to "first free"/on-top-of-pile.
+  private async _onShelfPanelDrop(e: DragEvent, targetZone: string, targetDepth: number, targetWine?: Wine) {
+    e.preventDefault();
+    this._shelfPanelDragOverKey = null;
+    const draggedId = this._shelfPanelDragWineId;
+    this._shelfPanelDragWineId = null;
+    if (!draggedId || !this._shelfPanelCabinet || draggedId === targetWine?.id) return;
+    const draggedWine = this._wines.find((w) => w.id === draggedId);
+    if (!draggedWine) return;
+    if (draggedWine.zone === targetZone && (draggedWine.depth ?? null) === targetDepth) return;
+
+    try {
+      if (targetWine) {
+        await this.hass.callWS({
+          type: "wine_cellar/move_wine",
+          wine_id: targetWine.id,
+          cabinet_id: this._shelfPanelCabinet.id,
+          zone: draggedWine.zone || "",
+          depth: draggedWine.depth || 0,
+        });
+      }
+      await this.hass.callWS({
+        type: "wine_cellar/move_wine",
+        wine_id: draggedWine.id,
+        cabinet_id: this._shelfPanelCabinet.id,
+        zone: targetZone,
+        depth: targetDepth,
+      });
+      this._showToast(this._t("toast.wineReordered"));
+      await this._loadData();
+    } catch (err) {
+      console.error("Failed to reorder wine:", err);
+      this._showToast(this._t("toast.reorderFailed"));
+    }
   }
 
   // Every physical (row, col) slot in the rack, skipping bulk/box storage rows.
@@ -1489,7 +1635,7 @@ export class WineCellarCard extends LitElement {
     }
   }
 
-  private async _executeMoveWine(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0) {
+  private async _executeMoveWine(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0, exactPosition = false) {
     if (!this._movingWine) return;
     try {
       await this.hass.callWS({
@@ -1503,7 +1649,10 @@ export class WineCellarCard extends LitElement {
         ...(row !== null ? { row } : {}),
         ...(col !== null ? { col } : {}),
       });
-      if (zone) await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
+      // A slot zone (shelf) was given its exact depth above — reordering
+      // to the top of the pile would scramble every other bottle's fixed
+      // position there, so only bulk/box zones get that treatment.
+      if (zone && !exactPosition) await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
       this._showToast(this._t("toast.wineMoved", { name: this._movingWine.name }));
       this._movingWine = null;
       await this._loadData();
@@ -1515,6 +1664,16 @@ export class WineCellarCard extends LitElement {
 
   private async _onWineDrop(e: CustomEvent) {
     const d = e.detail;
+
+    // Slot zone (shelf): the target IS the exact slot the drop landed on,
+    // not a "reorder near this bottle" or "first free depth" placement —
+    // swap if occupied, place directly if empty. Handled separately so it
+    // never falls into the bulk-zone reorder heuristic below (which would
+    // otherwise trigger for any same-zone shelf-to-shelf drag).
+    if (d.explicitDepth) {
+      await this._onExactSlotDrop(d);
+      return;
+    }
 
     // Reordering within the same bulk zone: dropped on/near another bottle
     // there, so insert before/after it (whichever side the drop landed on)
@@ -1661,6 +1820,77 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  // Drop onto an exact slot (currently only shelf zones): swap with
+  // whatever's already there, or place directly if the slot is empty.
+  // No "first free depth"/on-top-of-pile logic — the dropped-on slot is
+  // exactly where the bottle goes.
+  private async _onExactSlotDrop(d: any) {
+    if (
+      d.sourceCabinetId === d.targetCabinetId &&
+      d.sourceZone === d.targetZone &&
+      d.sourceRow === d.targetRow &&
+      d.sourceCol === d.targetCol &&
+      (d.sourceDepth ?? null) === d.targetDepth
+    ) {
+      return;
+    }
+
+    let swappedBack: (() => Promise<any>) | null = null;
+    try {
+      const targetWine = d.targetWineId ? this._wines.find((w) => w.id === d.targetWineId) : undefined;
+
+      if (targetWine) {
+        // Swap: move the occupant to the dragged bottle's old slot first.
+        await this.hass.callWS({
+          type: "wine_cellar/move_wine",
+          wine_id: targetWine.id,
+          cabinet_id: d.sourceCabinetId,
+          zone: d.sourceZone || "",
+          ...(d.sourceRow !== null && d.sourceRow !== undefined ? { row: d.sourceRow } : {}),
+          ...(d.sourceCol !== null && d.sourceCol !== undefined ? { col: d.sourceCol } : {}),
+          ...(d.sourceDepth !== null && d.sourceDepth !== undefined ? { depth: d.sourceDepth } : {}),
+        });
+        // Half of a swap is not a state the rack can be in: the target bottle
+        // is now sitting where the dragged one still is. If the second half
+        // fails, put it back before reporting the failure.
+        swappedBack = () =>
+          this.hass.callWS({
+            type: "wine_cellar/move_wine",
+            wine_id: targetWine.id,
+            cabinet_id: d.targetCabinetId,
+            zone: d.targetZone || "",
+            depth: d.targetDepth,
+          });
+      }
+
+      await this.hass.callWS({
+        type: "wine_cellar/move_wine",
+        wine_id: d.wineId,
+        cabinet_id: d.targetCabinetId,
+        zone: d.targetZone || "",
+        depth: d.targetDepth,
+      });
+
+      const sameContainer = d.sourceCabinetId === d.targetCabinetId;
+      this._showToast(sameContainer ? this._t("toast.wineReordered") : targetWine ? this._t("toast.wineSwapped") : this._t("toast.wineMovedShort"));
+      await this._loadData();
+    } catch (err) {
+      console.error("Failed to move wine:", err);
+      if (swappedBack) {
+        try {
+          await swappedBack();
+        } catch (undoErr) {
+          console.error("Failed to undo half-completed swap:", undoErr);
+          this._showToast(this._t("toast.moveUndoFailed"));
+          await this._loadData();
+          return;
+        }
+      }
+      this._showToast(this._t("toast.moveFailed"));
+      await this._loadData();
+    }
+  }
+
   private _copyWine(wine: Wine) {
     this._copiedWine = wine;
     this._showToast(this._t("toast.wineCopied", { name: wine.name }));
@@ -1668,11 +1898,12 @@ export class WineCellarCard extends LitElement {
     // Close any open side panel and show every rack, so the whole cellar is reachable to paste into.
     this._zonePanelOpen = false;
     this._rackPanelOpen = false;
+    this._shelfPanelOpen = false;
     this._depthPanelOpen = false;
     this._activeTab = "all";
   }
 
-  private async _pasteWine(cabinetId: string, row: number | null, col: number | null, depth = 0, zone = "") {
+  private async _pasteWine(cabinetId: string, row: number | null, col: number | null, depth = 0, zone = "", exactPosition = false) {
     if (!this._copiedWine) return;
     try {
       const result = await this.hass.callWS({
@@ -1721,7 +1952,10 @@ export class WineCellarCard extends LitElement {
         },
       });
       const pasted = result?.wine?.id;
-      if (zone && pasted) await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
+      // A slot zone (shelf) was given its exact depth above — reordering
+      // to the top of the pile would scramble every other bottle's fixed
+      // position there, so only bulk/box zones get that treatment.
+      if (zone && pasted && !exactPosition) await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
       this._showToast(this._t("toast.winePasted"));
       await this._loadData();
     } catch {
@@ -2090,7 +2324,7 @@ export class WineCellarCard extends LitElement {
     this._showToast(this._t("toast.tapToPlace", { name: item.name }));
   }
 
-  private async _executeMoveTocellar(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0) {
+  private async _executeMoveTocellar(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0, exactPosition = false) {
     if (!this._movingBuyListItem) return;
     try {
       const result = await this.hass.callWS({
@@ -2103,7 +2337,10 @@ export class WineCellarCard extends LitElement {
         depth,
       });
       const moved = result?.wine?.id;
-      if (zone && moved) await this._placeOnTopOfBin(cabinetId, zone, [moved]);
+      // A slot zone (shelf) was given its exact depth above — reordering
+      // to the top of the pile would scramble every other bottle's fixed
+      // position there, so only bulk/box zones get that treatment.
+      if (zone && moved && !exactPosition) await this._placeOnTopOfBin(cabinetId, zone, [moved]);
       this._showToast(this._t("toast.movedToCellar", { name: this._movingBuyListItem.name }));
       this._movingBuyListItem = null;
       await this._loadData();
@@ -2820,6 +3057,7 @@ export class WineCellarCard extends LitElement {
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
             this._zonePanelOpen = false;
             this._rackPanelOpen = false;
+            this._shelfPanelOpen = false;
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
@@ -2891,6 +3129,7 @@ export class WineCellarCard extends LitElement {
             this._showInventory = false;
             this._zonePanelOpen = false;
             this._rackPanelOpen = false;
+            this._shelfPanelOpen = false;
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
@@ -2997,7 +3236,7 @@ export class WineCellarCard extends LitElement {
                     ${this._zonePanelName}
                     <span class="depth-panel-subtitle">
                       ${this._zonePanelWines.length}/${this._zonePanelCapacity}
-                      ${this._zonePanelType === "box" ? this._t("ui.card.statBottles") : this._t("ui.card.panelStored")}
+                      ${this._zonePanelType === "box" || this._zonePanelType === "shelf" ? this._t("ui.card.statBottles") : this._t("ui.card.panelStored")}
                     </span>
                   </span>
                   <span class="depth-panel-actions">
@@ -3100,6 +3339,72 @@ export class WineCellarCard extends LitElement {
                         <div class="depth-panel-grow" @click=${this._addBulkSlot}>
                           <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                         </div>
+                      `
+                    : this._zonePanelType === "shelf"
+                    ? html`
+                        <!-- Shelf mode: slots grouped by (level, lane) — front/back per board -->
+                        ${getShelfSlotGroups(this._zonePanelStorageRow?.shelf_levels).map((group: ShelfSlotGroup) => html`
+                          <div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${(group.level > 0 || group.lane === "back") ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                            ${this._t("ui.card.shelfGroupHeader", {
+                              n: group.level + 1,
+                              lane: group.lane === "front" ? this._t("ui.card.shelfFront") : this._t("ui.card.shelfBack"),
+                            })}
+                          </div>
+                          ${Array.from({ length: group.size }, (_, slotInGroup) => {
+                            const depthIdx = group.start + slotInGroup;
+                            const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
+                            const typeColor = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+                            const disp = wine?.disposition || "";
+                            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                            const dragKey = `shelf-${depthIdx}`;
+                            const highlighted = wine?.id === this._highlightWineId;
+                            return html`
+                              <div
+                                id=${highlighted ? "highlight-slot" : nothing}
+                                class="depth-slot ${wine ? "filled" : "empty"} ${this._zonePanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
+                                draggable=${wine ? "true" : "false"}
+                                @click=${() => this._onZonePanelSlotClick(depthIdx, wine)}
+                                @dragstart=${wine ? (e: DragEvent) => this._onZonePanelDragStart(e, wine) : nothing}
+                                @dragend=${wine ? () => this._onZonePanelDragEnd() : nothing}
+                                @dragover=${(e: DragEvent) => this._onZonePanelDragOver(e, dragKey)}
+                                @dragleave=${() => (this._zonePanelDragOverKey = null)}
+                                @drop=${(e: DragEvent) => this._onZonePanelBoxReorder(e, depthIdx, wine)}
+                              >
+                                <span
+                                  class="depth-slot-delete"
+                                  title="${this._t("ui.card.deleteThisSlot")}"
+                                  @click=${(e: Event) => { e.stopPropagation(); this._deleteZoneSlot(depthIdx); }}
+                                >✕</span>
+                                <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInGroup + 1 })}</div>
+                                ${wine
+                                  ? html`
+                                      <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
+                                        <div class="depth-slot-avatar">
+                                          ${wine.image_url
+                                            ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                            : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                          ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                        </div>
+                                        <div class="depth-slot-info">
+                                          <div class="depth-slot-name">${wine.name}</div>
+                                          <div class="depth-slot-meta">
+                                            ${wine.vintage || "NV"}
+                                            ${wine.rating ? html` · ★${wine.rating}` : nothing}
+                                            ${wine.price ? html` · ${this._metadataCurrency} ${wine.price}` : nothing}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    `
+                                  : html`
+                                      <div class="depth-slot-empty">
+                                        <span class="depth-slot-plus">+</span>
+                                        <span>${this._t("ui.common.empty")}</span>
+                                      </div>
+                                    `}
+                              </div>
+                            `;
+                          })}
+                        `)}
                       `
                     : html`
                         <!-- Box mode: slots grouped by box -->
@@ -3265,6 +3570,97 @@ export class WineCellarCard extends LitElement {
                   <div class="depth-panel-grow" @click=${this._addRackSlot}>
                     <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                   </div>
+                </div>
+              </div>
+            `
+          : nothing}
+
+        <!-- Shelf Panel (shelf-style cabinets: every board/lane, list + reorder) -->
+        ${this._shelfPanelOpen
+          ? html`
+              <div class="depth-panel-backdrop ${this._shelfPanelDragWineId ? "drag-through" : ""}" @click=${this._closeShelfPanel}></div>
+              <div class="depth-panel open">
+                <div class="depth-panel-header">
+                  <span class="depth-panel-title">
+                    ${this._shelfPanelCabinet?.name}
+                    <span class="depth-panel-subtitle">
+                      ${this._t("ui.card.rackPanelBottlesCount", {
+                        n: this._shelfPanelWines.length,
+                        max: this._getShelfPanelRows().reduce((sum, sr) => sum + (sr.capacity || 0), 0),
+                      })}
+                    </span>
+                  </span>
+                  <button class="depth-panel-close" @click=${this._closeShelfPanel}>✕</button>
+                </div>
+                <div class="depth-panel-slots">
+                  ${this._getShelfPanelRows().map((sr) => {
+                    const zone = `storage-${sr.row}`;
+                    const groups = getShelfSlotGroups(sr.shelf_levels);
+                    return html`
+                      ${this._getShelfPanelRows().length > 1
+                        ? html`<div style="font-size:0.8em;font-weight:700;color:var(--wc-text-secondary);padding:8px 0 2px;">
+                            ${sr.name || this._t("wineLocation.storage")}
+                          </div>`
+                        : nothing}
+                      ${groups.map((group: ShelfSlotGroup) => html`
+                        <div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${(group.level > 0 || group.lane === "back") ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                          ${this._t("ui.card.shelfGroupHeader", {
+                            n: group.level + 1,
+                            lane: group.lane === "front" ? this._t("ui.card.shelfFront") : this._t("ui.card.shelfBack"),
+                          })}
+                        </div>
+                        ${Array.from({ length: group.size }, (_, slotInGroup) => {
+                          const depthIdx = group.start + slotInGroup;
+                          const wine = this._shelfPanelWines.find((w) => w.zone === zone && (w.depth || 0) === depthIdx);
+                          const typeColor = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+                          const disp = wine?.disposition || "";
+                          const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                          const dragKey = `${zone}-${depthIdx}`;
+                          const highlighted = wine?.id === this._highlightWineId;
+                          return html`
+                            <div
+                              id=${highlighted ? "highlight-slot" : nothing}
+                              class="depth-slot ${wine ? "filled" : "empty"} ${this._shelfPanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
+                              draggable=${wine ? "true" : "false"}
+                              @click=${() => this._onShelfPanelSlotClick(zone, depthIdx, wine)}
+                              @dragstart=${wine ? (e: DragEvent) => this._onShelfPanelDragStart(e, wine) : nothing}
+                              @dragend=${wine ? () => this._onShelfPanelDragEnd() : nothing}
+                              @dragover=${(e: DragEvent) => this._onShelfPanelDragOver(e, dragKey)}
+                              @dragleave=${() => (this._shelfPanelDragOverKey = null)}
+                              @drop=${(e: DragEvent) => this._onShelfPanelDrop(e, zone, depthIdx, wine)}
+                            >
+                              <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInGroup + 1 })}</div>
+                              ${wine
+                                ? html`
+                                    <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
+                                      <div class="depth-slot-avatar">
+                                        ${wine.image_url
+                                          ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                          : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                        ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                      </div>
+                                      <div class="depth-slot-info">
+                                        <div class="depth-slot-name">${wine.name}</div>
+                                        <div class="depth-slot-meta">
+                                          ${wine.vintage || "NV"}
+                                          ${wine.rating ? html` · ★${wine.rating}` : nothing}
+                                          ${wine.price ? html` · ${this._metadataCurrency} ${wine.price}` : nothing}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `
+                                : html`
+                                    <div class="depth-slot-empty">
+                                      <span class="depth-slot-plus">+</span>
+                                      <span>${this._t("ui.common.empty")}</span>
+                                    </div>
+                                  `}
+                            </div>
+                          `;
+                        })}
+                      `)}
+                    `;
+                  })}
                 </div>
               </div>
             `

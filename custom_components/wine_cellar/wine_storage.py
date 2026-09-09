@@ -132,6 +132,9 @@ class WineCellarStorage:
                 # Migrate box rows: add boxes array
                 if sr.get("type") == "box" and "boxes" not in sr:
                     sr["boxes"] = [sr.get("capacity", 12)]
+                # Migrate shelf rows: add shelf_levels array
+                if sr.get("type") == "shelf" and "shelf_levels" not in sr:
+                    sr["shelf_levels"] = [{"front": sr.get("capacity", 4), "back": 0}]
         # Ensure all wines have retail_price and depth fields
         for wine in self._data.get(CONF_WINES, []):
             if "retail_price" not in wine:
@@ -348,7 +351,7 @@ class WineCellarStorage:
     def cabinet_capacity(cabinet: dict[str, Any]) -> int:
         """Return a single cabinet's total bottle capacity.
 
-        Plain row/col grid slots, plus each bulk/box storage row's own
+        Plain row/col grid slots, plus each bulk/box/shelf storage row's own
         capacity (those rows replace a grid row, so they're not part of
         the row*col count and must be added separately).
         """
@@ -358,16 +361,25 @@ class WineCellarStorage:
         grid_rows = max(0, cabinet.get("rows", 0) - len(storage_rows))
         capacity = grid_rows * cabinet.get("cols", 0) * cabinet.get("depth", 1)
         for sr in storage_rows:
-            if sr.get("type") == "box":
-                capacity += sum(sr.get("boxes", []))
-            else:
-                capacity += sr.get("capacity", 0)
+            capacity += WineCellarStorage._storage_row_capacity(sr)
         return capacity
 
     @staticmethod
     def _storage_row_capacity(storage_row: dict[str, Any]) -> int:
-        if storage_row.get("type") == "box":
+        row_type = storage_row.get("type")
+        if row_type == "box":
             return sum(storage_row.get("boxes", []))
+        if row_type == "shelf":
+            # Each level is a physical shelf board with independent front
+            # and back lanes (a fridge shelf's front row often holds a
+            # different count than the row behind it). Flattened depth
+            # index order is bottom-to-top, front-then-back per level —
+            # see get_shelf_slot_groups in models.ts, which the frontend
+            # uses to stay in sync with this same ordering.
+            return sum(
+                int(level.get("front", 0)) + int(level.get("back", 0))
+                for level in storage_row.get("shelf_levels", [])
+            )
         return storage_row.get("capacity", 0)
 
     def _placement_is_lost(self, wine: dict[str, Any]) -> str | None:
@@ -817,10 +829,7 @@ class WineCellarStorage:
                 )
                 if storage_row is None:
                     return None
-                if storage_row.get("type") == "box":
-                    capacity = sum(storage_row.get("boxes", []))
-                else:
-                    capacity = storage_row.get("capacity", 0)
+                capacity = self._storage_row_capacity(storage_row)
                 if depth_idx >= capacity:
                     return None
             else:
