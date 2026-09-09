@@ -74,6 +74,7 @@ export class WineCellarCard extends LitElement {
   @state() private _metadataCurrency = "USD";
   @state() private _supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
   @state() private _aiFallbackAlways = false;
+  @state() private _enableWhisky = false;
   @state() private _showVivinoAiSettings = false;
   @state() private _showWineList = false;
   @state() private _showInventory = false;
@@ -578,6 +579,7 @@ export class WineCellarCard extends LitElement {
       this._metadataCurrency = capResult?.metadata_currency || "USD";
       this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
+      this._enableWhisky = capResult?.enable_whisky || false;
       this._dismissedArrangements = capResult?.dismissed_arrangements || [];
       this._buyList = buyListResult?.buy_list || [];
 
@@ -1740,6 +1742,21 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  private async _setEnableWhisky(value: boolean) {
+    if (value === this._enableWhisky) return;
+    const previous = this._enableWhisky;
+    this._enableWhisky = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { enable_whisky: value },
+      });
+    } catch (err) {
+      this._enableWhisky = previous;
+      this._showToast(this._t("toast.changeEnableWhiskyFailed"));
+    }
+  }
+
   // --- Batch Vivino Refresh ---
   private _batchRefreshVivino() {
     this._batchAiFallback = this._aiFallbackAlways;
@@ -2110,6 +2127,7 @@ export class WineCellarCard extends LitElement {
           .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
+          .enableWhisky=${this._enableWhisky}
           @search-change=${this._onSearch}
         ></wine-search-bar>
 
@@ -2436,6 +2454,7 @@ export class WineCellarCard extends LitElement {
           .open=${this._showDetail}
           .hasGemini=${this._hasGemini}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
           .mode=${this._detailMode}
           @close=${() => (this._showDetail = false)}
@@ -2472,6 +2491,7 @@ export class WineCellarCard extends LitElement {
           .preselectedZone=${this._addPreselect.zone}
           .preselectedDepth=${this._addPreselect.depth || 0}
           .buyListMode=${this._addToBuyListMode}
+          .enableWhisky=${this._enableWhisky}
           @close=${() => { this._showAddDialog = false; this._addToBuyListMode = false; }}
           @wine-added=${this._onWineAdded}
           @buy-list-updated=${() => this._loadData()}
@@ -2507,6 +2527,7 @@ export class WineCellarCard extends LitElement {
           .wines=${this._wines}
           .cabinets=${this._cabinets}
           .hasGemini=${this._hasGemini}
+          .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
@@ -2544,12 +2565,14 @@ export class WineCellarCard extends LitElement {
           .open=${this._showVivinoAiSettings}
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .enableWhisky=${this._enableWhisky}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
           .metadataCurrency=${this._metadataCurrency}
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
+          @set-enable-whisky=${(e: CustomEvent) => this._setEnableWhisky(e.detail.value)}
           @set-metadata-language=${(e: CustomEvent) => this._setMetadataLanguage(e.detail.value)}
           @set-metadata-currency=${(e: CustomEvent) => this._setMetadataCurrency(e.detail.value)}
         ></vivino-ai-settings-dialog>

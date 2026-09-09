@@ -55,6 +55,7 @@ export class InventoryDialog extends LitElement {
   @property({ attribute: false }) wines: Wine[] = [];
   @property({ attribute: false }) cabinets: Cabinet[] = [];
   @property({ type: Boolean }) hasGemini = false;
+  @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) currency = "USD";
 
   @state() private _searchQuery = "";
@@ -2155,7 +2156,7 @@ export class InventoryDialog extends LitElement {
       { id: "rosé", label: this._t("wineType.rosé") },
       { id: "sparkling", label: this._t("wineType.sparkling") },
       { id: "dessert", label: this._t("wineType.dessert") },
-      { id: "whisky", label: this._t("wineType.whisky") },
+      ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
     ];
 
     const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;

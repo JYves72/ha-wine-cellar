@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 from .const import (
     CONF_AI_FALLBACK_ALWAYS,
     CONF_DISMISSED_ARRANGEMENTS,
+    CONF_ENABLE_WHISKY,
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
     CONF_SERVER_BACKUP_KEEP,
@@ -774,6 +775,9 @@ def ws_get_capabilities(
             "supported_currencies": SUPPORTED_METADATA_CURRENCIES,
             "ai_fallback_always": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_AI_FALLBACK_ALWAYS, False)
+            ),
+            "enable_whisky": bool(
+                hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_WHISKY, False)
             ),
             "server_backup_keep": _get_backup_keep(hass),
             "server_backup_keep_choices": SERVER_BACKUP_KEEP_CHOICES,

@@ -240,6 +240,16 @@ export function varietyLabel(type?: string, short = false, language?: string): s
   return short ? t.grape : t.grapeVariety;
 }
 
+// The [type, label] pairs to offer in a type dropdown or filter chip list —
+// "whisky" only when the cellar has opted in (Vivino/AI Settings), so a
+// cellar that doesn't track whisky doesn't see it as an option. An existing
+// whisky-typed bottle keeps displaying correctly either way; this only
+// gates what's *offered*, not what's stored.
+export function getSelectableWineTypes(enableWhisky: boolean, language?: string): [WineType, string][] {
+  const entries = Object.entries(getWineTypeLabels(language)) as [WineType, string][];
+  return enableWhisky ? entries : entries.filter(([value]) => value !== "whisky");
+}
+
 // Every physical (row, col) grid slot in a cabinet, in display order,
 // skipping rows configured as bulk/box storage zones.
 export function getRackSlots(cabinet: Cabinet): { row: number; col: number }[] {

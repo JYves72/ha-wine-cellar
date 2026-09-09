@@ -7,6 +7,7 @@ import {
   StorageRow,
   WineType,
   getWineTypeLabels,
+  getSelectableWineTypes,
   producerLabel,
   varietyLabel,
 } from "../models";
@@ -44,6 +45,7 @@ export class AddWineDialog extends LitElement {
   @property({ attribute: false }) preselectedZone: string = "";
   @property({ attribute: false }) preselectedDepth: number = 0;
   @property({ type: Boolean }) buyListMode = false;
+  @property({ type: Boolean }) enableWhisky = false;
 
   @state() private _step: Step = "scan";
   @state() private _scanMode: ScanMode = "idle";
@@ -1242,7 +1244,7 @@ export class AddWineDialog extends LitElement {
               @change=${(e: Event) =>
                 this._updateField("type", (e.target as HTMLSelectElement).value)}
             >
-              ${(Object.entries(getWineTypeLabels(this.hass?.language)) as [WineType, string][]).map(
+              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(
                 ([value, label]) =>
                   html`<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`
               )}

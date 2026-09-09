@@ -93,6 +93,12 @@ SUPPORTED_METADATA_CURRENCIES = ["USD", "EUR", "GBP", "CHF"]
 # applying automatically. "always" skips asking and just uses AI every time.
 CONF_AI_FALLBACK_ALWAYS = "ai_fallback_always"
 
+# Whether "whisky" is offered as a selectable bottle type in the UI (add-wine
+# type dropdown, edit-type dropdown, filter chips). Off by default: most
+# cellars track wine only. Existing whisky-typed bottles keep displaying
+# correctly either way — this only gates what's offered, not what's stored.
+CONF_ENABLE_WHISKY = "enable_whisky"
+
 # How many timestamped server backups to keep on disk. Older ones are pruned
 # after each new save; 0 keeps every backup forever.
 # Arrangement findings the user has waved off for good. Kept as a list of
@@ -112,4 +118,4 @@ VIVINO_AUTO_SYNC_INTERVAL_HOURS = 12
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20260901c"
+FRONTEND_VERSION = "20260901d"

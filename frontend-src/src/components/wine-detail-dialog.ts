@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Wine, Cabinet, TastingNotes, getWineTypeLabels, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation, producerLabel, varietyLabel } from "../models";
+import { Wine, Cabinet, TastingNotes, getWineTypeLabels, getSelectableWineTypes, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation, producerLabel, varietyLabel } from "../models";
 import { sharedStyles } from "../styles";
 import { resizeImageForStorage } from "../utils/image";
 import { t } from "../i18n";
@@ -24,6 +24,10 @@ export class WineDetailDialog extends LitElement {
   @state() private _editing = false;
   @state() private _editingFields = false;
   @state() private _editData: Record<string, any> = {};
+  // Start year of the drink window, edited separately from drink_by (the
+  // end year) and recombined into the stored drink_window "YYYY-YYYY"
+  // string on every change — see _updateDrinkWindowPart.
+  @state() private _editDrinkFrom = "";
   @state() private _userRating: number = 0;
   @state() private _tastingNotes: TastingNotes = { aroma: "", taste: "", finish: "", overall: "" };
   @state() private _saving = false;
@@ -40,6 +44,7 @@ export class WineDetailDialog extends LitElement {
   @state() private _aiFallbackReason: "no_match" | "no_price" | null = null;
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
+  @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) currency = "USD";
 
   static styles = [
@@ -607,19 +612,38 @@ export class WineDetailDialog extends LitElement {
       retail_price: this.wine.retail_price,
       purchase_date: this.wine.purchase_date || "",
       drink_by: this.wine.drink_by || "",
+      drink_window: this.wine.drink_window || "",
       notes: this.wine.notes || "",
       alcohol: this.wine.alcohol || "",
     };
+    const windowStart = (this.wine.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
+    this._editDrinkFrom = windowStart ? windowStart[0] : "";
     this._editingFields = true;
   }
 
   private _cancelEditingFields() {
     this._editingFields = false;
     this._editData = {};
+    this._editDrinkFrom = "";
   }
 
   private _updateEditField(field: string, value: any) {
     this._editData = { ...this._editData, [field]: value };
+  }
+
+  // drink_by is the end year; _editDrinkFrom (a separate, non-persisted
+  // field) is the start year. Both recombine into the stored drink_window
+  // "YYYY-YYYY" string on every change, so it never drifts out of sync
+  // with whichever end the user just edited.
+  private _updateDrinkWindowPart(part: "from" | "by", value: string) {
+    if (part === "from") this._editDrinkFrom = value;
+    const from = (part === "from" ? value : this._editDrinkFrom).trim();
+    const by = (part === "by" ? value : (this._editData.drink_by || "")).trim();
+    this._editData = {
+      ...this._editData,
+      ...(part === "by" ? { drink_by: value } : {}),
+      drink_window: from && by ? `${from}-${by}` : (from || by || ""),
+    };
   }
 
   // Applying a result to whatever is on screen now is only correct if it is
@@ -1090,7 +1114,7 @@ export class WineDetailDialog extends LitElement {
             <label>${this._t("ui.wineDetail.typeLabel")}</label>
             <select .value=${d.type}
               @change=${(e: Event) => this._updateEditField("type", (e.target as HTMLSelectElement).value)}>
-              ${(Object.entries(getWineTypeLabels(this.hass?.language)) as [WineType, string][]).map(
+              ${getSelectableWineTypes(this.enableWhisky || d.type === "whisky", this.hass?.language).map(
                 ([value, label]) => html`<option value=${value} ?selected=${d.type === value}>${label}</option>`
               )}
             </select>
@@ -1140,9 +1164,14 @@ export class WineDetailDialog extends LitElement {
               @input=${(e: Event) => this._updateEditField("purchase_date", (e.target as HTMLInputElement).value)} />
           </div>
           <div class="form-group">
+            <label>${this._t("ui.wineDetail.drinkFromLabel")}</label>
+            <input type="text" placeholder="${this._t('ui.wineDetail.drinkFromPlaceholder')}" .value=${this._editDrinkFrom}
+              @input=${(e: Event) => this._updateDrinkWindowPart("from", (e.target as HTMLInputElement).value)} />
+          </div>
+          <div class="form-group">
             <label>${this._t("ui.wineDetail.drinkByLabel")}</label>
             <input type="text" placeholder="${this._t('ui.wineDetail.drinkByPlaceholder')}" .value=${d.drink_by}
-              @input=${(e: Event) => this._updateEditField("drink_by", (e.target as HTMLInputElement).value)} />
+              @input=${(e: Event) => this._updateDrinkWindowPart("by", (e.target as HTMLInputElement).value)} />
           </div>
         </div>
 
