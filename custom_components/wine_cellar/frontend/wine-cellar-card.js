@@ -823,7 +823,29 @@ var ui$1 = {
 		addWineBtn: "+ Add Wine",
 		fullAiAnalysisTitle: "Full AI analysis on all wines (disposition, ratings, price, description)",
 		refreshVivinoTitle: "Refresh all wines from Vivino (ratings, price, description)",
-		importVivinoTitle: "Import your Vivino cellar and wishlist into Cork Dork",
+		importVivinoTitle: "Import your Vivino cellar and wishlist into Cork Dork (never writes to Vivino)",
+		syncVivinoTitle: "Two-way sync: import from Vivino and push your Cork Dork changes back",
+		vivinoImporting: "Vivino Importing...",
+		vivinoImportBtn: "⬇️ Vivino Import",
+		removeThisBottleTitle: "Remove this bottle?",
+		removeThisBottleHint: "removed on Vivino, archived to history here",
+		removeThisBottleBtn: "Remove this bottle",
+		bottlePositionZone: "zone {zone}",
+		bottlePositionRowSlot: "row {row}, slot {col}",
+		unknownWine: "Unknown wine",
+		removalPanelTitle: "🍷 Vivino removed bottles — pick which ones to remove here",
+		removalChooseCount: "choose {n}",
+		removalHint: "Candidates are ringed in orange below — click the bottle that is actually gone.",
+		conflictPanelTitle: "⚠️ Sync conflicts — both sides changed; you decide the truth",
+		conflictCounts: "Vivino: {vivino} · here: {here}",
+		conflictHint: "Your bottles are ringed below. Correct them if needed (open a bottle to remove it, paste to add), then confirm:",
+		conflictConfirmBtn: "Cork Dork is right — set Vivino to {n}",
+		conflictSyncing: "Syncing to Vivino...",
+		vivinoWineFallback: "Vivino wine {vid}",
+		syncCountConfirmTitle: "Sync this count to Vivino?",
+		syncCountConfirmBodyOne: "Vivino will be set to {n} bottle — the count in Cork Dork right now. The adjustment shows up in your Vivino cellar history and can be undone there.",
+		syncCountConfirmBodyMany: "Vivino will be set to {n} bottles — the count in Cork Dork right now. The adjustment shows up in your Vivino cellar history and can be undone there.",
+		syncCountConfirmBtn: "Yes — update Vivino",
 		scanListTitle: "Scan a wine list or receipt for ratings and value",
 		inventoryTitle: "Browse full cellar inventory",
 		unplacedTitle: "Bottles in Unassigned, not yet placed on a rack",
@@ -1367,7 +1389,25 @@ var toast$1 = {
 	vivinoSyncCompleteOne: "Vivino sync complete! {n} bottle imported",
 	vivinoSyncCompleteMany: "Vivino sync complete! {n} bottles imported",
 	vivinoWishlistAdded: "+ {n} to buy list",
+	vivinoPushedCount: "({n} pushed to Vivino)",
+	vivinoRemovedCountOne: "· {n} bottle removed",
+	vivinoRemovedCountMany: "· {n} bottles removed",
 	vivinoSyncFailed: "Vivino sync failed.",
+	vivinoImporting: "Importing your Vivino cellar & wishlist...",
+	vivinoImportFailedError: "Vivino import failed: {error}",
+	vivinoImportCompleteOne: "Vivino import complete! {n} bottle imported",
+	vivinoImportCompleteMany: "Vivino import complete! {n} bottles imported",
+	vivinoImportFailed: "Vivino import failed.",
+	vivinoRemovalChoicesOne: "— {n} removal needs your choice",
+	vivinoRemovalChoicesMany: "— {n} removals need your choice",
+	bottleRemovedMoreToChoose: "Bottle removed — {n} more to choose",
+	bottleRemovedAllResolved: "Bottle removed — all Vivino removals resolved",
+	removeBottleFailed: "Failed to remove the bottle.",
+	vivinoConflictsOne: "— {n} conflict needs your decision",
+	vivinoConflictsMany: "— {n} conflicts need your decision",
+	vivinoConflictUpdatedOne: "Vivino updated to {n} bottle.",
+	vivinoConflictUpdatedMany: "Vivino updated to {n} bottles.",
+	vivinoConflictUpdateFailed: "Failed to update Vivino.",
 	removedFromBuyList: "Removed from buy list",
 	removeFromBuyListFailed: "Failed to remove from buy list",
 	tapToPlace: "Tap a cell to place \"{name}\"",
@@ -1474,7 +1514,29 @@ var ui = {
 		addWineBtn: "+ Ajouter un vin",
 		fullAiAnalysisTitle: "Analyse IA complète sur tous les vins (disposition, notes, prix, description)",
 		refreshVivinoTitle: "Rafraîchir tous les vins depuis Vivino (notes, prix, description)",
-		importVivinoTitle: "Importer votre cave et la liste des souhaits Vivino dans Cork Dork",
+		importVivinoTitle: "Importer votre cave et la liste des souhaits Vivino dans Cork Dork (n'écrit jamais dans Vivino)",
+		syncVivinoTitle: "Synchronisation bidirectionnelle : importe depuis Vivino et renvoie vos changements Cork Dork",
+		vivinoImporting: "Import Vivino en cours...",
+		vivinoImportBtn: "⬇️ Import Vivino",
+		removeThisBottleTitle: "Retirer cette bouteille ?",
+		removeThisBottleHint: "retirée sur Vivino, archivée dans l'historique ici",
+		removeThisBottleBtn: "Retirer cette bouteille",
+		bottlePositionZone: "zone {zone}",
+		bottlePositionRowSlot: "rangée {row}, emplacement {col}",
+		unknownWine: "Vin inconnu",
+		removalPanelTitle: "🍷 Bouteilles retirées sur Vivino — choisissez lesquelles retirer ici",
+		removalChooseCount: "choisir {n}",
+		removalHint: "Les candidates sont entourées en orange ci-dessous — cliquez sur la bouteille réellement disparue.",
+		conflictPanelTitle: "⚠️ Conflits de synchro — les deux côtés ont changé ; à vous de trancher",
+		conflictCounts: "Vivino : {vivino} · ici : {here}",
+		conflictHint: "Vos bouteilles sont entourées ci-dessous. Corrigez-les si besoin (ouvrir une bouteille pour la retirer, coller pour en ajouter), puis confirmez :",
+		conflictConfirmBtn: "Cork Dork a raison — régler Vivino sur {n}",
+		conflictSyncing: "Synchronisation vers Vivino...",
+		vivinoWineFallback: "Vin Vivino {vid}",
+		syncCountConfirmTitle: "Synchroniser ce nombre vers Vivino ?",
+		syncCountConfirmBodyOne: "Vivino sera réglé sur {n} bouteille — le nombre actuel dans Cork Dork. L'ajustement apparaît dans l'historique de votre cave Vivino et peut y être annulé.",
+		syncCountConfirmBodyMany: "Vivino sera réglé sur {n} bouteilles — le nombre actuel dans Cork Dork. L'ajustement apparaît dans l'historique de votre cave Vivino et peut y être annulé.",
+		syncCountConfirmBtn: "Oui — mettre à jour Vivino",
 		scanListTitle: "Scanner une carte des vins ou un reçu pour obtenir les notes et la valeur",
 		inventoryTitle: "Parcourir l'inventaire complet de la cave",
 		unplacedTitle: "Bouteilles non assignées, pas encore placées",
@@ -2018,7 +2080,25 @@ var toast = {
 	vivinoSyncCompleteOne: "Synchro Vivino terminée ! {n} bouteille importée",
 	vivinoSyncCompleteMany: "Synchro Vivino terminée ! {n} bouteilles importées",
 	vivinoWishlistAdded: "+ {n} à la liste d'achat",
+	vivinoPushedCount: "({n} renvoyée(s) vers Vivino)",
+	vivinoRemovedCountOne: "· {n} bouteille retirée",
+	vivinoRemovedCountMany: "· {n} bouteilles retirées",
 	vivinoSyncFailed: "Échec de la synchro Vivino.",
+	vivinoImporting: "Import de votre cave et liste de souhaits Vivino...",
+	vivinoImportFailedError: "Échec de l'import Vivino : {error}",
+	vivinoImportCompleteOne: "Import Vivino terminé ! {n} bouteille importée",
+	vivinoImportCompleteMany: "Import Vivino terminé ! {n} bouteilles importées",
+	vivinoImportFailed: "Échec de l'import Vivino.",
+	vivinoRemovalChoicesOne: "— {n} suppression nécessite votre choix",
+	vivinoRemovalChoicesMany: "— {n} suppressions nécessitent votre choix",
+	bottleRemovedMoreToChoose: "Bouteille retirée — {n} de plus à choisir",
+	bottleRemovedAllResolved: "Bouteille retirée — toutes les suppressions Vivino sont résolues",
+	removeBottleFailed: "Échec du retrait de la bouteille.",
+	vivinoConflictsOne: "— {n} conflit nécessite votre décision",
+	vivinoConflictsMany: "— {n} conflits nécessitent votre décision",
+	vivinoConflictUpdatedOne: "Vivino mis à jour à {n} bouteille.",
+	vivinoConflictUpdatedMany: "Vivino mis à jour à {n} bouteilles.",
+	vivinoConflictUpdateFailed: "Échec de la mise à jour de Vivino.",
 	removedFromBuyList: "Retiré de la liste d'achat",
 	removeFromBuyListFailed: "Échec du retrait de la liste d'achat",
 	tapToPlace: "Touchez une case pour placer « {name} »",
@@ -3182,6 +3262,9 @@ let CabinetGrid = class CabinetGrid extends i {
         // Set briefly by "locate" so the bottle is marked on the rack drawing too,
         // not just in the side panel's slot list.
         this.highlightWineId = null;
+        // Candidates for a pending Vivino removal: every listed bottle gets an
+        // orange ring so the user can see which ones may be the removed bottle.
+        this.removalHighlightIds = [];
         this._dragOverCell = null;
         // --- Long press (mobile move) ---
         this._longPressTimer = null;
@@ -3402,7 +3485,7 @@ let CabinetGrid = class CabinetGrid extends i {
             const bottleKey = `${zoneKey}-${wine.id}`;
             return b `
             <div
-              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""}"
+              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
               style="background: ${WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red}"
               data-wine-id="${wine.id}"
               draggable="true"
@@ -3443,6 +3526,8 @@ let CabinetGrid = class CabinetGrid extends i {
                 start,
                 wineCount: boxWines.length,
                 hasHighlight: !!this.highlightWineId && boxWines.some((w) => w.id === this.highlightWineId),
+                hasRemoval: this.removalHighlightIds.length > 0 &&
+                    boxWines.some((w) => this.removalHighlightIds.includes(w.id)),
             };
         });
         return b `
@@ -3454,7 +3539,7 @@ let CabinetGrid = class CabinetGrid extends i {
         <div class="bottom-zone-label">📦 ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
         <div class="zone-box-grid">
           ${boxSegments.map((seg) => b `
-            <div class="zone-box-item ${seg.wineCount > 0 ? "has-wine" : ""} ${seg.hasHighlight ? "locate-highlight" : ""}">
+            <div class="zone-box-item ${seg.wineCount > 0 ? "has-wine" : ""} ${seg.hasHighlight ? "locate-highlight" : ""} ${seg.hasRemoval ? "removal-highlight" : ""}">
               <div class="zone-box-shape">
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
@@ -3486,9 +3571,11 @@ let CabinetGrid = class CabinetGrid extends i {
             const cellKey = `${row}-${col}`;
             const isDragOver = this._dragOverCell === cellKey;
             const isHighlighted = !!this.highlightWineId && wines.some((w) => w.id === this.highlightWineId);
+            const isRemovalCandidate = this.removalHighlightIds.length > 0 &&
+                wines.some((w) => this.removalHighlightIds.includes(w.id));
             return b `
             <div
-              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""}"
+              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
               style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
@@ -3830,6 +3917,27 @@ CabinetGrid.styles = [
           box-shadow: 0 0 10px 4px rgba(255, 193, 7, 0.65);
           outline: 2px solid rgba(255, 193, 7, 1);
           outline-offset: 2px;
+        }
+      }
+
+      /* Pending-Vivino-removal candidate: a steady orange ring that pulses
+         for as long as the choice is active (unlike the 3-cycle locate). */
+      .removal-highlight {
+        position: relative;
+        z-index: 3;
+        outline: 2px solid rgba(255, 109, 0, 0.95);
+        outline-offset: 1px;
+        animation: removalPulse 1.2s ease-in-out infinite;
+        border-radius: inherit;
+      }
+
+      @keyframes removalPulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 109, 0, 0);
+        }
+        50% {
+          box-shadow: 0 0 10px 4px rgba(255, 109, 0, 0.65);
         }
       }
 
@@ -4198,6 +4306,9 @@ __decorate([
 __decorate([
     n({ attribute: false })
 ], CabinetGrid.prototype, "highlightWineId", void 0);
+__decorate([
+    n({ attribute: false })
+], CabinetGrid.prototype, "removalHighlightIds", void 0);
 __decorate([
     r()
 ], CabinetGrid.prototype, "_dragOverCell", void 0);
@@ -13364,6 +13475,19 @@ let WineCellarCard = class WineCellarCard extends i {
         this._toast = "";
         this._hasGemini = false;
         this._hasVivinoAccount = false;
+        this._vivinoMode = "import";
+        // Vivino-side removals awaiting the user's bottle choice (vivino_id -> entry)
+        this._pendingRemovals = {};
+        this._removalFocusVid = null;
+        this._removalConfirmWine = null;
+        // Sync conflicts (both sides changed a wine differently) awaiting manual
+        // resolution: the user reviews Cork Dork's bottles and declares them truth.
+        this._vivinoConflicts = [];
+        this._conflictFocusVid = null;
+        this._conflictConfirmVid = null;
+        // vivino_id currently being pushed to Vivino (the write plus its
+        // verification can take several seconds)
+        this._conflictResolving = null;
         this._metadataLanguage = "en";
         this._supportedLanguages = ["en", "fr", "de"];
         this._metadataCurrency = "USD";
@@ -13514,18 +13638,20 @@ let WineCellarCard = class WineCellarCard extends i {
         if (isInitialLoad)
             this._loading = true;
         try {
-            const [winesResult, cabinetsResult, statsResult, capResult, buyListResult] = await Promise.all([
+            const [winesResult, cabinetsResult, statsResult, capResult, buyListResult, pendingRemovalsResult] = await Promise.all([
                 this.hass.callWS({ type: "wine_cellar/get_wines" }),
                 this.hass.callWS({ type: "wine_cellar/get_cabinets" }),
                 this.hass.callWS({ type: "wine_cellar/get_stats" }),
                 this.hass.callWS({ type: "wine_cellar/get_capabilities" }).catch(() => ({ has_gemini: false })),
                 this.hass.callWS({ type: "wine_cellar/get_buy_list" }).catch(() => ({ buy_list: [] })),
+                this.hass.callWS({ type: "wine_cellar/get_pending_removals" }).catch(() => ({ pending_removals: {} })),
             ]);
             this._wines = winesResult.wines || [];
             this._cabinets = (cabinetsResult.cabinets || []).sort((a, b) => a.order - b.order);
             this._stats = statsResult;
             this._hasGemini = capResult?.has_gemini || false;
             this._hasVivinoAccount = capResult?.has_vivino_account || false;
+            this._vivinoMode = capResult?.vivino_mode || "import";
             this._metadataLanguage = capResult?.metadata_language || "en";
             this._supportedLanguages = capResult?.supported_languages || ["en", "fr", "de"];
             this._metadataCurrency = capResult?.metadata_currency || "USD";
@@ -13533,6 +13659,15 @@ let WineCellarCard = class WineCellarCard extends i {
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
             this._dismissedArrangements = capResult?.dismissed_arrangements || [];
             this._buyList = buyListResult?.buy_list || [];
+            this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
+            if (this._removalFocusVid && !this._pendingRemovals[this._removalFocusVid]) {
+                this._removalFocusVid = null;
+            }
+            this._vivinoConflicts = pendingRemovalsResult?.conflicts || [];
+            if (this._conflictFocusVid &&
+                !this._vivinoConflicts.some((c) => String(c.vintage_id) === this._conflictFocusVid)) {
+                this._conflictFocusVid = null;
+            }
             // Refresh selected wine if detail dialog is open
             if (this._selectedWine) {
                 const updated = this._wines.find((w) => w.id === this._selectedWine.id);
@@ -13591,6 +13726,11 @@ let WineCellarCard = class WineCellarCard extends i {
         const { wine, wines = [], cabinet, row, col, wineCount = 0, cabinetDepth = 1 } = e.detail;
         const hasRoom = wineCount < cabinetDepth;
         const nextDepth = wineCount;
+        // Picking the bottle for a pending Vivino removal takes precedence
+        if (this._removalFocusVid && wine && this._removalHighlightIds.includes(wine.id)) {
+            this._removalConfirmWine = wine;
+            return;
+        }
         // If we have a copied wine and cell has room, paste it
         if (this._copiedWine && hasRoom) {
             this._pasteWine(cabinet.id, row, col, nextDepth);
@@ -13662,6 +13802,11 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     _onZoneClick(e) {
         const { wine, cabinet, zone } = e.detail;
+        // Picking the bottle for a pending Vivino removal takes precedence
+        if (this._removalFocusVid && wine && this._removalHighlightIds.includes(wine.id)) {
+            this._removalConfirmWine = wine;
+            return;
+        }
         // If we have a copied wine and clicked empty zone space, paste it here
         if (this._copiedWine && !wine) {
             const nextDepth = this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
@@ -14496,6 +14641,10 @@ let WineCellarCard = class WineCellarCard extends i {
                     ai_updated_at: this._copiedWine.ai_updated_at,
                     ai_checked_at: this._copiedWine.ai_checked_at,
                     vivino_id: this._copiedWine.vivino_id,
+                    // Keep the source: a copy of a Vivino-synced bottle must stay part
+                    // of the reconciliation (count pushes, removal candidates), or it
+                    // becomes an invisible manual bottle with a vivino_id.
+                    source: this._copiedWine.source,
                 },
             });
             const pasted = result?.wine?.id;
@@ -14673,25 +14822,136 @@ let WineCellarCard = class WineCellarCard extends i {
         this._batchVivino = false;
     }
     // --- Vivino Account Sync ---
+    get _vivinoSyncMode() {
+        return this._vivinoMode === "sync";
+    }
+    // --- Pending Vivino removals: the user picks the actual bottle ---
+    _removalCandidates(vid) {
+        return this._wines.filter((w) => String(w.vivino_id || "") === vid &&
+            String(w.source || "").startsWith("vivino"));
+    }
+    get _removalHighlightIds() {
+        const vid = this._removalFocusVid || this._conflictFocusVid;
+        return vid ? this._removalCandidates(vid).map((w) => w.id) : [];
+    }
+    _conflictLabel(vid) {
+        const w = this._removalCandidates(vid)[0];
+        if (!w)
+            return this._t("ui.card.vivinoWineFallback", { vid });
+        return `${w.winery ? `${w.winery} — ` : ""}${w.name}${w.vintage ? ` (${w.vintage})` : ""}`;
+    }
+    async _confirmConflictResolution() {
+        const vid = this._conflictConfirmVid;
+        if (!vid || this._conflictResolving)
+            return;
+        this._conflictConfirmVid = null;
+        this._conflictResolving = vid;
+        const target = this._removalCandidates(vid).length;
+        try {
+            const res = await this.hass.callWS({
+                type: "wine_cellar/resolve_vivino_conflict",
+                vivino_id: vid,
+            });
+            if (res.error) {
+                this._showToast(res.error);
+                return;
+            }
+            this._vivinoConflicts = res.conflicts || [];
+            this._conflictFocusVid = null;
+            this._showToast(target === 1
+                ? this._t("toast.vivinoConflictUpdatedOne", { n: target })
+                : this._t("toast.vivinoConflictUpdatedMany", { n: target }));
+            await this._loadData();
+        }
+        catch {
+            this._showToast(this._t("toast.vivinoConflictUpdateFailed"));
+        }
+        finally {
+            this._conflictResolving = null;
+        }
+    }
+    _bottlePosition(wine) {
+        if (!wine.cabinet_id)
+            return this._t("wineLocation.unassigned");
+        const cab = this._cabinets.find((c) => c.id === wine.cabinet_id);
+        const parts = [cab?.name || this._t("ui.inventory.cabinet")];
+        if (wine.zone)
+            parts.push(this._t("ui.card.bottlePositionZone", { zone: wine.zone }));
+        else if (wine.row != null && wine.col != null) {
+            parts.push(this._t("ui.card.bottlePositionRowSlot", { row: Number(wine.row) + 1, col: Number(wine.col) + 1 }));
+        }
+        return parts.join(", ");
+    }
+    async _confirmRemovalChoice() {
+        const wine = this._removalConfirmWine;
+        if (!wine)
+            return;
+        this._removalConfirmWine = null;
+        try {
+            const res = await this.hass.callWS({
+                type: "wine_cellar/resolve_vivino_removal",
+                wine_id: wine.id,
+            });
+            if (res.error) {
+                this._showToast(res.error);
+                return;
+            }
+            this._pendingRemovals = res.pending_removals || {};
+            if (this._removalFocusVid && !this._pendingRemovals[this._removalFocusVid]) {
+                this._removalFocusVid = null;
+            }
+            const left = Object.values(this._pendingRemovals).reduce((a, e) => a + (e.count || 0), 0);
+            this._showToast(left > 0
+                ? this._t("toast.bottleRemovedMoreToChoose", { n: left })
+                : this._t("toast.bottleRemovedAllResolved"));
+            await this._loadData();
+        }
+        catch {
+            this._showToast(this._t("toast.removeBottleFailed"));
+        }
+    }
     async _syncVivino() {
         this._vivinoSyncing = true;
-        this._showToast(this._t("toast.vivinoSyncing"));
+        this._showToast(this._vivinoSyncMode ? this._t("toast.vivinoSyncing") : this._t("toast.vivinoImporting"));
         try {
             const result = await this.hass.callWS({
                 type: "wine_cellar/sync_vivino",
             });
             if (result.error) {
-                this._showToast(this._t("toast.vivinoSyncFailedError", { error: result.error }));
+                this._showToast(this._vivinoSyncMode
+                    ? this._t("toast.vivinoSyncFailedError", { error: result.error })
+                    : this._t("toast.vivinoImportFailedError", { error: result.error }));
             }
             else {
                 const bottles = (result.cellar_imported || 0) + (result.my_wines_imported || 0);
                 const parts = [
-                    bottles === 1
-                        ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
-                        : this._t("toast.vivinoSyncCompleteMany", { n: bottles }),
+                    this._vivinoSyncMode
+                        ? (bottles === 1
+                            ? this._t("toast.vivinoSyncCompleteOne", { n: bottles })
+                            : this._t("toast.vivinoSyncCompleteMany", { n: bottles }))
+                        : (bottles === 1
+                            ? this._t("toast.vivinoImportCompleteOne", { n: bottles })
+                            : this._t("toast.vivinoImportCompleteMany", { n: bottles })),
                 ];
+                if (result.cellar_removed > 0) {
+                    parts.push(result.cellar_removed === 1
+                        ? this._t("toast.vivinoRemovedCountOne", { n: result.cellar_removed })
+                        : this._t("toast.vivinoRemovedCountMany", { n: result.cellar_removed }));
+                }
                 if (result.wishlist_imported > 0)
                     parts.push(this._t("toast.vivinoWishlistAdded", { n: result.wishlist_imported }));
+                if (result.cellar_pushed > 0)
+                    parts.push(this._t("toast.vivinoPushedCount", { n: result.cellar_pushed }));
+                if (result.cellar_removal_choices > 0) {
+                    parts.push(result.cellar_removal_choices === 1
+                        ? this._t("toast.vivinoRemovalChoicesOne", { n: result.cellar_removal_choices })
+                        : this._t("toast.vivinoRemovalChoicesMany", { n: result.cellar_removal_choices }));
+                }
+                if (result.cellar_conflicts > 0) {
+                    parts.push(result.cellar_conflicts === 1
+                        ? this._t("toast.vivinoConflictsOne", { n: result.cellar_conflicts })
+                        : this._t("toast.vivinoConflictsMany", { n: result.cellar_conflicts }));
+                }
                 if (result.errors?.length)
                     parts.push(this._t("toast.errorsCount", { n: result.errors.length }));
                 this._showToast(parts.join(" "));
@@ -14699,7 +14959,7 @@ let WineCellarCard = class WineCellarCard extends i {
             }
         }
         catch (err) {
-            this._showToast(this._t("toast.vivinoSyncFailed"));
+            this._showToast(this._vivinoSyncMode ? this._t("toast.vivinoSyncFailed") : this._t("toast.vivinoImportFailed"));
         }
         this._vivinoSyncing = false;
     }
@@ -14831,10 +15091,12 @@ let WineCellarCard = class WineCellarCard extends i {
                 class="btn btn-primary"
                 style="font-size: 0.8em; padding: 5px 10px; background: #b71c1c;"
                 @click=${this._syncVivino}
-                title="${this._t("ui.card.importVivinoTitle")}"
+                title="${this._vivinoSyncMode ? this._t("ui.card.syncVivinoTitle") : this._t("ui.card.importVivinoTitle")}"
                 ?disabled=${this._vivinoSyncing || this._batchVivino || this._analyzing}
               >
-                ${this._vivinoSyncing ? this._t("ui.card.vivinoSyncing") : this._t("ui.card.vivinoSyncBtn")}
+                ${this._vivinoSyncing
+            ? (this._vivinoSyncMode ? this._t("ui.card.vivinoSyncing") : this._t("ui.card.vivinoImporting"))
+            : (this._vivinoSyncMode ? this._t("ui.card.vivinoSyncBtn") : this._t("ui.card.vivinoImportBtn"))}
               </button>
             ` : A}
             ${this._hasGemini ? b `
@@ -15006,6 +15268,63 @@ let WineCellarCard = class WineCellarCard extends i {
         ></wine-search-bar>
 
         <!-- Cabinet grids -->
+        ${Object.keys(this._pendingRemovals).length > 0 || this._vivinoConflicts.length > 0 ? b `
+          <div class="removal-panel">
+            ${Object.keys(this._pendingRemovals).length > 0 ? b `
+              <div class="removal-panel-title">${this._t("ui.card.removalPanelTitle")}</div>
+              ${Object.entries(this._pendingRemovals).map(([vid, entry]) => b `
+                <div
+                  class="removal-entry ${this._removalFocusVid === vid ? "active" : ""}"
+                  @click=${() => {
+            this._removalFocusVid = this._removalFocusVid === vid ? null : vid;
+            if (this._removalFocusVid)
+                this._conflictFocusVid = null;
+        }}
+                >
+                  <span>${entry.winery ? `${entry.winery} — ` : ""}${entry.name || this._t("ui.card.unknownWine")}${entry.vintage ? ` (${entry.vintage})` : ""}</span>
+                  <span class="removal-count">${this._t("ui.card.removalChooseCount", { n: entry.count })}</span>
+                </div>
+              `)}
+              ${this._removalFocusVid ? b `
+                <div class="removal-hint">${this._t("ui.card.removalHint")}</div>
+              ` : A}
+            ` : A}
+            ${this._vivinoConflicts.length > 0 ? b `
+              <div class="removal-panel-title conflict-title">${this._t("ui.card.conflictPanelTitle")}</div>
+              ${this._vivinoConflicts.map((c) => {
+            const vid = String(c.vintage_id);
+            const cdNow = this._removalCandidates(vid).length;
+            const active = this._conflictFocusVid === vid;
+            return b `
+                  <div
+                    class="removal-entry conflict ${active ? "active" : ""}"
+                    @click=${() => {
+                this._conflictFocusVid = active ? null : vid;
+                if (this._conflictFocusVid)
+                    this._removalFocusVid = null;
+            }}
+                  >
+                    <span>${this._conflictLabel(vid)}</span>
+                    <span class="removal-count">${this._t("ui.card.conflictCounts", { vivino: c.vivino, here: cdNow })}</span>
+                  </div>
+                  ${active ? b `
+                    <div class="removal-hint">${this._t("ui.card.conflictHint")}</div>
+                    <button
+                      class="btn btn-primary conflict-confirm"
+                      ?disabled=${this._conflictResolving !== null}
+                      @click=${(e) => {
+                e.stopPropagation();
+                this._conflictConfirmVid = vid;
+            }}
+                    >${this._conflictResolving === vid
+                ? this._t("ui.card.conflictSyncing")
+                : this._t("ui.card.conflictConfirmBtn", { n: cdNow })}</button>
+                  ` : A}
+                `;
+        })}
+            ` : A}
+          </div>
+        ` : A}
         ${showGrid
             ? b `
               <div class="cabinets-row">
@@ -15016,6 +15335,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           .cabinet=${cab}
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
+                          .removalHighlightIds=${this._removalHighlightIds}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
@@ -15035,6 +15355,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             .cabinet=${cab}
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
+                            .removalHighlightIds=${this._removalHighlightIds}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
@@ -15264,6 +15585,52 @@ let WineCellarCard = class WineCellarCard extends i {
             : A}
 
         <!-- Batch Vivino Photo Mode Confirm -->
+        ${this._removalConfirmWine ? b `
+          <div class="dialog-overlay" @click=${() => (this._removalConfirmWine = null)}>
+            <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.removeThisBottleTitle")}</h3>
+              <p style="margin:0 0 4px;font-size:0.9em;color:var(--wc-text)">
+                ${this._removalConfirmWine.winery ? `${this._removalConfirmWine.winery} — ` : ""}${this._removalConfirmWine.name}${this._removalConfirmWine.vintage ? ` (${this._removalConfirmWine.vintage})` : ""}
+              </p>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                ${this._bottlePosition(this._removalConfirmWine)} · ${this._t("ui.card.removeThisBottleHint")}
+              </p>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button class="btn btn-primary" style="background:#e65100" @click=${this._confirmRemovalChoice}>
+                  ${this._t("ui.card.removeThisBottleBtn")}
+                </button>
+                <button
+                  style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
+                  @click=${() => (this._removalConfirmWine = null)}
+                >${this._t("ui.common.cancel")}</button>
+              </div>
+            </div>
+          </div>
+        ` : A}
+        ${this._conflictConfirmVid ? b `
+          <div class="dialog-overlay" @click=${() => (this._conflictConfirmVid = null)}>
+            <div class="dialog" style="max-width:360px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
+              <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.syncCountConfirmTitle")}</h3>
+              <p style="margin:0 0 4px;font-size:0.9em;color:var(--wc-text)">
+                ${this._conflictLabel(this._conflictConfirmVid)}
+              </p>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                ${this._removalCandidates(this._conflictConfirmVid).length === 1
+            ? this._t("ui.card.syncCountConfirmBodyOne", { n: this._removalCandidates(this._conflictConfirmVid).length })
+            : this._t("ui.card.syncCountConfirmBodyMany", { n: this._removalCandidates(this._conflictConfirmVid).length })}
+              </p>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button class="btn btn-primary" style="background:#e65100" @click=${this._confirmConflictResolution}>
+                  ${this._t("ui.card.syncCountConfirmBtn")}
+                </button>
+                <button
+                  style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
+                  @click=${() => (this._conflictConfirmVid = null)}
+                >${this._t("ui.common.cancel")}</button>
+              </div>
+            </div>
+          </div>
+        ` : A}
         ${this._showBatchVivinoConfirm ? b `
           <div class="dialog-overlay" @click=${() => (this._showBatchVivinoConfirm = false)}>
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
@@ -15811,6 +16178,77 @@ WineCellarCard.styles = [
         overflow: hidden;
       }
 
+      /* Pending Vivino removals: pick-a-bottle panel */
+      .removal-panel {
+        border: 1px solid #ff6d00;
+        background: rgba(255, 109, 0, 0.08);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 8px 16px;
+      }
+
+      .removal-panel-title {
+        font-weight: 600;
+        font-size: 0.85em;
+        margin-bottom: 6px;
+        color: var(--wc-text);
+      }
+
+      .removal-entry {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        color: var(--wc-text);
+      }
+
+      .removal-entry:hover {
+        background: rgba(255, 109, 0, 0.15);
+      }
+
+      .removal-entry.active {
+        background: rgba(255, 109, 0, 0.25);
+        box-shadow: inset 0 0 0 1px #ff6d00;
+      }
+
+      .removal-count {
+        color: #ff6d00;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .removal-hint {
+        font-size: 0.75em;
+        color: var(--wc-text-secondary);
+        margin-top: 6px;
+      }
+
+      .conflict-title {
+        margin-top: 8px;
+        color: #d32f2f;
+      }
+
+      .removal-entry.conflict.active {
+        background: rgba(211, 47, 47, 0.15);
+        box-shadow: inset 0 0 0 1px #d32f2f;
+      }
+
+      .conflict-confirm {
+        background: #e65100;
+        font-size: 0.8em;
+        padding: 6px 12px;
+        margin: 4px 0 6px;
+      }
+
+      .conflict-confirm:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
       .header-row {
         display: flex;
         align-items: center;
@@ -16200,6 +16638,30 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_hasVivinoAccount", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_vivinoMode", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_pendingRemovals", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_removalFocusVid", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_removalConfirmWine", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_vivinoConflicts", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_conflictFocusVid", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_conflictConfirmVid", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_conflictResolving", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_metadataLanguage", void 0);
