@@ -854,7 +854,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">◇ ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         ${wines.map((wine) => {
           const disp = wine.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
@@ -916,7 +916,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">📦 ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         <div class="zone-box-grid">
           ${boxSegments.map((seg) => html`
             <div class="zone-box-item ${seg.wineCount > 0 ? "has-wine" : ""} ${seg.hasHighlight ? "locate-highlight" : ""} ${seg.hasRemoval ? "removal-highlight" : ""}">
@@ -965,7 +965,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">▭ ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes]) => html`
             <div class="zone-shelf-level">

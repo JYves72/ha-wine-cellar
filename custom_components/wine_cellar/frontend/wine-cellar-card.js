@@ -1269,17 +1269,20 @@ var ui$1 = {
 		gridLayoutTitle: "Grid Layout",
 		styleLabel: "Rack style",
 		styleGrid: "Classic grid",
-		styleStorage: "Shelves / bins / boxes only",
 		shelfCountLabel: "Shelves",
+		shelfFrontLabel: "Front",
+		shelfBackLabel: "Back",
+		shelfLevelsLabel: "Rows per shelf",
+		shelfAlternateHint: "Front/back counts swap on every other row of a shelf (bottom row starts front-heavy).",
+		shelfNamePlaceholder: "Shelf {n}",
+		bulkCapacityLabel: "Bottles",
+		boxCountLabel: "Boxes",
 		rowsLabel: "Rows",
 		columnsLabel: "Columns",
 		depthLabel: "Depth",
 		slotsOption: "Slots",
 		zoneNamePlaceholder: "Zone name",
 		boxSizeOption: "{s}-pk",
-		shelfLevel: "N{n}",
-		shelfFrontTitle: "Front lane bottle count",
-		shelfBackTitle: "Back lane bottle count",
 		colsCount: "{n} col{plural}",
 		warningBeforeOne: "This leaves 1 bottle without a slot. It will be moved to",
 		warningBeforeMany: "This leaves {n} bottles without a slot. They will be moved to",
@@ -1986,17 +1989,20 @@ var ui = {
 		gridLayoutTitle: "Disposition de la grille",
 		styleLabel: "Style du rack",
 		styleGrid: "Grille classique",
-		styleStorage: "Étagères / casiers / caisses uniquement",
 		shelfCountLabel: "Étagères",
+		shelfFrontLabel: "Avant",
+		shelfBackLabel: "Arrière",
+		shelfLevelsLabel: "Rangées par étagère",
+		shelfAlternateHint: "Les quantités avant/arrière s'inversent à chaque rangée d'une étagère (la rangée du bas commence avec le plus grand nombre à l'avant).",
+		shelfNamePlaceholder: "Étagère {n}",
+		bulkCapacityLabel: "Bouteilles",
+		boxCountLabel: "Caisses",
 		rowsLabel: "Lignes",
 		columnsLabel: "Colonnes",
 		depthLabel: "Profondeur",
 		slotsOption: "Emplacements",
 		zoneNamePlaceholder: "Nom de la zone",
 		boxSizeOption: "{s} bout.",
-		shelfLevel: "N{n}",
-		shelfFrontTitle: "Nombre de bouteilles à l'avant",
-		shelfBackTitle: "Nombre de bouteilles à l'arrière",
 		colsCount: "{n} colonne{plural}",
 		warningBeforeOne: "Cela laisse 1 bouteille sans emplacement. Elle sera déplacée vers",
 		warningBeforeMany: "Cela laisse {n} bouteilles sans emplacement. Elles seront déplacées vers",
@@ -3583,7 +3589,7 @@ let CabinetGrid = class CabinetGrid extends i {
         @dragover=${(e) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e) => this._onDragLeave(e)}
         @drop=${(e) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">◇ ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         ${wines.map((wine) => {
             const disp = wine.disposition || "";
             const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
@@ -3641,7 +3647,7 @@ let CabinetGrid = class CabinetGrid extends i {
         @dragover=${(e) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e) => this._onDragLeave(e)}
         @drop=${(e) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">📦 ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         <div class="zone-box-grid">
           ${boxSegments.map((seg) => b `
             <div class="zone-box-item ${seg.wineCount > 0 ? "has-wine" : ""} ${seg.hasHighlight ? "locate-highlight" : ""} ${seg.hasRemoval ? "removal-highlight" : ""}">
@@ -3688,7 +3694,7 @@ let CabinetGrid = class CabinetGrid extends i {
         @dragover=${(e) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e) => this._onDragLeave(e)}
         @drop=${(e) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">▭ ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
+        ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes]) => b `
             <div class="zone-shelf-level">
@@ -8929,11 +8935,12 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this._mode = "list";
         this._editCabinet = {};
         this._editStorageRows = [];
-        // "grid" = classic rows×cols rack, can still mix in a few storage rows.
-        // "storage" = the rack is nothing but a list of shelves/bins/boxes — no
-        // columns or depth to configure, so that UI is hidden entirely. Inferred
-        // from the data when editing (every row is a storage row already); an
-        // explicit choice when adding, since there is no data yet to infer from.
+        // A rack is exactly one of these four — chosen once, right under the
+        // name, rather than picked per row. "grid" has no storage rows at all;
+        // the other three are a single concept (a list of shelves, one bulk
+        // bin, or one set of boxes) with nothing to mix in. Inferred from the
+        // data when editing; an explicit choice when adding, since there is no
+        // data yet to infer from.
         this._cabinetStyle = "grid";
         this._deleteCabinet = null;
         this._loading = false;
@@ -8960,11 +8967,50 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
     _winesInCabinet(cabinetId) {
         return this.wines.filter((w) => w.cabinet_id === cabinetId).length;
     }
-    // Storage rows that survive the pending row count — a bin on a row that no
-    // longer exists is gone, whatever the editor still holds.
-    _survivingStorageRows() {
-        const newRows = this._editCabinet.rows || 1;
-        return this._editStorageRows.filter((sr) => sr.row < newRows);
+    // The single shelf/bulk/box row(s) actually belonging to the active
+    // style — switching styles while exploring keeps the others' config
+    // around in _editStorageRows (harmless: only the active style's rows
+    // are ever rendered or saved) so flipping back doesn't lose work.
+    _shelfRows() {
+        return this._editStorageRows.filter((sr) => sr.type === "shelf");
+    }
+    _bulkRow() {
+        return this._editStorageRows.find((sr) => sr.type === "bulk");
+    }
+    _boxRow() {
+        return this._editStorageRows.find((sr) => sr.type === "box");
+    }
+    // What actually gets saved, freshly computed from the active style —
+    // never a stale mix of whatever _editStorageRows happens to be holding
+    // from earlier style exploration. Shelf rows are always renumbered
+    // 0..N-1 in list order; the physical row a bottle sits behind never
+    // survives a shelf being removed anyway (see _displacedWines).
+    _finalStorageRows() {
+        if (this._cabinetStyle === "shelf") {
+            return this._shelfRows().map((sr, i) => ({ ...sr, row: i }));
+        }
+        if (this._cabinetStyle === "bulk") {
+            const sr = this._bulkRow();
+            return sr ? [{ ...sr, row: 0 }] : [];
+        }
+        if (this._cabinetStyle === "box") {
+            const sr = this._boxRow();
+            return sr ? [{ ...sr, row: 0 }] : [];
+        }
+        return [];
+    }
+    _finalRows() {
+        if (this._cabinetStyle === "grid")
+            return this._editCabinet.rows || 1;
+        if (this._cabinetStyle === "shelf")
+            return Math.max(1, this._shelfRows().length);
+        return 1;
+    }
+    _finalCols() {
+        return this._cabinetStyle === "grid" ? this._editCabinet.cols || 8 : 1;
+    }
+    _finalDepth() {
+        return this._cabinetStyle === "grid" ? this._editCabinet.depth || 1 : 1;
     }
     static _capacityOf(sr) {
         if (sr.type === "box")
@@ -8987,10 +9033,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const cabinetId = this._editCabinet.id;
         if (!cabinetId)
             return [];
-        const newRows = this._editCabinet.rows || 1;
-        const newCols = this._editCabinet.cols || 8;
-        const newDepth = this._editCabinet.depth || 1;
-        const rows = this._survivingStorageRows();
+        const newRows = this._finalRows();
+        const newCols = this._finalCols();
+        const newDepth = this._finalDepth();
+        const rows = this._finalStorageRows();
         return this.wines.filter((w) => {
             if (w.cabinet_id !== cabinetId)
                 return false;
@@ -9027,7 +9073,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this._mode = "edit";
         this._error = "";
         this._editCabinet = { ...cabinet };
-        // Initialize storage rows from cabinet data, ensuring boxes arrays exist
+        // Initialize storage rows from cabinet data, ensuring boxes/levels exist
         this._editStorageRows = (cabinet.storage_rows || []).map((sr) => {
             if (sr.type === "box" && !sr.boxes) {
                 return { ...sr, boxes: [sr.capacity || 12] };
@@ -9037,120 +9083,130 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             }
             return { ...sr };
         });
-        // A rack with nothing but storage rows was built in "storage" style,
-        // whether or not it was actually created through that UI.
-        this._cabinetStyle =
-            this._editStorageRows.length > 0 && this._editStorageRows.length === (cabinet.rows || 0)
-                ? "storage"
-                : "grid";
-    }
-    // Switching to "storage" style with no shelves/bins yet gives the one row
-    // a sensible starting type instead of leaving an unconfigured plain row —
-    // there is no such thing as a "plain grid row" in this style.
-    _setCabinetStyle(style) {
-        this._cabinetStyle = style;
-        if (style === "storage" && this._editStorageRows.length === 0) {
-            this._setRowType(0, "shelf");
+        const types = new Set(this._editStorageRows.map((sr) => sr.type));
+        if (types.size === 0) {
+            this._cabinetStyle = "grid";
+        }
+        else if (types.has("shelf") && this._editStorageRows.length === (cabinet.rows || 0)) {
+            this._cabinetStyle = "shelf";
+        }
+        else if (types.has("bulk") && this._editStorageRows.length === 1) {
+            this._cabinetStyle = "bulk";
+        }
+        else if (types.has("box") && this._editStorageRows.length === 1) {
+            this._cabinetStyle = "box";
+        }
+        else {
+            // Doesn't cleanly match one of the four styles (e.g. an older mixed
+            // rack) — fall back to showing it as a classic grid rather than
+            // guessing; its storage rows stay in _editStorageRows either way and
+            // are only dropped if the user actually saves from this fallback.
+            this._cabinetStyle = "grid";
         }
     }
-    // Adds a new row already typed as a shelf, for the "storage" style's
-    // "+ Add shelf/bin" button — a plain grid row would have nothing to show.
-    _addStorageRow() {
-        const row = this._editCabinet.rows || 1;
-        this._editCabinet = { ...this._editCabinet, rows: row + 1 };
-        this._setRowType(row, "shelf");
+    static _buildAlternatingLevels(front, back, count) {
+        const f = Math.max(0, front);
+        const b = Math.max(0, back);
+        return Array.from({ length: Math.max(1, count) }, (_, i) => i % 2 === 0 ? { front: f, back: b } : { front: b, back: f });
+    }
+    // The front/back/level-count every shelf in the rack currently shares —
+    // read from the first one, since all shelves in "shelf" style are kept
+    // in lockstep by _applyShelfTemplate.
+    _shelfTemplate() {
+        const first = this._shelfRows()[0];
+        const lvl0 = first?.shelf_levels?.[0];
+        return {
+            front: lvl0?.front ?? 4,
+            back: lvl0?.back ?? 0,
+            levels: first?.shelf_levels?.length ?? 1,
+        };
+    }
+    _applyShelfTemplate(front, back, levelCount) {
+        const levels = RackSettingsDialog_1._buildAlternatingLevels(front, back, levelCount);
+        const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+        this._editStorageRows = this._editStorageRows.map((sr) => sr.type === "shelf" ? { ...sr, shelf_levels: levels, capacity } : sr);
+    }
+    _setShelfFront(value) {
+        const t = this._shelfTemplate();
+        this._applyShelfTemplate(value, t.back, t.levels);
+    }
+    _setShelfBack(value) {
+        const t = this._shelfTemplate();
+        this._applyShelfTemplate(t.front, value, t.levels);
+    }
+    _setShelfLevelCount(value) {
+        const t = this._shelfTemplate();
+        this._applyShelfTemplate(t.front, t.back, Math.max(1, Math.min(6, value)));
+    }
+    // Rebuilds the shelf list to the requested count, applying the shared
+    // front/back/level template to any new ones and keeping existing shelves'
+    // own names (by position) rather than starting them over.
+    _setShelfCount(count) {
+        count = Math.max(1, Math.min(20, count));
+        const t = this._shelfTemplate();
+        const levels = RackSettingsDialog_1._buildAlternatingLevels(t.front, t.back, t.levels);
+        const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+        const existing = this._shelfRows();
+        const rows = Array.from({ length: count }, (_, i) => ({
+            row: i,
+            name: existing[i]?.name || "",
+            type: "shelf",
+            capacity,
+            shelf_levels: levels,
+        }));
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+    }
+    _updateShelfName(index, name) {
+        const rows = this._shelfRows().map((sr, i) => (i === index ? { ...sr, name } : sr));
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+    }
+    _setBulkCapacity(capacity) {
+        capacity = Math.max(1, Math.min(500, capacity));
+        const row = { row: 0, name: this._bulkRow()?.name || "", type: "bulk", capacity };
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "bulk"), row];
+    }
+    _updateBoxCount(count) {
+        const existing = this._boxRow();
+        const boxes = [...(existing?.boxes || [12])];
+        while (boxes.length < count)
+            boxes.push(12);
+        while (boxes.length > count)
+            boxes.pop();
+        const capacity = boxes.reduce((sum, s) => sum + s, 0);
+        const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+    }
+    _updateBoxSize(boxIndex, size) {
+        const existing = this._boxRow();
+        const boxes = [...(existing?.boxes || [12])];
+        boxes[boxIndex] = size;
+        const capacity = boxes.reduce((sum, s) => sum + s, 0);
+        const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+    }
+    // Switching style lazily creates that style's default config the first
+    // time it's chosen; any other style's config already built this session
+    // is left alone in _editStorageRows so flipping back doesn't lose it —
+    // only the active style's rows are ever rendered or saved.
+    _setCabinetStyle(style) {
+        this._cabinetStyle = style;
+        if (style === "shelf" && this._shelfRows().length === 0) {
+            this._setShelfCount(1);
+        }
+        else if (style === "bulk" && !this._bulkRow()) {
+            this._setBulkCapacity(20);
+        }
+        else if (style === "box" && !this._boxRow()) {
+            this._updateBoxCount(1);
+        }
     }
     _startDelete(cabinet) {
         this._mode = "delete-confirm";
         this._error = "";
         this._deleteCabinet = cabinet;
     }
-    _setRowType(row, type) {
-        if (type === "slots") {
-            // Remove from storage rows
-            this._editStorageRows = this._editStorageRows.filter((sr) => sr.row !== row);
-        }
-        else {
-            const existing = this._editStorageRows.find((sr) => sr.row === row);
-            const isBox = type === "box";
-            const isShelf = type === "shelf";
-            const defaultCapacity = isBox ? 12 : isShelf ? 4 : 20;
-            const newRow = {
-                row,
-                name: existing?.name || getStorageRowTypeLabels(this.hass?.language)[type],
-                type,
-                capacity: defaultCapacity,
-                ...(isBox ? { boxes: [12] } : {}),
-                ...(isShelf ? { shelf_levels: [{ front: 4, back: 0 }] } : {}),
-            };
-            if (existing) {
-                this._editStorageRows = this._editStorageRows.map((sr) => sr.row === row ? newRow : sr);
-            }
-            else {
-                this._editStorageRows = [...this._editStorageRows, newRow];
-            }
-        }
-    }
-    _updateStorageRowName(row, name) {
-        this._editStorageRows = this._editStorageRows.map((sr) => sr.row === row ? { ...sr, name } : sr);
-    }
-    _updateStorageRowCapacity(row, capacity) {
-        this._editStorageRows = this._editStorageRows.map((sr) => sr.row === row ? { ...sr, capacity } : sr);
-    }
-    _updateBoxCount(row, count) {
-        this._editStorageRows = this._editStorageRows.map((sr) => {
-            if (sr.row !== row || sr.type !== "box")
-                return sr;
-            const boxes = [...(sr.boxes || [12])];
-            while (boxes.length < count)
-                boxes.push(12);
-            while (boxes.length > count)
-                boxes.pop();
-            const capacity = boxes.reduce((sum, s) => sum + s, 0);
-            return { ...sr, boxes, capacity };
-        });
-    }
-    _updateBoxSize(row, boxIndex, size) {
-        this._editStorageRows = this._editStorageRows.map((sr) => {
-            if (sr.row !== row || sr.type !== "box")
-                return sr;
-            const boxes = [...(sr.boxes || [12])];
-            boxes[boxIndex] = size;
-            const capacity = boxes.reduce((sum, s) => sum + s, 0);
-            return { ...sr, boxes, capacity };
-        });
-    }
-    // Levels go bottom-to-top; a new level defaults to 4 front / 0 back so it
-    // starts out looking like a plain single row until the user sets a back
-    // count — matching how a new shelf row itself defaults.
-    _updateShelfLevelCount(row, count) {
-        this._editStorageRows = this._editStorageRows.map((sr) => {
-            if (sr.row !== row || sr.type !== "shelf")
-                return sr;
-            const levels = [...(sr.shelf_levels || [{ front: 4, back: 0 }])];
-            while (levels.length < count)
-                levels.push({ front: 4, back: 0 });
-            while (levels.length > count)
-                levels.pop();
-            const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
-            return { ...sr, shelf_levels: levels, capacity };
-        });
-    }
-    _updateShelfLane(row, levelIndex, lane, value) {
-        this._editStorageRows = this._editStorageRows.map((sr) => {
-            if (sr.row !== row || sr.type !== "shelf")
-                return sr;
-            const levels = (sr.shelf_levels || [{ front: 4, back: 0 }]).map((lvl, i) => i === levelIndex ? { ...lvl, [lane]: Math.max(0, value) } : lvl);
-            const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
-            return { ...sr, shelf_levels: levels, capacity };
-        });
-    }
-    _isStorageRow(row) {
-        return this._editStorageRows.some((sr) => sr.row === row);
-    }
-    _getStorageRow(row) {
-        return this._editStorageRows.find((sr) => sr.row === row);
-    }
+    // Grid style only — no storage rows ever mix into a classic grid rack,
+    // so there is nothing to reconcile here beyond the row count itself.
     _addRow() {
         const current = this._editCabinet.rows || 1;
         if (current >= 20)
@@ -9161,10 +9217,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const current = this._editCabinet.rows || 1;
         if (current <= 1)
             return;
-        const newRows = current - 1;
-        // Remove storage row if last row was storage
-        this._editStorageRows = this._editStorageRows.filter((sr) => sr.row < newRows);
-        this._editCabinet = { ...this._editCabinet, rows: newRows };
+        this._editCabinet = { ...this._editCabinet, rows: current - 1 };
     }
     _addCol() {
         const current = this._editCabinet.cols || 1;
@@ -9198,12 +9251,12 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                 type: "wine_cellar/add_cabinet",
                 cabinet: {
                     name: this._editCabinet.name || "New Rack",
-                    rows: this._editCabinet.rows || 1,
-                    cols: this._editCabinet.cols || 8,
-                    depth: this._editCabinet.depth || 1,
+                    rows: this._finalRows(),
+                    cols: this._finalCols(),
+                    depth: this._finalDepth(),
                     has_bottom_zone: false,
                     bottom_zone_name: "",
-                    storage_rows: this._editStorageRows,
+                    storage_rows: this._finalStorageRows(),
                     order: this.cabinets.length,
                     orientation: "vertical",
                 },
@@ -9221,10 +9274,6 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this._error = "";
         try {
             const cabinetId = this._editCabinet.id;
-            const newRows = this._editCabinet.rows || 1;
-            const newCols = this._editCabinet.cols || 8;
-            // Filter out storage rows beyond the new row count
-            const validStorageRows = this._survivingStorageRows();
             // Worked out before the rack changes shape: afterwards the old slot
             // is unrecoverable, and this is the same list the warning showed.
             const displaced = this._displacedWines();
@@ -9233,12 +9282,12 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                 cabinet_id: cabinetId,
                 updates: {
                     name: this._editCabinet.name,
-                    rows: newRows,
-                    cols: newCols,
-                    depth: this._editCabinet.depth || 1,
+                    rows: this._finalRows(),
+                    cols: this._finalCols(),
+                    depth: this._finalDepth(),
                     has_bottom_zone: false,
                     bottom_zone_name: "",
-                    storage_rows: validStorageRows,
+                    storage_rows: this._finalStorageRows(),
                     orientation: "vertical",
                 },
             });
@@ -9380,11 +9429,157 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       </div>
     `;
     }
-    _renderForm() {
-        const isEdit = this._mode === "edit";
+    _renderStyleForm() {
         const numRows = this._editCabinet.rows || 1;
         const numCols = this._editCabinet.cols || 8;
         const numDepth = this._editCabinet.depth || 1;
+        if (this._cabinetStyle === "grid") {
+            return b `
+        <div class="grid-editor-title">${this._t("ui.rack.gridLayoutTitle")}</div>
+        <div class="stepper-row">
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.rowsLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${this._removeRow} ?disabled=${numRows <= 1}>−</button>
+              <span class="stepper-value">${numRows}</span>
+              <button class="stepper-btn" @click=${this._addRow} ?disabled=${numRows >= 20}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.columnsLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${this._removeCol} ?disabled=${numCols <= 1}>−</button>
+              <span class="stepper-value">${numCols}</span>
+              <button class="stepper-btn" @click=${this._addCol} ?disabled=${numCols >= 20}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.depthLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${this._removeDepth} ?disabled=${numDepth <= 1}>−</button>
+              <span class="stepper-value">${numDepth}</span>
+              <button class="stepper-btn" @click=${this._addDepth} ?disabled=${numDepth >= 6}>+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual grid preview -->
+        <div class="grid-preview">
+          ${Array.from({ length: numRows }, (_, row) => b `
+            <div class="grid-preview-row">
+              <span class="grid-preview-label">R${row + 1}</span>
+              ${Array.from({ length: Math.min(numCols, 15) }, () => b `<div class="grid-preview-cell"></div>`)}
+              ${numCols > 15
+                ? b `<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${numCols - 15}</span>`
+                : A}
+            </div>
+          `)}
+        </div>
+      `;
+        }
+        if (this._cabinetStyle === "shelf") {
+            const t = this._shelfTemplate();
+            const shelves = this._shelfRows();
+            return b `
+        <div class="stepper-row">
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.shelfCountLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setShelfCount(shelves.length - 1)} ?disabled=${shelves.length <= 1}>−</button>
+              <span class="stepper-value">${shelves.length}</span>
+              <button class="stepper-btn" @click=${() => this._setShelfCount(shelves.length + 1)} ?disabled=${shelves.length >= 20}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.shelfFrontLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setShelfFront(t.front - 1)} ?disabled=${t.front <= 0}>−</button>
+              <span class="stepper-value">${t.front}</span>
+              <button class="stepper-btn" @click=${() => this._setShelfFront(t.front + 1)} ?disabled=${t.front >= 30}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.shelfBackLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setShelfBack(t.back - 1)} ?disabled=${t.back <= 0}>−</button>
+              <span class="stepper-value">${t.back}</span>
+              <button class="stepper-btn" @click=${() => this._setShelfBack(t.back + 1)} ?disabled=${t.back >= 30}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.shelfLevelsLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setShelfLevelCount(t.levels - 1)} ?disabled=${t.levels <= 1}>−</button>
+              <span class="stepper-value">${t.levels}</span>
+              <button class="stepper-btn" @click=${() => this._setShelfLevelCount(t.levels + 1)} ?disabled=${t.levels >= 6}>+</button>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0 0 8px">${this._t("ui.rack.shelfAlternateHint")}</p>
+
+        <!-- One name field per shelf — everything else is shared above -->
+        <div class="row-list">
+          ${shelves.map((sr, i) => b `
+            <div class="row-entry storage">
+              <span class="row-num">${i + 1}</span>
+              <input
+                type="text"
+                class="row-name-input"
+                style="flex:1"
+                .value=${sr.name || ""}
+                @input=${(e) => this._updateShelfName(i, e.target.value)}
+                placeholder="${this._t('ui.rack.shelfNamePlaceholder', { n: i + 1 })}"
+              />
+              <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
+            </div>
+          `)}
+        </div>
+      `;
+        }
+        if (this._cabinetStyle === "bulk") {
+            const capacity = this._bulkRow()?.capacity || 20;
+            return b `
+        <div class="stepper-row">
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.bulkCapacityLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setBulkCapacity(capacity - 1)} ?disabled=${capacity <= 1}>−</button>
+              <span class="stepper-value">${capacity}</span>
+              <button class="stepper-btn" @click=${() => this._setBulkCapacity(capacity + 1)} ?disabled=${capacity >= 500}>+</button>
+            </div>
+          </div>
+        </div>
+      `;
+        }
+        // "box"
+        const boxRow = this._boxRow();
+        const boxes = boxRow?.boxes || [12];
+        return b `
+      <div class="stepper-row">
+        <div class="stepper-wrap">
+          <div class="stepper-label">${this._t("ui.rack.boxCountLabel")}</div>
+          <div class="stepper">
+            <button class="stepper-btn" @click=${() => this._updateBoxCount(boxes.length - 1)} ?disabled=${boxes.length <= 1}>−</button>
+            <span class="stepper-value">${boxes.length}</span>
+            <button class="stepper-btn" @click=${() => this._updateBoxCount(boxes.length + 1)} ?disabled=${boxes.length >= 10}>+</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${boxes.map((boxSize, bi) => b `
+          <select
+            class="row-cap-select"
+            @change=${(e) => this._updateBoxSize(bi, parseInt(e.target.value, 10))}
+          >
+            ${BOX_SIZES.map((s) => b `<option value=${s} ?selected=${boxSize === s}>${this._t('ui.rack.boxSizeOption', { s })}</option>`)}
+          </select>
+        `)}
+        <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${boxRow?.capacity || 12}</span>
+      </div>
+    `;
+    }
+    _renderForm() {
+        const isEdit = this._mode === "edit";
         // Which bottles this edit would displace, whichever way it shrinks.
         const displaced = isEdit ? this._displacedWines() : [];
         return b `
@@ -9401,7 +9596,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
           />
         </div>
 
-        <!-- Rack style: classic grid, or nothing but shelves/bins/boxes -->
+        <!-- Rack style: exactly one of these four, chosen once -->
         <div class="form-group">
           <label>${this._t("ui.rack.styleLabel")}</label>
           <div class="style-toggle">
@@ -9410,178 +9605,21 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
               @click=${() => this._setCabinetStyle("grid")}
             >${this._t("ui.rack.styleGrid")}</button>
             <button
-              class="style-toggle-btn ${this._cabinetStyle === "storage" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("storage")}
-            >${this._t("ui.rack.styleStorage")}</button>
+              class="style-toggle-btn ${this._cabinetStyle === "shelf" ? "active" : ""}"
+              @click=${() => this._setCabinetStyle("shelf")}
+            >${getStorageRowTypeLabels(this.hass?.language).shelf}</button>
+            <button
+              class="style-toggle-btn ${this._cabinetStyle === "bulk" ? "active" : ""}"
+              @click=${() => this._setCabinetStyle("bulk")}
+            >${getStorageRowTypeLabels(this.hass?.language).bulk}</button>
+            <button
+              class="style-toggle-btn ${this._cabinetStyle === "box" ? "active" : ""}"
+              @click=${() => this._setCabinetStyle("box")}
+            >${getStorageRowTypeLabels(this.hass?.language).box}</button>
           </div>
         </div>
 
-        <!-- Grid Editor -->
-        <div class="grid-editor">
-          ${this._cabinetStyle === "grid"
-            ? b `
-                <div class="grid-editor-title">${this._t("ui.rack.gridLayoutTitle")}</div>
-
-                <!-- Stepper controls -->
-                <div class="stepper-row">
-                  <div class="stepper-wrap">
-                    <div class="stepper-label">${this._t("ui.rack.rowsLabel")}</div>
-                    <div class="stepper">
-                      <button class="stepper-btn" @click=${this._removeRow} ?disabled=${numRows <= 1}>−</button>
-                      <span class="stepper-value">${numRows}</span>
-                      <button class="stepper-btn" @click=${this._addRow} ?disabled=${numRows >= 20}>+</button>
-                    </div>
-                  </div>
-                  <div class="stepper-wrap">
-                    <div class="stepper-label">${this._t("ui.rack.columnsLabel")}</div>
-                    <div class="stepper">
-                      <button class="stepper-btn" @click=${this._removeCol} ?disabled=${numCols <= 1}>−</button>
-                      <span class="stepper-value">${numCols}</span>
-                      <button class="stepper-btn" @click=${this._addCol} ?disabled=${numCols >= 20}>+</button>
-                    </div>
-                  </div>
-                  <div class="stepper-wrap">
-                    <div class="stepper-label">${this._t("ui.rack.depthLabel")}</div>
-                    <div class="stepper">
-                      <button class="stepper-btn" @click=${this._removeDepth} ?disabled=${numDepth <= 1}>−</button>
-                      <span class="stepper-value">${numDepth}</span>
-                      <button class="stepper-btn" @click=${this._addDepth} ?disabled=${numDepth >= 6}>+</button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Visual grid preview -->
-                <div class="grid-preview">
-                  ${Array.from({ length: numRows }, (_, row) => {
-                const isStorage = this._isStorageRow(row);
-                const sr = this._getStorageRow(row);
-                const typeIcon = sr?.type === "box" ? "📦" : sr?.type === "shelf" ? "▭" : "◇";
-                return b `
-                      <div class="grid-preview-row ${isStorage ? "storage" : ""}">
-                        <span class="grid-preview-label">R${row + 1}</span>
-                        ${isStorage
-                    ? b `<div class="grid-preview-cell"></div><span class="grid-preview-storage-label">${typeIcon} ${sr?.name || ""}</span>`
-                    : Array.from({ length: Math.min(numCols, 15) }, () => b `<div class="grid-preview-cell"></div>`)}
-                        ${!isStorage && numCols > 15
-                    ? b `<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${numCols - 15}</span>`
-                    : A}
-                      </div>
-                    `;
-            })}
-                </div>
-              `
-            : b `
-                <!-- Storage style: just how many shelves/bins/boxes, no columns or depth -->
-                <div class="stepper-row">
-                  <div class="stepper-wrap">
-                    <div class="stepper-label">${this._t("ui.rack.shelfCountLabel")}</div>
-                    <div class="stepper">
-                      <button class="stepper-btn" @click=${this._removeRow} ?disabled=${numRows <= 1}>−</button>
-                      <span class="stepper-value">${numRows}</span>
-                      <button class="stepper-btn" @click=${this._addStorageRow} ?disabled=${numRows >= 20}>+</button>
-                    </div>
-                  </div>
-                </div>
-              `}
-
-          <!-- Row list with type selectors -->
-          <div class="row-list">
-            ${Array.from({ length: numRows }, (_, row) => {
-            const isStorage = this._isStorageRow(row);
-            const sr = this._getStorageRow(row);
-            const currentType = sr?.type || "slots";
-            return b `
-                <div class="row-entry ${isStorage ? "storage" : ""}">
-                  <span class="row-num">R${row + 1}</span>
-                  <select
-                    class="row-type-select"
-                    @change=${(e) => {
-                const val = e.target.value;
-                this._setRowType(row, val);
-            }}
-                    @click=${(e) => e.stopPropagation()}
-                  >
-                    <option value="slots" ?selected=${!isStorage}>${this._t("ui.rack.slotsOption")}</option>
-                    <option value="shelf" ?selected=${currentType === "shelf"}>${getStorageRowTypeLabels(this.hass?.language).shelf}</option>
-                    <option value="bulk" ?selected=${currentType === "bulk"}>${getStorageRowTypeLabels(this.hass?.language).bulk}</option>
-                    <option value="box" ?selected=${currentType === "box"}>${getStorageRowTypeLabels(this.hass?.language).box}</option>
-                  </select>
-                  ${isStorage
-                ? b `
-                        <input
-                          type="text"
-                          class="row-name-input"
-                          .value=${sr?.name ?? ""}
-                          @input=${(e) => this._updateStorageRowName(row, e.target.value)}
-                          @click=${(e) => e.stopPropagation()}
-                          placeholder="${this._t('ui.rack.zoneNamePlaceholder')}"
-                        />
-                        ${sr?.type === "box"
-                    ? b `
-                              <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-                                <div class="row-cap-stepper">
-                                  <button class="stepper-btn-sm" @click=${(e) => { e.stopPropagation(); this._updateBoxCount(row, Math.max(1, (sr?.boxes || [12]).length - 1)); }}>−</button>
-                                  <span class="stepper-val-sm">${(sr?.boxes || [12]).length}</span>
-                                  <button class="stepper-btn-sm" @click=${(e) => { e.stopPropagation(); this._updateBoxCount(row, Math.min(10, (sr?.boxes || [12]).length + 1)); }}>+</button>
-                                </div>
-                                ${(sr?.boxes || [12]).map((boxSize, bi) => b `
-                                  <select
-                                    class="row-cap-select"
-                                    @change=${(e) => this._updateBoxSize(row, bi, parseInt(e.target.value))}
-                                    @click=${(e) => e.stopPropagation()}
-                                  >
-                                    ${BOX_SIZES.map((s) => b `<option value=${s} ?selected=${boxSize === s}>${this._t('ui.rack.boxSizeOption', { s })}</option>`)}
-                                  </select>
-                                `)}
-                                <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${sr?.capacity || 12}</span>
-                              </div>
-                            `
-                    : sr?.type === "shelf"
-                        ? b `
-                              <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-                                <div class="row-cap-stepper">
-                                  <button class="stepper-btn-sm" @click=${(e) => { e.stopPropagation(); this._updateShelfLevelCount(row, Math.max(1, (sr?.shelf_levels || [{ front: 4, back: 0 }]).length - 1)); }}>−</button>
-                                  <span class="stepper-val-sm">${(sr?.shelf_levels || [{ front: 4, back: 0 }]).length}</span>
-                                  <button class="stepper-btn-sm" @click=${(e) => { e.stopPropagation(); this._updateShelfLevelCount(row, Math.min(4, (sr?.shelf_levels || [{ front: 4, back: 0 }]).length + 1)); }}>+</button>
-                                </div>
-                                ${(sr?.shelf_levels || [{ front: 4, back: 0 }]).map((lvl, li) => b `
-                                  <span style="display:inline-flex;align-items:center;gap:2px;white-space:nowrap;">
-                                    <span style="font-size:0.65em;color:var(--wc-text-secondary)">${this._t('ui.rack.shelfLevel', { n: li + 1 })}</span>
-                                    <input
-                                      type="number" min="0" max="30" class="row-shelf-input"
-                                      title="${this._t('ui.rack.shelfFrontTitle')}"
-                                      .value=${String(lvl.front)}
-                                      @input=${(e) => this._updateShelfLane(row, li, "front", parseInt(e.target.value, 10) || 0)}
-                                      @click=${(e) => e.stopPropagation()}
-                                    />
-                                    <span style="font-size:0.65em;color:var(--wc-text-secondary)">/</span>
-                                    <input
-                                      type="number" min="0" max="30" class="row-shelf-input"
-                                      title="${this._t('ui.rack.shelfBackTitle')}"
-                                      .value=${String(lvl.back)}
-                                      @input=${(e) => this._updateShelfLane(row, li, "back", parseInt(e.target.value, 10) || 0)}
-                                      @click=${(e) => e.stopPropagation()}
-                                    />
-                                  </span>
-                                `)}
-                                <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${sr?.capacity || 0}</span>
-                              </div>
-                            `
-                        : b `
-                              <div class="row-cap-stepper">
-                                <button class="stepper-btn-sm" @click=${(e) => { e.stopPropagation(); this._updateStorageRowCapacity(row, Math.max(1, (sr?.capacity || 20) - 1)); }}>−</button>
-                                <span class="stepper-val-sm">${sr?.capacity || 20}</span>
-                                <button class="stepper-btn-sm" @click=${(e) => { e.stopPropagation(); this._updateStorageRowCapacity(row, Math.min(100, (sr?.capacity || 20) + 1)); }}>+</button>
-                              </div>
-                            `}
-                      `
-                : b `<span class="row-type-info">${this._t('ui.rack.colsCount', { n: numCols, plural: numCols !== 1 ? "s" : "" })}${numDepth > 1 ? this._t('ui.rack.gridDeepSuffix', { depth: numDepth }) : ""}</span>`}
-                </div>
-              `;
-        })}
-          </div>
-          <!-- Add/remove rows via the stepper above -->
-        </div>
+        <div class="grid-editor">${this._renderStyleForm()}</div>
 
         ${displaced.length > 0
             ? b `
@@ -9785,11 +9823,12 @@ RackSettingsDialog.styles = [
 
       .style-toggle {
         display: flex;
+        flex-wrap: wrap;
         gap: 6px;
       }
 
       .style-toggle-btn {
-        flex: 1;
+        flex: 1 1 45%;
         padding: 8px 10px;
         border: 1px solid var(--wc-border);
         border-radius: 8px;
