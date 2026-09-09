@@ -20,6 +20,8 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .const import WINE_TYPES
+
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
@@ -149,7 +151,7 @@ def _extract_base64_from_data_url(value: str | None) -> str | None:
     return value.split(";base64,", 1)[1]
 
 
-LABEL_PROMPT = """You are a master sommelier and wine label recognition expert. The current year is {current_year}. Analyze this wine label image, identify the wine, and provide a full assessment. Return ONLY a JSON object with these exact fields:
+LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognition expert. The current year is {current_year}. Analyze this label image, identify the wine (or whisky), and provide a full assessment. Return ONLY a JSON object with these exact fields:
 
 {{
   "name": "the full wine name including style (e.g. Crémant Demi-Sec, Cabernet Sauvignon Reserve)",
@@ -175,10 +177,20 @@ LABEL_PROMPT = """You are a master sommelier and wine label recognition expert. 
 Label reading rules:
 - "name" should include the wine name AND style/designation (Brut, Demi-Sec, Reserve, Grand Cru, etc.) but NOT the winery name
 - "vintage" must be a 4-digit year as an integer, or null if not visible (NV wines = null) — check both front and back label if two images are provided, since the vintage is often only on the back
-- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert"
+- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - For "type", infer from visual cues (bottle color, label text like "Blanc", "Rosé", "Brut") if not explicitly stated
 - "barcode": if a barcode is visible in any image, read the digits printed alongside/below it (typically 8-14 digits, EAN-13 or UPC-A) and return them as a string. Only return digits you can actually read — null if no barcode is visible or the digits aren't legible.
-- If the image is not a wine label, return {{"error": "not_a_wine_label"}}
+- If the image is neither a wine label nor a whisky label, return {{"error": "not_a_wine_label"}}
+
+Whisky labels (type "whisky") reuse the same fields:
+- "winery": the distillery, or the independent bottler if it is a bottler's release
+- "name": the expression, including any age statement or edition (e.g. "12 Year Old", "Quarter Cask", "Uigeadail", "Sherry Oak 18")
+- "vintage": the distillation year if printed (vintage releases), otherwise null. Do NOT use the bottling year or the age statement.
+- "grape_variety": the cask/maturation info if printed (e.g. "Ex-bourbon barrels", "Oloroso sherry cask finish"), otherwise ""
+- "region": the whisky region (e.g. Islay, Speyside, Highlands, Kentucky, Hokkaido)
+- "disposition": always "D", "drink_by": "" and "drink_window": "" — whisky does not age in the bottle
+- Rating fields (rating_ws, rating_rp, rating_jd, rating_ag) are wine critics: return null for whisky
+- "estimated_price" and "description" apply as normal; "notes" may hold the ABV, bottle size and cask strength/chill-filtration details from the label
 
 Wine analysis rules:
 - "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak
@@ -233,10 +245,11 @@ Return ONLY a JSON object with this structure:
 
 Extraction rules:
 - Extract ALL wines visible on the menu or receipt, including by-the-glass options
-- For receipts: extract wine items only (skip non-wine items like food, tax, tips, etc.)
+- Also extract whiskies (Scotch, bourbon, rye, Irish, Japanese, etc.) with type "whisky": "winery" is the distillery, "name" the expression with its age statement, "grape_variety" the cask info if given, "vintage" null unless a distillation year is printed. Skip other spirits.
+- For receipts: extract wine and whisky items only (skip non-wine items like food, tax, tips, etc.)
 - "name" should include the wine name and style but NOT the winery/producer name
 - "vintage" must be a 4-digit year as an integer, or null if NV or not shown
-- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert"
+- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - "list_price" is the price as a number (e.g. 65.00). Use null only if truly unreadable.
 - "list_price_currency" should be the 3-letter currency code (USD, EUR, GBP, etc.)
 - "estimated_retail_price": estimated current US retail price for this wine as a number (e.g. 35.00). Use your knowledge of the wine market to estimate what this bottle currently sells for at a retail store. Use null only if truly unknown.
@@ -257,9 +270,75 @@ Wine analysis rules (apply to every wine):
   - Premium Bordeaux, Barolo, Napa Cab ($50+): 10-15 years
   - Rosé: 1-2 years. Most whites: 1-3 years. Sparkling NV: 2-3 years.
   - NV wines: "{current_year}-{next_year}"
+  - Whisky: always "D" with drink_window "" (does not age in the bottle)
 - "description": Professional 2-3 sentence tasting-style description of this wine's character
-- Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess.
+- Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess, and always null for whisky (these are wine critics).
   - rating_ws = Wine Spectator, rating_rp = Robert Parker, rating_jd = Jeb Dunnuck, rating_ag = Antonio Galloni"""
+
+
+def _whisky_analysis_prompt(
+    current_year: int,
+    name: str,
+    distillery: str,
+    vintage: Any,
+    region: str,
+    country: str,
+    cask: str,
+    currency: str,
+    has_photo: bool,
+    has_back_photo: bool,
+) -> str:
+    """Single-bottle analysis prompt for a whisky.
+
+    Same JSON shape as the wine prompt in `analyze_single_wine`, so the
+    result flows through the same validation and `_build_ai_updates`. The
+    wine aging rules and wine critics simply do not apply to a whisky: it
+    is always "Drink Now" with no window, and the rating fields stay null.
+    """
+    photo_note = ""
+    if has_photo:
+        photo_note = (
+            "\n\nA photo of the bottle/label is attached"
+            + (" (front, then back)" if has_back_photo else " (front label)")
+            + ". If you don't recognize this specific bottling from general "
+            "knowledge, read the label directly instead of guessing: extract "
+            "the age statement, ABV, cask type, distillation/bottling year and "
+            "reproduce any tasting note printed on the label."
+        )
+    return f"""You are a whisky expert and spirits writer. The current year is {current_year}.
+
+Analyze this whisky and provide a detailed assessment:
+
+Expression: {name}
+Distillery/bottler: {distillery}
+Distillation year: {vintage}
+Region: {region}
+Country: {country}
+Cask/maturation: {cask}
+
+Return ONLY a JSON object with these fields:
+{{
+  "disposition": "D",
+  "drink_by": "",
+  "drink_window": "",
+  "description": "2-3 sentence tasting profile and character of this whisky",
+  "estimated_price": null,
+  "rating_ws": null,
+  "rating_rp": null,
+  "rating_jd": null,
+  "rating_ag": null,
+  "region": null,
+  "country": null,
+  "grape_variety": null,
+  "alcohol": null
+}}
+
+Rules:
+- "disposition" is always "D" and "drink_by"/"drink_window" are always "": whisky does not develop in a sealed bottle
+- "description": professional tasting-style description (nose, palate, finish) of this expression. If you don't know this exact bottling, describe what to expect from the distillery's style, the age statement and the cask type.
+- "estimated_price": estimated current retail price in {currency} for this bottle as a number (e.g. 65.00). Return null only if you truly cannot estimate.
+- The rating fields are wine critics and must stay null
+- "region"/"country"/"grape_variety"/"alcohol": only fill these in if the corresponding field above is empty AND you can actually determine it. "grape_variety" holds the cask/maturation info (e.g. "Ex-bourbon and oloroso sherry casks"), "alcohol" the ABV as printed (e.g. "46%"). Leave null if already provided above or genuinely unknown — don't guess.""" + photo_note
 
 
 class BaseAIClient:
@@ -312,14 +391,13 @@ class BaseAIClient:
             prompt, image_base64, timeout_s=45, temperature=0.1, extra_image_base64=back_image_base64
         )
         if result.get("error") == "not_a_wine_label":
-            return {"error": "Not a wine label"}
+            return {"error": "Not a wine or whisky label"}
         if "error" in result:
             return result
 
         # Validate and normalize
-        valid_types = {"red", "white", "rosé", "sparkling", "dessert"}
         wine_type = result.get("type", "red")
-        if wine_type not in valid_types:
+        if wine_type not in WINE_TYPES:
             wine_type = "red"
 
         vintage = result.get("vintage")
@@ -368,12 +446,14 @@ class BaseAIClient:
             "type": wine_type,
             "grape_variety": str(result.get("grape_variety", "")).strip(),
             "disposition": disp,
-            "drink_by": str(result.get("drink_by", "")).strip(),
-            "drink_window": str(result.get("drink_window", "")).strip(),
-            "description": str(result.get("description", "")).strip(),
+            # `or ""`: the whisky rules ask for empty windows and models
+            # answer null as often as "" — str(None) would store "None".
+            "drink_by": str(result.get("drink_by") or "").strip(),
+            "drink_window": str(result.get("drink_window") or "").strip(),
+            "description": str(result.get("description") or "").strip(),
             "estimated_price": est_price,
             "ai_ratings": ai_ratings if ai_ratings else None,
-            "notes": str(result.get("notes", "")).strip(),
+            "notes": str(result.get("notes") or "").strip(),
             "barcode": barcode,
             "rating": None,
             "image_url": "",
@@ -405,7 +485,6 @@ class BaseAIClient:
         if not raw_wines:
             return {"error": "No wines found in the image"}
 
-        valid_types = {"red", "white", "rosé", "sparkling", "dessert"}
         validated = []
 
         for i, w in enumerate(raw_wines):
@@ -414,7 +493,7 @@ class BaseAIClient:
                 continue
 
             wine_type = w.get("type", "red")
-            if wine_type not in valid_types:
+            if wine_type not in WINE_TYPES:
                 wine_type = "red"
 
             vintage = w.get("vintage")
@@ -453,11 +532,11 @@ class BaseAIClient:
                 except (ValueError, TypeError):
                     glass_price = None
 
-            disposition = str(w.get("disposition", "")).strip().upper()
+            disposition = str(w.get("disposition") or "").strip().upper()
             if disposition not in ("D", "H", "P"):
                 disposition = ""
-            drink_window = str(w.get("drink_window", "")).strip()
-            description = str(w.get("description", "")).strip()
+            drink_window = str(w.get("drink_window") or "").strip()
+            description = str(w.get("description") or "").strip()
 
             ai_ratings: dict[str, int] = {}
             for rkey in ("rating_ws", "rating_rp", "rating_jd", "rating_ag"):
@@ -594,6 +673,14 @@ Rules:
             if front_photo else ""
         ) + _language_suffix(language)
 
+        # A whisky gets its own prompt: the wine aging rules and wine critics
+        # above do not apply to it. Same JSON shape, same handling below.
+        if wine_type == "whisky":
+            prompt = _language_prefix(language) + _whisky_analysis_prompt(
+                current_year, name, winery, "" if vintage == "NV" else vintage,
+                region, country, grape, currency, bool(front_photo), bool(back_photo),
+            ) + _language_suffix(language)
+
         result = await self._call_ai(
             prompt, front_photo, timeout_s=45, temperature=0.2, extra_image_base64=back_photo
         )
@@ -615,9 +702,11 @@ Rules:
 
         return {
             "disposition": disp,
-            "drink_by": str(result.get("drink_by", "")).strip(),
-            "drink_window": str(result.get("drink_window", "")).strip(),
-            "description": str(result.get("description", "")).strip(),
+            # `or ""`: the whisky prompt asks for empty windows and models
+            # answer null as often as "" — str(None) would store "None".
+            "drink_by": str(result.get("drink_by") or "").strip(),
+            "drink_window": str(result.get("drink_window") or "").strip(),
+            "description": str(result.get("description") or "").strip(),
             "estimated_price": est_price,
             "rating_ws": result.get("rating_ws"),
             "rating_rp": result.get("rating_rp"),
@@ -635,8 +724,14 @@ Rules:
         Returns {"dispositions": {wine_id: "D"|"H"|"P"}} or {"error": "..."}.
         """
         current_year = datetime.now().year
+        # Whisky does not develop in the bottle, so it is "Drink Now" by
+        # definition — no point asking the model, and it keeps the prompt
+        # free of bottles its wine guidelines don't cover.
+        whisky_ids = [w["id"] for w in wines if w.get("type") == "whisky"]
         wine_lines = []
         for w in wines:
+            if w.get("type") == "whisky":
+                continue
             vintage = w.get("vintage") or "NV"
             wine_type = w.get("type", "red")
             name = w.get("name", "Unknown")
@@ -670,12 +765,15 @@ Return ONLY a JSON object mapping wine IDs to dispositions:
 Wines:
 {chr(10).join(wine_lines)}"""
 
+        cleaned: dict[str, str] = {wine_id: "D" for wine_id in whisky_ids}
+        if not wine_lines:
+            return {"dispositions": cleaned}
+
         dispositions = await self._call_ai(prompt, None, timeout_s=180, temperature=0.1)
         if "error" in dispositions:
             return dispositions
 
         valid = {"D", "H", "P"}
-        cleaned = {}
         for wine_id, disp in dispositions.items():
             cleaned[wine_id] = disp if disp in valid else "D"
 
@@ -722,16 +820,14 @@ class GeminiVisionClient(BaseAIClient):
             timeout = aiohttp.ClientTimeout(total=timeout_s)
             async with session.post(
                 self._api_url,
-                params={"key": self._api_key},
+                headers={"x-goog-api-key": self._api_key},
                 json=body,
                 timeout=timeout,
             ) as resp:
                 resp_text = await resp.text()
 
                 if resp.status in (401, 403):
-                    _LOGGER.error(
-                        "Gemini API key is invalid (status %s): %s", resp.status, resp_text[:200]
-                    )
+                    _LOGGER.error("Gemini API authentication failed (status %s)", resp.status)
                     return {"error": f"Gemini API key is invalid (HTTP {resp.status})"}
 
                 if resp.status == 429:

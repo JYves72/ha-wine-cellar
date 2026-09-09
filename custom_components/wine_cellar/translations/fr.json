@@ -26,6 +26,7 @@
           "ai_model": "Nom du modèle IA",
           "vivino_cellar_url": "URL de la page de la cave Vivino",
           "vivino_session_cookie": "Cookie de session Vivino (depuis votre navigateur connecté)",
+          "vivino_mode": "Mode Vivino",
           "vivino_auto_sync": "Synchroniser automatiquement la cave Vivino deux fois par jour"
         },
         "data_description": {
@@ -33,7 +34,8 @@
           "ai_base_url": "Format : https://host ou https://host/votre-chemin — avec ou sans /v1/chat/completions final, les deux fonctionnent",
           "ai_api_key": "Envoyée dans l'en-tête : Authorization: Bearer {key}",
           "ai_model": "Format : le nom exact du modèle attendu par votre fournisseur, par ex. gemini-2.5-flash",
-          "vivino_cellar_url": "Ouvrez votre cave dans un navigateur et copiez l'adresse depuis la barre d'adresse. Elle se termine par /cellars/ suivi de votre numéro de cave."
+          "vivino_cellar_url": "Ouvrez votre cave dans un navigateur et copiez l'adresse depuis la barre d'adresse. Elle se termine par /cellars/ suivi de votre numéro de cave.",
+          "vivino_mode": "Import reproduit votre cave Vivino dans Cork Dork sans jamais écrire dans votre compte Vivino. Synchroniser renvoie aussi vers Vivino les bouteilles ajoutées ou bues dans Cork Dork — en mode Import, gérez vos quantités directement dans Vivino."
         }
       }
     },
@@ -53,7 +55,14 @@
         "white": "Blanc",
         "rosé": "Rosé",
         "sparkling": "Pétillant",
-        "dessert": "Sucré"
+        "dessert": "Sucré",
+        "whisky": "Whisky"
+      }
+    },
+    "vivino_mode": {
+      "options": {
+        "import": "Import (à sens unique — n'écrit jamais dans Vivino)",
+        "sync": "Synchroniser (bidirectionnel — renvoie vos changements vers Vivino)"
       }
     }
   }

@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Wine, Cabinet, WineType, WINE_TYPE_COLORS, getWineTypeLabels, WineHistoryItem, getWineLocation, getRemovalReasons } from "../models";
+import { Wine, Cabinet, WineType, WINE_TYPE_COLORS, WINE_TYPE_LABELS, getWineTypeLabels, WineHistoryItem, getWineLocation, getRemovalReasons } from "../models";
 import { t } from "../i18n";
 import { sharedStyles } from "../styles";
 import {
@@ -55,6 +55,7 @@ export class InventoryDialog extends LitElement {
   @property({ attribute: false }) wines: Wine[] = [];
   @property({ attribute: false }) cabinets: Cabinet[] = [];
   @property({ type: Boolean }) hasGemini = false;
+  @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) currency = "USD";
 
   @state() private _searchQuery = "";
@@ -1641,7 +1642,7 @@ export class InventoryDialog extends LitElement {
 
       // Validate wine type
       if (wine.type) {
-        const validTypes = ["red", "white", "rosé", "sparkling", "dessert"];
+        const validTypes = Object.keys(WINE_TYPE_LABELS);
         const lt = wine.type.toLowerCase();
         if (validTypes.includes(lt)) {
           wine.type = lt;
@@ -2155,6 +2156,7 @@ export class InventoryDialog extends LitElement {
       { id: "rosé", label: this._t("wineType.rosé") },
       { id: "sparkling", label: this._t("wineType.sparkling") },
       { id: "dessert", label: this._t("wineType.dessert") },
+      ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
     ];
 
     const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;

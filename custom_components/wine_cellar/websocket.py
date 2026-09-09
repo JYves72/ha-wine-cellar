@@ -15,15 +15,19 @@ from homeassistant.core import HomeAssistant, callback
 from .const import (
     CONF_AI_FALLBACK_ALWAYS,
     CONF_DISMISSED_ARRANGEMENTS,
+    CONF_ENABLE_WHISKY,
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
     CONF_SERVER_BACKUP_KEEP,
+    CONF_VIVINO_MODE,
     CONF_WINE_HISTORY,
     CONF_WINES,
     DEFAULT_METADATA_CURRENCY,
     DEFAULT_METADATA_LANGUAGE,
     DEFAULT_SERVER_BACKUP_KEEP,
+    DEFAULT_VIVINO_MODE,
     DOMAIN,
+    VIVINO_MODE_SYNC,
     SERVER_BACKUP_KEEP_CHOICES,
     SUPPORTED_METADATA_CURRENCIES,
     SUPPORTED_METADATA_LANGUAGES,
@@ -59,6 +63,24 @@ def _get_metadata_currency(hass: HomeAssistant) -> str:
     """Return the user's chosen currency for Vivino/AI price data."""
     storage = hass.data[DOMAIN]["storage"]
     return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
+
+
+def _get_vivino_mode(hass: HomeAssistant) -> str:
+    """Return the configured Vivino mode (import/sync) from the config entry."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if entries:
+        return entries[0].options.get(CONF_VIVINO_MODE, DEFAULT_VIVINO_MODE)
+    return DEFAULT_VIVINO_MODE
+
+
+def _is_whisky(wine: dict[str, Any]) -> bool:
+    """True for the one non-wine type.
+
+    Vivino is a wine database: a whisky query never matches, and because
+    Vivino answers every query with *something*, the "best match" is a random
+    wine. Every Vivino path skips whisky up front; AI enrichment still applies.
+    """
+    return wine.get("type") == "whisky"
 
 
 def _select_wines(storage: Any, wine_ids: list[str] | None) -> list[dict[str, Any]]:
@@ -241,7 +263,7 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
     """Background task: enrich a newly added wine with Vivino data."""
     try:
         vivino = hass.data[DOMAIN].get("vivino")
-        if not vivino:
+        if not vivino or _is_whisky(wine):
             return
         parts = []
         if wine.get("winery"):
@@ -310,7 +332,7 @@ async def _auto_enrich_buy_list_item(hass: HomeAssistant, item: dict[str, Any]) 
     """Background task: enrich a buy list item with Vivino data."""
     try:
         vivino = hass.data[DOMAIN].get("vivino")
-        if not vivino:
+        if not vivino or _is_whisky(item):
             return
         parts = []
         if item.get("winery"):
@@ -373,6 +395,9 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_cabinets)
     websocket_api.async_register_command(hass, ws_add_wine)
     websocket_api.async_register_command(hass, ws_remove_wine)
+    websocket_api.async_register_command(hass, ws_get_pending_removals)
+    websocket_api.async_register_command(hass, ws_resolve_vivino_removal)
+    websocket_api.async_register_command(hass, ws_resolve_vivino_conflict)
     websocket_api.async_register_command(hass, ws_update_wine)
     websocket_api.async_register_command(hass, ws_move_wine)
     websocket_api.async_register_command(hass, ws_lookup_barcode)
@@ -506,6 +531,172 @@ async def ws_remove_wine(
         await storage.async_save()
         hass.bus.async_fire(f"{DOMAIN}_updated")
     connection.send_result(msg["id"], {"success": success})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "wine_cellar/get_pending_removals"}
+)
+@callback
+def ws_get_pending_removals(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return Vivino-side removals awaiting the user's bottle choice.
+
+    Also carries the sync conflicts (both sides changed a wine differently),
+    so the card can offer manual resolution instead of burying them in the
+    sync sensor's attributes.
+    """
+    storage = hass.data[DOMAIN]["storage"]
+    status = storage.get_vivino_sync_status() or {}
+    connection.send_result(
+        msg["id"],
+        {
+            "pending_removals": storage.get_vivino_pending_removals(),
+            "conflicts": status.get("conflicts_detail") or [],
+        },
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "wine_cellar/resolve_vivino_removal",
+        vol.Required("wine_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_resolve_vivino_removal(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Remove the bottle the user picked for a pending Vivino removal."""
+    storage = hass.data[DOMAIN]["storage"]
+    wine = next(
+        (w for w in storage.wines if w.get("id") == msg["wine_id"]), None
+    )
+    if not wine:
+        connection.send_result(msg["id"], {"error": "Wine not found."})
+        return
+    vid = str(wine.get("vivino_id") or "")
+    pending = storage.get_vivino_pending_removals()
+    entry = pending.get(vid)
+    if not entry:
+        connection.send_result(
+            msg["id"], {"error": "No pending Vivino removal for this wine."}
+        )
+        return
+    success = storage.remove_wine(msg["wine_id"], reason="removed_on_vivino")
+    if success:
+        entry["count"] = int(entry.get("count", 1)) - 1
+        if entry["count"] <= 0:
+            pending.pop(vid, None)
+        storage.set_vivino_pending_removals(pending)
+        await storage.async_save()
+        hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(
+        msg["id"], {"success": success, "pending_removals": pending}
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "wine_cellar/resolve_vivino_conflict",
+        vol.Required("vivino_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_resolve_vivino_conflict(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Resolve a sync conflict by declaring Cork Dork's count the truth.
+
+    The user has reviewed (and possibly corrected) their local bottles, so
+    Vivino is adjusted to match Cork Dork's current count and the baseline
+    is advanced, closing the conflict.
+    """
+    from .vivino_reconcile import build_corkdork_state
+
+    domain_data = hass.data[DOMAIN]
+    storage = domain_data["storage"]
+    client = domain_data.get("vivino_account")
+    if not client:
+        connection.send_result(msg["id"], {"error": "No Vivino account configured."})
+        return
+    if _get_vivino_mode(hass) != VIVINO_MODE_SYNC:
+        connection.send_result(
+            msg["id"],
+            {"error": "Import mode never writes to Vivino — switch the Vivino "
+                      "mode to Synchronize to push this count."},
+        )
+        return
+
+    vid = str(msg["vivino_id"])
+    cd_count = build_corkdork_state(storage.wines).get(vid, 0)
+    try:
+        vivino_count = await client._count_for_vintage(int(vid))
+        delta = cd_count - vivino_count
+        ok = delta == 0
+        if not ok:
+            res = await client.async_change_bottles(
+                int(vid), delta, comment="Cork Dork conflict resolution"
+            )
+            ok = bool(res.get("ok"))
+            if not ok:
+                # Vivino often serves a stale count right after accepting its
+                # own write, which makes an applied change look failed. Give
+                # it a moment and verify against a fresh read before ruling.
+                await asyncio.sleep(3)
+                ok = await client._count_for_vintage(int(vid)) == cd_count
+        if not ok:
+            connection.send_result(
+                msg["id"],
+                {"error": f"Vivino did not accept the change ({vivino_count} -> {cd_count})."},
+            )
+            return
+    except Exception as err:  # noqa: BLE001 - surfaced to the card
+        connection.send_result(msg["id"], {"error": f"Vivino update failed: {err}"})
+        return
+
+    # Advance the baseline so the next sync sees an agreed state
+    baseline = storage.get_vivino_baseline()
+    entry = dict(baseline.get(vid) or {})
+    local = next(
+        (w for w in storage.wines if str(w.get("vivino_id") or "") == vid), {}
+    )
+    entry.update({
+        "count": cd_count,
+        "name": entry.get("name") or local.get("name", ""),
+        "winery": entry.get("winery") or local.get("winery", ""),
+        "vintage": entry.get("vintage", local.get("vintage")),
+    })
+    if cd_count > 0:
+        baseline[vid] = entry
+    else:
+        baseline.pop(vid, None)
+    storage.set_vivino_baseline(baseline)
+
+    # Clear the conflict from the stored sync snapshot so the card updates
+    status = storage.get_vivino_sync_status() or {}
+    details = [
+        c for c in (status.get("conflicts_detail") or [])
+        if str(c.get("vintage_id")) != vid
+    ]
+    status["conflicts_detail"] = details
+    status["cellar_conflicts"] = len(details)
+    storage.set_vivino_sync_status(status)
+    hass.data[DOMAIN]["vivino_sync_status"] = status
+
+    await storage.async_save()
+    hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(
+        msg["id"],
+        {"success": True, "vivino_count": cd_count, "delta": delta,
+         "conflicts": details},
+    )
 
 
 @websocket_api.websocket_command(
@@ -758,12 +949,16 @@ def ws_get_capabilities(
         {
             "has_gemini": "gemini" in domain_data,
             "has_vivino_account": "vivino_account" in domain_data,
+            "vivino_mode": _get_vivino_mode(hass),
             "metadata_language": _get_metadata_language(hass),
             "supported_languages": SUPPORTED_METADATA_LANGUAGES,
             "metadata_currency": _get_metadata_currency(hass),
             "supported_currencies": SUPPORTED_METADATA_CURRENCIES,
             "ai_fallback_always": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_AI_FALLBACK_ALWAYS, False)
+            ),
+            "enable_whisky": bool(
+                hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_WHISKY, False)
             ),
             "server_backup_keep": _get_backup_keep(hass),
             "server_backup_keep_choices": SERVER_BACKUP_KEEP_CHOICES,
@@ -908,11 +1103,13 @@ async def ws_refresh_wine(
     # If this wine's Vivino id is already known from a prior match, look it
     # up directly — no query ambiguity, and its full vintage list lets us
     # pick the exact matching vintage rather than guess from search ranking.
+    # A whisky is never looked up: Vivino has no data for it, so it goes
+    # straight to the no-match path and the AI offer below.
     lookup = None
-    if wine.get("vivino_id"):
+    if wine.get("vivino_id") and not _is_whisky(wine):
         lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
 
-    if not lookup:
+    if not lookup and not _is_whisky(wine):
         if not query:
             connection.send_result(msg["id"], {"error": "No name/winery to search."})
             return
@@ -938,7 +1135,11 @@ async def ws_refresh_wine(
         )
         await storage.async_save()
         connection.send_result(msg["id"], {
-            "error": f"No confident Vivino match for '{query}'.",
+            "error": (
+                "Vivino has no whisky data."
+                if _is_whisky(wine)
+                else f"No confident Vivino match for '{query}'."
+            ),
             "no_vivino_match": True,
             "ai_available": hass.data[DOMAIN].get("gemini") is not None,
         })
@@ -1242,11 +1443,13 @@ async def ws_batch_refresh_vivino(
             # If this wine's Vivino id is already known, look it up
             # directly — no query ambiguity, exact vintage from its own
             # vintage list. Falls back to text search if that fails.
+            # A whisky skips Vivino altogether and only gets the AI
+            # fallback below, if the user opted into it for this run.
             lookup = None
-            if wine.get("vivino_id"):
+            if wine.get("vivino_id") and not _is_whisky(wine):
                 lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
 
-            if not lookup:
+            if not lookup and not _is_whisky(wine):
                 if not query:
                     continue
 
@@ -1458,6 +1661,10 @@ async def ws_enrich_wine_vivino(
         return
 
     wine = msg["wine"]
+    if _is_whisky(wine):
+        connection.send_result(msg["id"], {"result": None})
+        return
+
     parts = []
     if wine.get("winery"):
         parts.append(wine["winery"])

@@ -8,6 +8,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
+  @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) metadataLanguage = "en";
   @property({ attribute: false }) supportedLanguages: string[] = ["en", "fr", "de"];
   @property({ type: String }) metadataCurrency = "USD";
@@ -116,6 +117,10 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-ai-fallback-always", { detail: { value } }));
   }
 
+  private _setEnableWhisky(value: boolean) {
+    this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
+  }
+
   private _setLanguage(lang: string) {
     this.dispatchEvent(new CustomEvent("set-metadata-language", { detail: { value: lang } }));
   }
@@ -143,6 +148,17 @@ export class VivinoAiSettingsDialog extends LitElement {
                 @change=${(e: Event) => this._setFallback((e.target as HTMLInputElement).checked)}
               />
               ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.enableWhisky}
+                @change=${(e: Event) => this._setEnableWhisky((e.target as HTMLInputElement).checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.enableWhisky")}
             </label>
           </div>
 
