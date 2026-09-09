@@ -421,14 +421,15 @@ export class CabinetGrid extends LitElement {
         width: 100%;
       }
 
-      /* Thinner than the ledge between two boards (.zone-shelf-level::after)
-         — this one just separates the front/back lanes of the SAME board,
-         it isn't a physical divider. */
+      /* Clearly thinner/shorter than the ledge between two boards
+         (.zone-shelf-level::after) — this one just separates the front/back
+         lanes of the SAME board, it isn't a physical divider. */
       .zone-shelf-lane-divider {
         height: 1px;
-        margin: 1px 0;
+        width: 40%;
+        margin: 0 auto;
         background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
-        border-radius: 1px;
+        opacity: 0.6;
       }
 
       .zone-shelf-lane-label {
