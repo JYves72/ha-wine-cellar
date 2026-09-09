@@ -7,6 +7,9 @@ import {
   StorageRow,
   WineType,
   getWineTypeLabels,
+  getSelectableWineTypes,
+  producerLabel,
+  varietyLabel,
 } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
@@ -42,6 +45,7 @@ export class AddWineDialog extends LitElement {
   @property({ attribute: false }) preselectedZone: string = "";
   @property({ attribute: false }) preselectedDepth: number = 0;
   @property({ type: Boolean }) buyListMode = false;
+  @property({ type: Boolean }) enableWhisky = false;
 
   @state() private _step: Step = "scan";
   @state() private _scanMode: ScanMode = "idle";
@@ -1214,7 +1218,7 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.addWine.wineryLabel")}</label>
+            <label>${producerLabel(this._wineData.type, this.hass?.language)}</label>
             <input
               type="text"
               .value=${this._wineData.winery || ""}
@@ -1240,7 +1244,7 @@ export class AddWineDialog extends LitElement {
               @change=${(e: Event) =>
                 this._updateField("type", (e.target as HTMLSelectElement).value)}
             >
-              ${(Object.entries(getWineTypeLabels(this.hass?.language)) as [WineType, string][]).map(
+              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(
                 ([value, label]) =>
                   html`<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`
               )}
@@ -1293,7 +1297,7 @@ export class AddWineDialog extends LitElement {
         </div>
 
         <div class="form-group">
-          <label>${this._t("ui.addWine.grapeVarietyLabel")}</label>
+          <label>${varietyLabel(this._wineData.type, false, this.hass?.language)}</label>
           <input
             type="text"
             .value=${this._wineData.grape_variety || ""}
@@ -1630,7 +1634,7 @@ export class AddWineDialog extends LitElement {
           ${this._wineData.winery
             ? html`
                 <div class="summary-row">
-                  <span class="summary-label">${this._t("ui.addWine.wineryLabel")}</span>
+                  <span class="summary-label">${producerLabel(this._wineData.type, this.hass?.language)}</span>
                   <span class="summary-value">${this._wineData.winery}</span>
                 </div>
               `

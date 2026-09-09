@@ -37,6 +37,16 @@ _FOOD_NAME_CACHE: dict[int, str] = {}
 # All Vivino wine type IDs (required filter for explore API)
 ALL_WINE_TYPE_IDS = [1, 2, 3, 4, 7]  # red, white, sparkling, rosé, dessert
 
+# Vivino itself knows no whisky, but the generic barcode databases it falls
+# back to (Open Food Facts, UPC Item DB) do. These words in a product title
+# or category mark the hit as type "whisky" instead of the default "red".
+WHISKY_KEYWORDS = ("whisky", "whiskey", "bourbon", "scotch", "single malt")
+
+
+def _looks_like_whisky(text: str) -> bool:
+    text = text.lower()
+    return any(kw in text for kw in WHISKY_KEYWORDS)
+
 # The explore API requires both a country and a currency code — pick a
 # country whose market Vivino actually prices in the chosen currency for.
 CURRENCY_COUNTRY_CODE = {
@@ -663,7 +673,8 @@ class VivinoClient:
                     "bottle",
                 ]
                 is_wine = any(kw in title_lower for kw in wine_keywords)
-                if not is_wine:
+                is_whisky = _looks_like_whisky(title_lower)
+                if not is_wine and not is_whisky:
                     _LOGGER.debug(
                         "UPC Item DB result doesn't look like wine: %s", title
                     )
@@ -671,7 +682,9 @@ class VivinoClient:
 
                 # Infer wine type from title
                 wine_type = "red"
-                if "white" in title_lower or "chardonnay" in title_lower:
+                if is_whisky:
+                    wine_type = "whisky"
+                elif "white" in title_lower or "chardonnay" in title_lower:
                     wine_type = "white"
                 elif "rosé" in title_lower or "rose" in title_lower:
                     wine_type = "rosé"
@@ -737,7 +750,9 @@ class VivinoClient:
                     country = product.get("countries", "")
 
                     wine_type = "red"
-                    if "white" in categories or "blanc" in categories:
+                    if _looks_like_whisky(categories) or _looks_like_whisky(name):
+                        wine_type = "whisky"
+                    elif "white" in categories or "blanc" in categories:
                         wine_type = "white"
                     elif "rosé" in categories or "rose" in categories:
                         wine_type = "rosé"

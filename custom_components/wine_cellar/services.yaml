@@ -25,6 +25,7 @@ add_wine:
             - rosé
             - sparkling
             - dessert
+            - whisky
     vintage:
       name: Vintage
       description: Vintage year

@@ -4,7 +4,11 @@ DOMAIN = "wine_cellar"
 STORAGE_KEY = "wine_cellar"
 STORAGE_VERSION = 1
 
-WINE_TYPES = ["red", "white", "rosé", "sparkling", "dessert"]
+# "whisky" is the one non-wine type. It reuses the wine fields (winery =
+# distillery, grape_variety = cask/maturation, vintage = distillation year)
+# so nothing in the storage shape changes. Vivino has no whisky data at
+# all, so every Vivino path skips it and only the AI enrichment applies.
+WINE_TYPES = ["red", "white", "rosé", "sparkling", "dessert", "whisky"]
 
 WINE_TYPE_COLORS = {
     "red": "#722F37",
@@ -12,6 +16,7 @@ WINE_TYPE_COLORS = {
     "rosé": "#E8A0BF",
     "sparkling": "#D4E09B",
     "dessert": "#DAA520",
+    "whisky": "#B5651D",
 }
 
 DEFAULT_CABINETS = [
@@ -88,6 +93,12 @@ SUPPORTED_METADATA_CURRENCIES = ["USD", "EUR", "GBP", "CHF"]
 # applying automatically. "always" skips asking and just uses AI every time.
 CONF_AI_FALLBACK_ALWAYS = "ai_fallback_always"
 
+# Whether "whisky" is offered as a selectable bottle type in the UI (add-wine
+# type dropdown, edit-type dropdown, filter chips). Off by default: most
+# cellars track wine only. Existing whisky-typed bottles keep displaying
+# correctly either way — this only gates what's offered, not what's stored.
+CONF_ENABLE_WHISKY = "enable_whisky"
+
 # How many timestamped server backups to keep on disk. Older ones are pruned
 # after each new save; 0 keeps every backup forever.
 # Arrangement findings the user has waved off for good. Kept as a list of
@@ -118,4 +129,4 @@ VIVINO_AUTO_SYNC_INTERVAL_HOURS = 12
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20260901c"
+FRONTEND_VERSION = "20260901d"

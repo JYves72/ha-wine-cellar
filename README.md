@@ -11,7 +11,7 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 ## Features
 
 ### Visual Cellar Management
-- **Interactive Cabinet Grid** — Color-coded bottles by type (red, white, rosé, sparkling, dessert) with thumbnail images, scalable disposition badges (Drink/Hold/Past Peak), and Vivino ratings
+- **Interactive Cabinet Grid** — Color-coded bottles by type (red, white, rosé, sparkling, dessert, whisky) with thumbnail images, scalable disposition badges (Drink/Hold/Past Peak), and Vivino ratings
 - **Deep Rack Support** — Racks can be 1-6 bottles deep; click any deep cell to open the depth side panel showing every bottle stacked front-to-back
 - **Depth Side Panel** — Slide-out panel reveals all bottles in a deep cell, click any wine for its detail or tap an empty slot to add a bottle at that specific depth
 - **Visual Rack Editor** — Create and edit racks with a live grid preview, stepper controls for rows/columns/depth, and per-row type selectors. Racks can be any size up to 20×20.
@@ -24,6 +24,11 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 
 ![Depth Side Panel](docs/screenshot-depth-panel.png)
 
+### Whisky
+
+- **Whisky Type** — Bottles can be typed as *Whisky* alongside the five wine types, with their own colour, filter chip and inventory count. A whisky reuses the wine fields: the *Winery* field becomes *Distillery*, *Grape Variety* becomes *Cask* (maturation info), and *Vintage* is the distillation year if the bottle has one.
+- **AI, not Vivino** — Vivino has no whisky data, so Vivino lookups and batch refreshes skip whisky bottles. Label recognition and the AI analysis handle whisky labels with their own rules: always *Drink Now* (whisky does not age in the bottle), no drink window, no wine-critic scores, but a tasting description and a price estimate as usual.
+
 ### Storage Zone Types
 - **Bulk Bins** — Open storage for loosely grouped bottles (e.g., daily drinkers, pending sort). Shows individual wine squares with configurable capacity.
 - **Wine Boxes** — Multi-box rows with configurable box sizes (e.g., [6, 12, 3]). CSS-drawn box shapes with wine count displayed inside each box (e.g., "2/6") and pack size labels.
@@ -34,8 +39,10 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Full Inventory Dialog** — Browse, search, sort, and export your entire cellar collection from the 📦 Inventory button
 - **Wine History** — Track removed bottles with reason (Drank, Gifted, Sold, Broken, Spoiled, Other). Switch between Inventory and History tabs to see your consumption log sorted by date.
 - **Multi-Field Search** — Search across name, winery, region, country, grape variety, vintage, barcode, notes, and description
-- **Sort Options** — Sort by name, winery, vintage, type, rating, price, date added, or cabinet location (ascending/descending)
-- **Type Filter Chips** — Quick-filter by wine type (All / Red / White / Rosé / Sparkling / Dessert)
+- **Sort Options** — Sort by name, winery, vintage, type, rating, your own rating, price, drink-by date, urgency, purchase date, date added, or cabinet location (ascending/descending)
+- **Type Filter Chips** — Quick-filter by type (All / Red / White / Rosé / Sparkling / Dessert / Whisky)
+- **Detailed Filters** — Narrow by country, grape, cabinet, food pairing, minimum rating, maximum price, and vintage range
+- **Presets** — One-tap views for the questions actually worth asking: Drink this year, Past peak, Not rated, Missing data, Added recently
 - **Summary Stats** — Total bottles, estimated collection value, and type breakdown with colored indicators
 - **Disposition Search** — Search by "Drink", "Hold", or "Past Peak" to filter by disposition; also searches drink window field
 - **CSV Export** — Download your filtered/sorted inventory as a date-stamped CSV file with 26 data columns

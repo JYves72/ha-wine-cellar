@@ -738,7 +738,15 @@ var wineType$1 = {
 	white: "White",
 	"rosé": "Rosé",
 	sparkling: "Sparkling",
-	dessert: "Dessert"
+	dessert: "Dessert",
+	whisky: "Whisky"
+};
+var bottleFields$1 = {
+	winery: "Winery",
+	distillery: "Distillery",
+	cask: "Cask",
+	grape: "Grape",
+	grapeVariety: "Grape Variety"
 };
 var storageRowType$1 = {
 	bulk: "Bulk Bin",
@@ -1191,6 +1199,8 @@ var ui$1 = {
 		alcoholLabel: "Alcohol",
 		alcoholPlaceholder: "e.g. 13.5%",
 		purchaseDateLabel: "Purchase Date",
+		drinkFromLabel: "Drink From",
+		drinkFromPlaceholder: "e.g. 2025",
 		drinkByLabel: "Drink By",
 		drinkByPlaceholder: "e.g. 2030",
 		notesLabel: "Notes",
@@ -1277,6 +1287,7 @@ var ui$1 = {
 	vivinoAiSettings: {
 		title: "Vivino / AI Settings",
 		alwaysTryAi: "Always try AI when Vivino finds no match",
+		enableWhisky: "Track whisky bottles (offer \"Whisky\" as a type)",
 		languageLabel: "Vivino/AI language",
 		currencyLabel: "Currency",
 		infoTitle: "Vivino vs AI — What Each Provides",
@@ -1376,6 +1387,7 @@ var toast$1 = {
 	changeLanguageFailed: "Failed to change language",
 	changeCurrencyFailed: "Failed to change currency",
 	changeAiFallbackFailed: "Failed to change AI fallback setting",
+	changeEnableWhiskyFailed: "Failed to change the whisky setting",
 	vivinoRefreshing: "Refreshing all wines from Vivino...",
 	vivinoBatchFailedError: "Vivino Batch failed: {error}",
 	vivinoBatchComplete: "Vivino Batch complete! {updated}/{total} updated",
@@ -1417,6 +1429,7 @@ var toast$1 = {
 };
 var en = {
 	wineType: wineType$1,
+	bottleFields: bottleFields$1,
 	storageRowType: storageRowType$1,
 	removalReason: removalReason$1,
 	wineLocation: wineLocation$1,
@@ -1429,7 +1442,15 @@ var wineType = {
 	white: "Blanc",
 	"rosé": "Rosé",
 	sparkling: "Pétillant",
-	dessert: "Sucré"
+	dessert: "Sucré",
+	whisky: "Whisky"
+};
+var bottleFields = {
+	winery: "Domaine",
+	distillery: "Distillerie",
+	cask: "Fût",
+	grape: "Cépage",
+	grapeVariety: "Cépage"
 };
 var storageRowType = {
 	bulk: "Casier en vrac",
@@ -1882,6 +1903,8 @@ var ui = {
 		alcoholLabel: "Alcool",
 		alcoholPlaceholder: "ex. 13,5 %",
 		purchaseDateLabel: "Date d'achat",
+		drinkFromLabel: "À boire à partir de",
+		drinkFromPlaceholder: "ex. 2025",
 		drinkByLabel: "À boire avant",
 		drinkByPlaceholder: "ex. 2030",
 		notesLabel: "Notes",
@@ -1968,6 +1991,7 @@ var ui = {
 	vivinoAiSettings: {
 		title: "Paramètres Vivino / IA",
 		alwaysTryAi: "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
+		enableWhisky: "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
 		languageLabel: "Langue Vivino/IA",
 		currencyLabel: "Devise",
 		infoTitle: "Vivino vs IA — Ce que chacun fournit",
@@ -2067,6 +2091,7 @@ var toast = {
 	changeLanguageFailed: "Échec du changement de langue",
 	changeCurrencyFailed: "Échec du changement de devise",
 	changeAiFallbackFailed: "Échec du changement du paramètre de secours IA",
+	changeEnableWhiskyFailed: "Échec du changement du paramètre whisky",
 	vivinoRefreshing: "Rafraîchissement de tous les vins depuis Vivino...",
 	vivinoBatchFailedError: "Échec de l'analyse Vivino groupée : {error}",
 	vivinoBatchComplete: "Analyse Vivino groupée terminée ! {updated}/{total} mis à jour",
@@ -2108,6 +2133,7 @@ var toast = {
 };
 var fr = {
 	wineType: wineType,
+	bottleFields: bottleFields,
 	storageRowType: storageRowType,
 	removalReason: removalReason,
 	wineLocation: wineLocation,
@@ -2195,6 +2221,7 @@ const WINE_TYPE_COLORS = {
     rosé: "#E8A0BF",
     sparkling: "#D4E09B",
     dessert: "#DAA520",
+    whisky: "#B5651D",
 };
 const WINE_TYPE_LABELS = {
     red: "Red",
@@ -2202,6 +2229,7 @@ const WINE_TYPE_LABELS = {
     rosé: "Rosé",
     sparkling: "Sparkling",
     dessert: "Dessert",
+    whisky: "Whisky",
 };
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
 // — falls back to the English WINE_TYPE_LABELS above for a language with
@@ -2209,6 +2237,27 @@ const WINE_TYPE_LABELS = {
 // exists.
 function getWineTypeLabels(language) {
     return tGroup("wineType", language);
+}
+// Field labels that read wrong for a whisky: the producer is a distillery
+// (or independent bottler) and the "grape variety" field holds the cask.
+function producerLabel(type, language) {
+    const t = tGroup("bottleFields", language);
+    return type === "whisky" ? t.distillery : t.winery;
+}
+function varietyLabel(type, short = false, language) {
+    const t = tGroup("bottleFields", language);
+    if (type === "whisky")
+        return t.cask;
+    return short ? t.grape : t.grapeVariety;
+}
+// The [type, label] pairs to offer in a type dropdown or filter chip list —
+// "whisky" only when the cellar has opted in (Vivino/AI Settings), so a
+// cellar that doesn't track whisky doesn't see it as an option. An existing
+// whisky-typed bottle keeps displaying correctly either way; this only
+// gates what's *offered*, not what's stored.
+function getSelectableWineTypes(enableWhisky, language) {
+    const entries = Object.entries(getWineTypeLabels(language));
+    return enableWhisky ? entries : entries.filter(([value]) => value !== "whisky");
 }
 // Every physical (row, col) grid slot in a cabinet, in display order,
 // skipping rows configured as bulk/box storage zones.
@@ -3340,6 +3389,7 @@ let CabinetGrid = class CabinetGrid extends i {
             "#E8A0BF": "#f5c0d8", // rosé → brighter pink
             "#D4E09B": "#e8f0b8", // sparkling → brighter green
             "#DAA520": "#f0c040", // dessert → brighter gold
+            "#B5651D": "#d9843a", // whisky → brighter amber
         };
         return brightMap[hex] || hex;
     }
@@ -4847,6 +4897,10 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._editing = false;
         this._editingFields = false;
         this._editData = {};
+        // Start year of the drink window, edited separately from drink_by (the
+        // end year) and recombined into the stored drink_window "YYYY-YYYY"
+        // string on every change — see _updateDrinkWindowPart.
+        this._editDrinkFrom = "";
         this._userRating = 0;
         this._tastingNotes = { aroma: "", taste: "", finish: "", overall: "" };
         this._saving = false;
@@ -4863,6 +4917,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._aiFallbackReason = null;
         this.hasGemini = false;
         this.aiFallbackAlways = false;
+        this.enableWhisky = false;
         this.currency = "USD";
     }
     // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
@@ -4901,17 +4956,36 @@ let WineDetailDialog = class WineDetailDialog extends i {
             retail_price: this.wine.retail_price,
             purchase_date: this.wine.purchase_date || "",
             drink_by: this.wine.drink_by || "",
+            drink_window: this.wine.drink_window || "",
             notes: this.wine.notes || "",
             alcohol: this.wine.alcohol || "",
         };
+        const windowStart = (this.wine.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
+        this._editDrinkFrom = windowStart ? windowStart[0] : "";
         this._editingFields = true;
     }
     _cancelEditingFields() {
         this._editingFields = false;
         this._editData = {};
+        this._editDrinkFrom = "";
     }
     _updateEditField(field, value) {
         this._editData = { ...this._editData, [field]: value };
+    }
+    // drink_by is the end year; _editDrinkFrom (a separate, non-persisted
+    // field) is the start year. Both recombine into the stored drink_window
+    // "YYYY-YYYY" string on every change, so it never drifts out of sync
+    // with whichever end the user just edited.
+    _updateDrinkWindowPart(part, value) {
+        if (part === "from")
+            this._editDrinkFrom = value;
+        const from = (part === "from" ? value : this._editDrinkFrom).trim();
+        const by = (part === "by" ? value : (this._editData.drink_by || "")).trim();
+        this._editData = {
+            ...this._editData,
+            ...(part === "by" ? { drink_by: value } : {}),
+            drink_window: from && by ? `${from}-${by}` : (from || by || ""),
+        };
     }
     // Applying a result to whatever is on screen now is only correct if it is
     // still the same bottle. A Vivino refresh takes a second or two — long
@@ -5382,7 +5456,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.wineDetail.wineryLabel")}</label>
+            <label>${producerLabel(d.type, this.hass?.language)}</label>
             <input type="text" .value=${d.winery}
               @input=${(e) => this._updateEditField("winery", e.target.value)} />
           </div>
@@ -5398,7 +5472,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             <label>${this._t("ui.wineDetail.typeLabel")}</label>
             <select .value=${d.type}
               @change=${(e) => this._updateEditField("type", e.target.value)}>
-              ${Object.entries(getWineTypeLabels(this.hass?.language)).map(([value, label]) => b `<option value=${value} ?selected=${d.type === value}>${label}</option>`)}
+              ${getSelectableWineTypes(this.enableWhisky || d.type === "whisky", this.hass?.language).map(([value, label]) => b `<option value=${value} ?selected=${d.type === value}>${label}</option>`)}
             </select>
           </div>
           <div class="form-group">
@@ -5428,7 +5502,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
               @input=${(e) => this._updateEditField("country", e.target.value)} />
           </div>
           <div class="form-group">
-            <label>${this._t("ui.wineDetail.grapeVarietyLabel")}</label>
+            <label>${varietyLabel(d.type, false, this.hass?.language)}</label>
             <input type="text" .value=${d.grape_variety}
               @input=${(e) => this._updateEditField("grape_variety", e.target.value)} />
           </div>
@@ -5446,9 +5520,14 @@ let WineDetailDialog = class WineDetailDialog extends i {
               @input=${(e) => this._updateEditField("purchase_date", e.target.value)} />
           </div>
           <div class="form-group">
+            <label>${this._t("ui.wineDetail.drinkFromLabel")}</label>
+            <input type="text" placeholder="${this._t('ui.wineDetail.drinkFromPlaceholder')}" .value=${this._editDrinkFrom}
+              @input=${(e) => this._updateDrinkWindowPart("from", e.target.value)} />
+          </div>
+          <div class="form-group">
             <label>${this._t("ui.wineDetail.drinkByLabel")}</label>
             <input type="text" placeholder="${this._t('ui.wineDetail.drinkByPlaceholder')}" .value=${d.drink_by}
-              @input=${(e) => this._updateEditField("drink_by", e.target.value)} />
+              @input=${(e) => this._updateDrinkWindowPart("by", e.target.value)} />
           </div>
         </div>
 
@@ -5711,7 +5790,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                 : A}
                   ${wine.grape_variety
-                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.grapeLabel")}</span><span class="detail-value">${wine.grape_variety}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${varietyLabel(wine.type, true, this.hass?.language)}</span><span class="detail-value">${wine.grape_variety}</span></div>`
                 : A}
                   ${wine.price
                 ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
@@ -6473,6 +6552,9 @@ __decorate([
 ], WineDetailDialog.prototype, "_editData", void 0);
 __decorate([
     r()
+], WineDetailDialog.prototype, "_editDrinkFrom", void 0);
+__decorate([
+    r()
 ], WineDetailDialog.prototype, "_userRating", void 0);
 __decorate([
     r()
@@ -6516,6 +6598,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], WineDetailDialog.prototype, "aiFallbackAlways", void 0);
+__decorate([
+    n({ type: Boolean })
+], WineDetailDialog.prototype, "enableWhisky", void 0);
 __decorate([
     n({ type: String })
 ], WineDetailDialog.prototype, "currency", void 0);
@@ -6770,6 +6855,7 @@ let AddWineDialog = class AddWineDialog extends i {
         this.preselectedZone = "";
         this.preselectedDepth = 0;
         this.buyListMode = false;
+        this.enableWhisky = false;
         this._step = "scan";
         this._scanMode = "idle";
         this._barcode = "";
@@ -7405,7 +7491,7 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
-            <label>${this._t("ui.addWine.wineryLabel")}</label>
+            <label>${producerLabel(this._wineData.type, this.hass?.language)}</label>
             <input
               type="text"
               .value=${this._wineData.winery || ""}
@@ -7428,7 +7514,7 @@ let AddWineDialog = class AddWineDialog extends i {
             <select
               @change=${(e) => this._updateField("type", e.target.value)}
             >
-              ${Object.entries(getWineTypeLabels(this.hass?.language)).map(([value, label]) => b `<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`)}
+              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(([value, label]) => b `<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`)}
             </select>
           </div>
           <div class="form-group">
@@ -7474,7 +7560,7 @@ let AddWineDialog = class AddWineDialog extends i {
         </div>
 
         <div class="form-group">
-          <label>${this._t("ui.addWine.grapeVarietyLabel")}</label>
+          <label>${varietyLabel(this._wineData.type, false, this.hass?.language)}</label>
           <input
             type="text"
             .value=${this._wineData.grape_variety || ""}
@@ -7790,7 +7876,7 @@ let AddWineDialog = class AddWineDialog extends i {
           ${this._wineData.winery
             ? b `
                 <div class="summary-row">
-                  <span class="summary-label">${this._t("ui.addWine.wineryLabel")}</span>
+                  <span class="summary-label">${producerLabel(this._wineData.type, this.hass?.language)}</span>
                   <span class="summary-value">${this._wineData.winery}</span>
                 </div>
               `
@@ -8408,6 +8494,9 @@ __decorate([
     n({ type: Boolean })
 ], AddWineDialog.prototype, "buyListMode", void 0);
 __decorate([
+    n({ type: Boolean })
+], AddWineDialog.prototype, "enableWhisky", void 0);
+__decorate([
     r()
 ], AddWineDialog.prototype, "_step", void 0);
 __decorate([
@@ -8461,6 +8550,7 @@ let WineSearchBar = class WineSearchBar extends i {
         super(...arguments);
         this.value = "";
         this.filter = "all";
+        this.enableWhisky = false;
     }
     // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
     _t(key, params) {
@@ -8505,6 +8595,7 @@ let WineSearchBar = class WineSearchBar extends i {
             { id: "rosé", label: this._t("wineType.rosé") },
             { id: "sparkling", label: this._t("wineType.sparkling") },
             { id: "dessert", label: this._t("wineType.dessert") },
+            ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
         ];
         return b `
       <div class="search-container">
@@ -8677,6 +8768,9 @@ __decorate([
 __decorate([
     n({ type: String })
 ], WineSearchBar.prototype, "filter", void 0);
+__decorate([
+    n({ type: Boolean })
+], WineSearchBar.prototype, "enableWhisky", void 0);
 WineSearchBar = __decorate([
     t$1("wine-search-bar")
 ], WineSearchBar);
@@ -10666,6 +10760,7 @@ let InventoryDialog = class InventoryDialog extends i {
         this.wines = [];
         this.cabinets = [];
         this.hasGemini = false;
+        this.enableWhisky = false;
         this.currency = "USD";
         this._searchQuery = "";
         this._typeFilter = DEFAULT_FILTERS.typeFilter;
@@ -11506,7 +11601,7 @@ let InventoryDialog = class InventoryDialog extends i {
             }
             // Validate wine type
             if (wine.type) {
-                const validTypes = ["red", "white", "rosé", "sparkling", "dessert"];
+                const validTypes = Object.keys(WINE_TYPE_LABELS);
                 const lt = wine.type.toLowerCase();
                 if (validTypes.includes(lt)) {
                     wine.type = lt;
@@ -11998,6 +12093,7 @@ let InventoryDialog = class InventoryDialog extends i {
             { id: "rosé", label: this._t("wineType.rosé") },
             { id: "sparkling", label: this._t("wineType.sparkling") },
             { id: "dessert", label: this._t("wineType.dessert") },
+            ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
         ];
         const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;
         return b `
@@ -13079,6 +13175,9 @@ __decorate([
     n({ type: Boolean })
 ], InventoryDialog.prototype, "hasGemini", void 0);
 __decorate([
+    n({ type: Boolean })
+], InventoryDialog.prototype, "enableWhisky", void 0);
+__decorate([
     n({ type: String })
 ], InventoryDialog.prototype, "currency", void 0);
 __decorate([
@@ -13210,6 +13309,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         super(...arguments);
         this.open = false;
         this.aiFallbackAlways = false;
+        this.enableWhisky = false;
         this.metadataLanguage = "en";
         this.supportedLanguages = ["en", "fr", "de"];
         this.metadataCurrency = "USD";
@@ -13224,6 +13324,9 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setFallback(value) {
         this.dispatchEvent(new CustomEvent("set-ai-fallback-always", { detail: { value } }));
+    }
+    _setEnableWhisky(value) {
+        this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
     }
     _setLanguage(lang) {
         this.dispatchEvent(new CustomEvent("set-metadata-language", { detail: { value: lang } }));
@@ -13250,6 +13353,17 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
                 @change=${(e) => this._setFallback(e.target.checked)}
               />
               ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.enableWhisky}
+                @change=${(e) => this._setEnableWhisky(e.target.checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.enableWhisky")}
             </label>
           </div>
 
@@ -13416,6 +13530,9 @@ __decorate([
     n({ type: Boolean })
 ], VivinoAiSettingsDialog.prototype, "aiFallbackAlways", void 0);
 __decorate([
+    n({ type: Boolean })
+], VivinoAiSettingsDialog.prototype, "enableWhisky", void 0);
+__decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "metadataLanguage", void 0);
 __decorate([
@@ -13493,6 +13610,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._metadataCurrency = "USD";
         this._supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
         this._aiFallbackAlways = false;
+        this._enableWhisky = false;
         this._showVivinoAiSettings = false;
         this._showWineList = false;
         this._showInventory = false;
@@ -13657,6 +13775,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._metadataCurrency = capResult?.metadata_currency || "USD";
             this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
+            this._enableWhisky = capResult?.enable_whisky || false;
             this._dismissedArrangements = capResult?.dismissed_arrangements || [];
             this._buyList = buyListResult?.buy_list || [];
             this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
@@ -14781,6 +14900,22 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.changeAiFallbackFailed"));
         }
     }
+    async _setEnableWhisky(value) {
+        if (value === this._enableWhisky)
+            return;
+        const previous = this._enableWhisky;
+        this._enableWhisky = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { enable_whisky: value },
+            });
+        }
+        catch (err) {
+            this._enableWhisky = previous;
+            this._showToast(this._t("toast.changeEnableWhiskyFailed"));
+        }
+    }
     // --- Batch Vivino Refresh ---
     _batchRefreshVivino() {
         this._batchAiFallback = this._aiFallbackAlways;
@@ -15264,6 +15399,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
+          .enableWhisky=${this._enableWhisky}
           @search-change=${this._onSearch}
         ></wine-search-bar>
 
@@ -15425,11 +15561,7 @@ let WineCellarCard = class WineCellarCard extends i {
                       </div>
                     `
                 : this._buyList.map((item) => {
-                    const typeColor = item.type === "red" ? "#722F37"
-                        : item.type === "white" ? "#F5E6CA"
-                            : item.type === "rosé" ? "#E8A0BF"
-                                : item.type === "sparkling" ? "#D4E09B"
-                                    : "#DAA520";
+                    const typeColor = WINE_TYPE_COLORS[item.type] || WINE_TYPE_COLORS.red;
                     return b `
                         <div class="buy-list-card" @click=${() => this._showBuyListDetail(item)} style="cursor:pointer">
                           ${item.image_url
@@ -15537,15 +15669,7 @@ let WineCellarCard = class WineCellarCard extends i {
                         ? b `<img class="wine-list-thumb" src="${wine.image_url}" alt="" />`
                         : b `<div
                                 class="wine-list-dot"
-                                style="background: ${wine.type === "red"
-                            ? "#722F37"
-                            : wine.type === "white"
-                                ? "#F5E6CA"
-                                : wine.type === "rosé"
-                                    ? "#E8A0BF"
-                                    : wine.type === "sparkling"
-                                        ? "#D4E09B"
-                                        : "#DAA520"}"
+                                style="background: ${WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red}"
                               ></div>`}
                           <div class="wine-list-info">
                             <div class="wine-list-name">${wine.name}</div>
@@ -15695,6 +15819,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .open=${this._showDetail}
           .hasGemini=${this._hasGemini}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
           .mode=${this._detailMode}
           @close=${() => (this._showDetail = false)}
@@ -15731,6 +15856,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .preselectedZone=${this._addPreselect.zone}
           .preselectedDepth=${this._addPreselect.depth || 0}
           .buyListMode=${this._addToBuyListMode}
+          .enableWhisky=${this._enableWhisky}
           @close=${() => { this._showAddDialog = false; this._addToBuyListMode = false; }}
           @wine-added=${this._onWineAdded}
           @buy-list-updated=${() => this._loadData()}
@@ -15766,6 +15892,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .wines=${this._wines}
           .cabinets=${this._cabinets}
           .hasGemini=${this._hasGemini}
+          .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
@@ -15803,12 +15930,14 @@ let WineCellarCard = class WineCellarCard extends i {
           .open=${this._showVivinoAiSettings}
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .enableWhisky=${this._enableWhisky}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
           .metadataCurrency=${this._metadataCurrency}
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
+          @set-enable-whisky=${(e) => this._setEnableWhisky(e.detail.value)}
           @set-metadata-language=${(e) => this._setMetadataLanguage(e.detail.value)}
           @set-metadata-currency=${(e) => this._setMetadataCurrency(e.detail.value)}
         ></vivino-ai-settings-dialog>
@@ -16677,6 +16806,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_aiFallbackAlways", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_enableWhisky", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_showVivinoAiSettings", void 0);

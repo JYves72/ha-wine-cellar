@@ -46,6 +46,10 @@ export interface Wine {
   // whose source starts with "vivino" take part in Vivino reconciliation.
   source?: string;
   disposition: string;
+  // "auto" when disposition.py's date-based rule set this; absent or any
+  // other value means Gemini AI or a human set it, which the auto-recompute
+  // never overwrites.
+  disposition_source?: string;
   drink_window: string;
   ai_ratings: Record<string, number> | null;
   // `*_updated_at` is when the data last actually changed; `*_checked_at` is
@@ -194,7 +198,11 @@ export function getRemovalReasons(language?: string): { id: string; label: strin
   return REMOVAL_REASONS.map((r) => ({ id: r.id, label: labels[r.id] || r.label }));
 }
 
-export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert";
+// "whisky" is the one non-wine type. It reuses the wine fields (winery =
+// distillery, grape_variety = cask/maturation, vintage = distillation year),
+// so nothing in the data shape changes; only the field labels follow the
+// type, see producerLabel/varietyLabel below. Mirrors WINE_TYPES in const.py.
+export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert" | "whisky";
 
 export const WINE_TYPE_COLORS: Record<WineType, string> = {
   red: "#722F37",
@@ -202,6 +210,7 @@ export const WINE_TYPE_COLORS: Record<WineType, string> = {
   rosé: "#E8A0BF",
   sparkling: "#D4E09B",
   dessert: "#DAA520",
+  whisky: "#B5651D",
 };
 
 export const WINE_TYPE_LABELS: Record<WineType, string> = {
@@ -210,6 +219,7 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
   rosé: "Rosé",
   sparkling: "Sparkling",
   dessert: "Dessert",
+  whisky: "Whisky",
 };
 
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
@@ -218,6 +228,29 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
 // exists.
 export function getWineTypeLabels(language?: string): Record<WineType, string> {
   return tGroup("wineType", language) as Record<WineType, string>;
+}
+
+// Field labels that read wrong for a whisky: the producer is a distillery
+// (or independent bottler) and the "grape variety" field holds the cask.
+export function producerLabel(type?: string, language?: string): string {
+  const t = tGroup("bottleFields", language);
+  return type === "whisky" ? t.distillery : t.winery;
+}
+
+export function varietyLabel(type?: string, short = false, language?: string): string {
+  const t = tGroup("bottleFields", language);
+  if (type === "whisky") return t.cask;
+  return short ? t.grape : t.grapeVariety;
+}
+
+// The [type, label] pairs to offer in a type dropdown or filter chip list —
+// "whisky" only when the cellar has opted in (Vivino/AI Settings), so a
+// cellar that doesn't track whisky doesn't see it as an option. An existing
+// whisky-typed bottle keeps displaying correctly either way; this only
+// gates what's *offered*, not what's stored.
+export function getSelectableWineTypes(enableWhisky: boolean, language?: string): [WineType, string][] {
+  const entries = Object.entries(getWineTypeLabels(language)) as [WineType, string][];
+  return enableWhisky ? entries : entries.filter(([value]) => value !== "whisky");
 }
 
 // Every physical (row, col) grid slot in a cabinet, in display order,

@@ -653,6 +653,7 @@ export class CabinetGrid extends LitElement {
       "#E8A0BF": "#f5c0d8",  // rosé → brighter pink
       "#D4E09B": "#e8f0b8",  // sparkling → brighter green
       "#DAA520": "#f0c040",  // dessert → brighter gold
+      "#B5651D": "#d9843a",  // whisky → brighter amber
     };
     return brightMap[hex] || hex;
   }

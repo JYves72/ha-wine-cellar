@@ -264,6 +264,14 @@ class WineCellarStorage:
                 for key, value in updates.items():
                     if key != "id":
                         wine[key] = value
+                # A caller setting disposition without also setting its
+                # source is Gemini AI or a human, not the date-based
+                # auto-recompute (disposition.py writes disposition_source
+                # itself, bypassing this method). Clear the marker so the
+                # nightly recompute treats this wine as already classified
+                # and never overwrites it again.
+                if "disposition" in updates and "disposition_source" not in updates:
+                    wine.pop("disposition_source", None)
                 return wine
         return None
 
