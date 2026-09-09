@@ -127,7 +127,8 @@ export class CabinetGrid extends LitElement {
         overflow: hidden;
       }
 
-      .cell .wine-thumb {
+      .cell .wine-thumb,
+      .zone-shelf-dot .wine-thumb {
         position: absolute;
         width: 100%;
         height: 100%;
@@ -207,7 +208,8 @@ export class CabinetGrid extends LitElement {
         }
       }
 
-      .cell .disposition {
+      .cell .disposition,
+      .zone-shelf-dot .disposition {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -229,17 +231,20 @@ export class CabinetGrid extends LitElement {
       }
 
       .cell .disposition.drink,
-      .zone-bottle .disposition.drink {
+      .zone-bottle .disposition.drink,
+      .zone-shelf-dot .disposition.drink {
         background: #2e7d32;
       }
 
       .cell .disposition.hold,
-      .zone-bottle .disposition.hold {
+      .zone-bottle .disposition.hold,
+      .zone-shelf-dot .disposition.hold {
         background: #1565c0;
       }
 
       .cell .disposition.past,
-      .zone-bottle .disposition.past {
+      .zone-bottle .disposition.past,
+      .zone-shelf-dot .disposition.past {
         background: #c62828;
       }
 
@@ -416,6 +421,16 @@ export class CabinetGrid extends LitElement {
         width: 100%;
       }
 
+      /* Thinner than the ledge between two boards (.zone-shelf-level::after)
+         — this one just separates the front/back lanes of the SAME board,
+         it isn't a physical divider. */
+      .zone-shelf-lane-divider {
+        height: 1px;
+        margin: 1px 0;
+        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
+        border-radius: 1px;
+      }
+
       .zone-shelf-lane-label {
         font-size: 0.8em;
         font-weight: 600;
@@ -430,6 +445,7 @@ export class CabinetGrid extends LitElement {
          when filled — rather than the paler, always-visible dot this
          used to be. */
       .zone-shelf-dot {
+        position: relative;
         flex-shrink: 0;
         aspect-ratio: 1;
         min-width: 0;
@@ -437,6 +453,8 @@ export class CabinetGrid extends LitElement {
         background: rgba(255, 255, 255, 0.05);
         border: 1px dashed rgba(255, 255, 255, 0.15);
         cursor: pointer;
+        overflow: hidden;
+        container-type: inline-size;
       }
 
       .zone-shelf-dot.filled {
@@ -1035,6 +1053,8 @@ export class CabinetGrid extends LitElement {
           const wine = wines.find((w) => (w.depth || 0) === depth);
           const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
           const ring = wine ? this._brightenColor(bg) : "";
+          const disp = wine?.disposition || "";
+          const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           return html`<span
             class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
@@ -1049,7 +1069,7 @@ export class CabinetGrid extends LitElement {
             @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
             @touchend=${() => this._onTouchEnd()}
             @touchmove=${() => this._onTouchMove()}
-          ></span>`;
+          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}</span>`;
         })}
       </div>
     `;
@@ -1079,6 +1099,7 @@ export class CabinetGrid extends LitElement {
           ${levels.map(([, lanes]) => html`
             <div class="zone-shelf-level">
               ${renderBack(lanes.back)}
+              ${lanes.back && lanes.front ? html`<div class="zone-shelf-lane-divider"></div>` : nothing}
               ${renderFront(lanes.front)}
             </div>
           `)}

@@ -3732,6 +3732,8 @@ let CabinetGrid = class CabinetGrid extends i {
             const wine = wines.find((w) => (w.depth || 0) === depth);
             const bg = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
             const ring = wine ? this._brightenColor(bg) : "";
+            const disp = wine?.disposition || "";
+            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
             return b `<span
             class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
@@ -3746,7 +3748,7 @@ let CabinetGrid = class CabinetGrid extends i {
             @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
             @touchend=${() => this._onTouchEnd()}
             @touchmove=${() => this._onTouchMove()}
-          ></span>`;
+          >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${dispClass ? b `<span class="disposition ${dispClass}">${disp}</span>` : A}</span>`;
         })}
       </div>
     `;
@@ -3776,6 +3778,7 @@ let CabinetGrid = class CabinetGrid extends i {
           ${levels.map(([, lanes]) => b `
             <div class="zone-shelf-level">
               ${renderBack(lanes.back)}
+              ${lanes.back && lanes.front ? b `<div class="zone-shelf-lane-divider"></div>` : A}
               ${renderFront(lanes.front)}
             </div>
           `)}
@@ -4093,7 +4096,8 @@ CabinetGrid.styles = [
         overflow: hidden;
       }
 
-      .cell .wine-thumb {
+      .cell .wine-thumb,
+      .zone-shelf-dot .wine-thumb {
         position: absolute;
         width: 100%;
         height: 100%;
@@ -4173,7 +4177,8 @@ CabinetGrid.styles = [
         }
       }
 
-      .cell .disposition {
+      .cell .disposition,
+      .zone-shelf-dot .disposition {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -4195,17 +4200,20 @@ CabinetGrid.styles = [
       }
 
       .cell .disposition.drink,
-      .zone-bottle .disposition.drink {
+      .zone-bottle .disposition.drink,
+      .zone-shelf-dot .disposition.drink {
         background: #2e7d32;
       }
 
       .cell .disposition.hold,
-      .zone-bottle .disposition.hold {
+      .zone-bottle .disposition.hold,
+      .zone-shelf-dot .disposition.hold {
         background: #1565c0;
       }
 
       .cell .disposition.past,
-      .zone-bottle .disposition.past {
+      .zone-bottle .disposition.past,
+      .zone-shelf-dot .disposition.past {
         background: #c62828;
       }
 
@@ -4382,6 +4390,16 @@ CabinetGrid.styles = [
         width: 100%;
       }
 
+      /* Thinner than the ledge between two boards (.zone-shelf-level::after)
+         — this one just separates the front/back lanes of the SAME board,
+         it isn't a physical divider. */
+      .zone-shelf-lane-divider {
+        height: 1px;
+        margin: 1px 0;
+        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
+        border-radius: 1px;
+      }
+
       .zone-shelf-lane-label {
         font-size: 0.8em;
         font-weight: 600;
@@ -4396,6 +4414,7 @@ CabinetGrid.styles = [
          when filled — rather than the paler, always-visible dot this
          used to be. */
       .zone-shelf-dot {
+        position: relative;
         flex-shrink: 0;
         aspect-ratio: 1;
         min-width: 0;
@@ -4403,6 +4422,8 @@ CabinetGrid.styles = [
         background: rgba(255, 255, 255, 0.05);
         border: 1px dashed rgba(255, 255, 255, 0.15);
         cursor: pointer;
+        overflow: hidden;
+        container-type: inline-size;
       }
 
       .zone-shelf-dot.filled {
