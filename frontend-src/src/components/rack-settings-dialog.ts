@@ -947,8 +947,10 @@ export class RackSettingsDialog extends LitElement {
         <div class="rack-list">
           ${sorted.map(
             (cab, idx) => {
-              const storageCount = (cab.storage_rows || []).length;
+              const storageRows = cab.storage_rows || [];
+              const storageCount = storageRows.length;
               const isPureStorage = storageCount > 0 && storageCount === (cab.rows || 0);
+              const storageType = isPureStorage ? storageRows[0]?.type : undefined;
               return html`
                 <div class="rack-item">
                   <div class="rack-info">
@@ -956,7 +958,11 @@ export class RackSettingsDialog extends LitElement {
                     <div class="rack-meta">
                       ${isPureStorage ? nothing : html`${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}`}
                       ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
-                      ${storageCount > 0 ? this._t("ui.rack.storageCountSuffix", { n: storageCount, plural: storageCount === 1 ? "" : "s" }) : ""}
+                      ${storageType === "shelf"
+                        ? this._t(storageCount === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: storageCount })
+                        : storageType === "box"
+                        ? this._t(storageCount === 1 ? "ui.rack.boxCountSuffixOne" : "ui.rack.boxCountSuffixMany", { n: storageCount })
+                        : ""}
                     </div>
                   </div>
                   <div class="rack-actions">

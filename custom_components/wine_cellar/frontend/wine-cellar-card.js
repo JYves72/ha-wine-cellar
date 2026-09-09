@@ -1260,7 +1260,10 @@ var ui$1 = {
 		gridDimensions: "{rows} × {cols} grid",
 		gridDeepSuffix: " × {depth} deep",
 		bottlesCountSuffix: " · {n} bottle{plural}",
-		storageCountSuffix: " · {n} storage row{plural}",
+		shelfCountSuffixOne: " · {n} shelf",
+		shelfCountSuffixMany: " · {n} shelves",
+		boxCountSuffixOne: " · {n} box",
+		boxCountSuffixMany: " · {n} boxes",
 		moveUpTitle: "Move up",
 		moveDownTitle: "Move down",
 		delBtn: "Del",
@@ -1980,7 +1983,10 @@ var ui = {
 		gridDimensions: "grille {rows} × {cols}",
 		gridDeepSuffix: " × {depth} en profondeur",
 		bottlesCountSuffix: " · {n} bouteille{plural}",
-		storageCountSuffix: " · {n} zone{plural} de stockage",
+		shelfCountSuffixOne: " · {n} étagère",
+		shelfCountSuffixMany: " · {n} étagères",
+		boxCountSuffixOne: " · {n} caisse",
+		boxCountSuffixMany: " · {n} caisses",
 		moveUpTitle: "Monter",
 		moveDownTitle: "Descendre",
 		delBtn: "Suppr",
@@ -3655,7 +3661,6 @@ let CabinetGrid = class CabinetGrid extends i {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${this._t("ui.rack.boxSizeOption", { s: seg.size })}</div>
             </div>
           `)}
         </div>
@@ -3667,14 +3672,25 @@ let CabinetGrid = class CabinetGrid extends i {
     // tile (like bulk/box) — individual slot placement happens in the zone
     // side panel, opened by clicking the tile.
     _renderShelfZone(zoneId, zoneKey, name, capacity, wines, isDragOver, sr) {
-        const groups = getShelfSlotGroups(sr.shelf_levels);
+        const levelsData = sr.shelf_levels || [];
+        const groups = getShelfSlotGroups(levelsData);
         const byLevel = new Map();
         for (const g of groups) {
             const entry = byLevel.get(g.level) || {};
             entry[g.lane] = g;
             byLevel.set(g.level, entry);
         }
-        const levels = Array.from(byLevel.entries()).sort((a, b) => a[0] - b[0]);
+        // Level 0 is the bottom board (see models.ts) — reverse for display,
+        // since flex-direction: column lays out children top-to-bottom.
+        const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
+        // One dot size for the whole shelf, sized off whichever lane is
+        // longest anywhere in it — so a 3-bottle back row doesn't render
+        // bigger dots than a 4-bottle front row. The shorter lane just ends
+        // up centered with more gap, the way a real shelf looks, rather than
+        // the receding stagger of a photo (the user explicitly didn't want
+        // that reproduced here).
+        const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
+        const dotBasis = `${100 / maxCount}%`;
         const renderLane = (group) => {
             if (!group)
                 return A;
@@ -3683,7 +3699,11 @@ let CabinetGrid = class CabinetGrid extends i {
           ${Array.from({ length: group.size }, (_, i) => {
                 const wine = wines.find((w) => (w.depth || 0) === group.start + i);
                 const bg = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
-                return b `<span class="zone-shelf-dot ${wine ? "filled" : ""}" style=${wine ? `background:${bg}` : ""}></span>`;
+                const ring = wine ? this._brightenColor(bg) : "";
+                return b `<span
+              class="zone-shelf-dot ${wine ? "filled" : ""}"
+              style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            ></span>`;
             })}
         </div>
       `;
@@ -4259,10 +4279,11 @@ CabinetGrid.styles = [
         transform: scale(1.1);
       }
 
-      /* Fridge-style shelf: front/back lanes per board, back lane offset
-         half a dot-width so it reads as sitting behind the front one.
-         Dots size like regular grid cells (flex:1 + aspect-ratio) so they
-         scale with the rack's width instead of staying a fixed size. */
+      /* Fridge-style shelf: front/back lanes per board. Every dot in the
+         shelf shares one size (set inline from the longest lane anywhere
+         in it), so a shorter lane is centered with wider gaps instead of
+         rendering smaller dots — deliberately not the receding-stagger
+         look of a real photographed shelf. */
       .zone-shelf-levels {
         display: flex;
         flex-direction: column;
@@ -4279,28 +4300,26 @@ CabinetGrid.styles = [
 
       .zone-shelf-lane {
         display: flex;
+        justify-content: center;
         gap: 2px;
         width: 100%;
       }
 
-      .zone-shelf-lane.back {
-        width: 92%;
-        margin-left: auto;
-        margin-right: auto;
-        opacity: 0.75;
-      }
-
+      /* Same empty/filled treatment as a classic grid cell — a faint,
+         dashed outline when empty, a solid ring in the wine's colour
+         when filled — rather than the paler, always-visible dot this
+         used to be. */
       .zone-shelf-dot {
-        flex: 1;
+        flex-shrink: 0;
         aspect-ratio: 1;
         min-width: 0;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.15);
       }
 
       .zone-shelf-dot.filled {
-        border-color: rgba(255, 255, 255, 0.5);
+        border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
       }
 
       /* Drag and drop */
@@ -4431,11 +4450,6 @@ CabinetGrid.styles = [
       .zone-box-item.has-wine .box-count {
         color: #fff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      }
-
-      .zone-box-size {
-        font-size: 0.55em;
-        color: rgba(255, 255, 255, 0.5);
       }
 
       /* Phone: tighter spacing, smaller elements */
@@ -9389,8 +9403,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       <div class="dialog-body">
         <div class="rack-list">
           ${sorted.map((cab, idx) => {
-            const storageCount = (cab.storage_rows || []).length;
+            const storageRows = cab.storage_rows || [];
+            const storageCount = storageRows.length;
             const isPureStorage = storageCount > 0 && storageCount === (cab.rows || 0);
+            const storageType = isPureStorage ? storageRows[0]?.type : undefined;
             return b `
                 <div class="rack-item">
                   <div class="rack-info">
@@ -9398,7 +9414,11 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     <div class="rack-meta">
                       ${isPureStorage ? A : b `${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}`}
                       ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
-                      ${storageCount > 0 ? this._t("ui.rack.storageCountSuffix", { n: storageCount, plural: storageCount === 1 ? "" : "s" }) : ""}
+                      ${storageType === "shelf"
+                ? this._t(storageCount === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: storageCount })
+                : storageType === "box"
+                    ? this._t(storageCount === 1 ? "ui.rack.boxCountSuffixOne" : "ui.rack.boxCountSuffixMany", { n: storageCount })
+                    : ""}
                     </div>
                   </div>
                   <div class="rack-actions">

@@ -370,10 +370,11 @@ export class CabinetGrid extends LitElement {
         transform: scale(1.1);
       }
 
-      /* Fridge-style shelf: front/back lanes per board, back lane offset
-         half a dot-width so it reads as sitting behind the front one.
-         Dots size like regular grid cells (flex:1 + aspect-ratio) so they
-         scale with the rack's width instead of staying a fixed size. */
+      /* Fridge-style shelf: front/back lanes per board. Every dot in the
+         shelf shares one size (set inline from the longest lane anywhere
+         in it), so a shorter lane is centered with wider gaps instead of
+         rendering smaller dots — deliberately not the receding-stagger
+         look of a real photographed shelf. */
       .zone-shelf-levels {
         display: flex;
         flex-direction: column;
@@ -390,28 +391,26 @@ export class CabinetGrid extends LitElement {
 
       .zone-shelf-lane {
         display: flex;
+        justify-content: center;
         gap: 2px;
         width: 100%;
       }
 
-      .zone-shelf-lane.back {
-        width: 92%;
-        margin-left: auto;
-        margin-right: auto;
-        opacity: 0.75;
-      }
-
+      /* Same empty/filled treatment as a classic grid cell — a faint,
+         dashed outline when empty, a solid ring in the wine's colour
+         when filled — rather than the paler, always-visible dot this
+         used to be. */
       .zone-shelf-dot {
-        flex: 1;
+        flex-shrink: 0;
         aspect-ratio: 1;
         min-width: 0;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.15);
       }
 
       .zone-shelf-dot.filled {
-        border-color: rgba(255, 255, 255, 0.5);
+        border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
       }
 
       /* Drag and drop */
@@ -542,11 +541,6 @@ export class CabinetGrid extends LitElement {
       .zone-box-item.has-wine .box-count {
         color: #fff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      }
-
-      .zone-box-size {
-        font-size: 0.55em;
-        color: rgba(255, 255, 255, 0.5);
       }
 
       /* Phone: tighter spacing, smaller elements */
@@ -923,7 +917,6 @@ export class CabinetGrid extends LitElement {
                 <div class="box-lid"></div>
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
-              <div class="zone-box-size">${this._t("ui.rack.boxSizeOption", { s: seg.size })}</div>
             </div>
           `)}
         </div>
@@ -936,14 +929,26 @@ export class CabinetGrid extends LitElement {
   // tile (like bulk/box) — individual slot placement happens in the zone
   // side panel, opened by clicking the tile.
   private _renderShelfZone(zoneId: string, zoneKey: string, name: string, capacity: number, wines: Wine[], isDragOver: boolean, sr: StorageRow) {
-    const groups = getShelfSlotGroups(sr.shelf_levels);
+    const levelsData = sr.shelf_levels || [];
+    const groups = getShelfSlotGroups(levelsData);
     const byLevel = new Map<number, { front?: ShelfSlotGroup; back?: ShelfSlotGroup }>();
     for (const g of groups) {
       const entry = byLevel.get(g.level) || {};
       entry[g.lane] = g;
       byLevel.set(g.level, entry);
     }
-    const levels = Array.from(byLevel.entries()).sort((a, b) => a[0] - b[0]);
+    // Level 0 is the bottom board (see models.ts) — reverse for display,
+    // since flex-direction: column lays out children top-to-bottom.
+    const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
+
+    // One dot size for the whole shelf, sized off whichever lane is
+    // longest anywhere in it — so a 3-bottle back row doesn't render
+    // bigger dots than a 4-bottle front row. The shorter lane just ends
+    // up centered with more gap, the way a real shelf looks, rather than
+    // the receding stagger of a photo (the user explicitly didn't want
+    // that reproduced here).
+    const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
+    const dotBasis = `${100 / maxCount}%`;
 
     const renderLane = (group: ShelfSlotGroup | undefined) => {
       if (!group) return nothing;
@@ -952,7 +957,11 @@ export class CabinetGrid extends LitElement {
           ${Array.from({ length: group.size }, (_, i) => {
             const wine = wines.find((w) => (w.depth || 0) === group.start + i);
             const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
-            return html`<span class="zone-shelf-dot ${wine ? "filled" : ""}" style=${wine ? `background:${bg}` : ""}></span>`;
+            const ring = wine ? this._brightenColor(bg) : "";
+            return html`<span
+              class="zone-shelf-dot ${wine ? "filled" : ""}"
+              style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            ></span>`;
           })}
         </div>
       `;
