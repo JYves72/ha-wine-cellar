@@ -443,7 +443,9 @@ export class CabinetGrid extends LitElement {
       /* Same empty/filled treatment as a classic grid cell — a faint,
          dashed outline when empty, a solid ring in the wine's colour
          when filled — rather than the paler, always-visible dot this
-         used to be. */
+         used to be. Hover/drag-over states below deliberately mirror
+         .cell's exactly, so a shelf dot enlarges on hover/drag-over the
+         same way a grid cell does. */
       .zone-shelf-dot {
         position: relative;
         flex-shrink: 0;
@@ -455,10 +457,27 @@ export class CabinetGrid extends LitElement {
         cursor: pointer;
         overflow: hidden;
         container-type: inline-size;
+        z-index: 1;
+        transition: all 0.2s;
+      }
+
+      .zone-shelf-dot:not(.filled):hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.3);
       }
 
       .zone-shelf-dot.filled {
         border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+          0 0 8px rgba(50, 100, 255, 0.15);
+      }
+
+      .zone-shelf-dot.filled:hover {
+        transform: scale(1.15);
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
+          0 0 16px rgba(50, 100, 255, 0.3);
       }
 
       .zone-shelf-dot[draggable="true"] {
@@ -469,9 +488,16 @@ export class CabinetGrid extends LitElement {
         cursor: grabbing;
       }
 
+      .zone-shelf-dot.drag-source {
+        opacity: 0.35;
+        transform: scale(0.9);
+      }
+
       .zone-shelf-dot.drag-over {
-        box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.8);
-        transform: scale(1.15);
+        box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.8);
+        transform: scale(1.1);
+        background: rgba(66, 165, 245, 0.15) !important;
+        z-index: 10;
       }
 
       /* Drag and drop */
@@ -1275,13 +1301,18 @@ export class CabinetGrid extends LitElement {
     const { rows, cols } = this.cabinet;
     const storageRows = this._getStorageRowSet();
     const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
+    // Shelf racks have no row/col slots of their own, but the title should
+    // still open the equivalent browsable panel (handled by the card,
+    // which tells the two apart from the cabinet's own storage_rows).
+    const hasShelfRows = (this.cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
+    const titleClickable = hasGridRows || hasShelfRows;
 
     return html`
       <div class="cabinet">
         <div
-          class="cabinet-name ${hasGridRows ? "clickable" : ""}"
-          @click=${hasGridRows ? () => this._onRackClick() : nothing}
-          title=${hasGridRows ? this._t("ui.card.reorderRackTitle") : ""}
+          class="cabinet-name ${titleClickable ? "clickable" : ""}"
+          @click=${titleClickable ? () => this._onRackClick() : nothing}
+          title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
         >${this.cabinet.name}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) =>

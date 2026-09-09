@@ -3942,12 +3942,17 @@ let CabinetGrid = class CabinetGrid extends i {
         const { rows, cols } = this.cabinet;
         const storageRows = this._getStorageRowSet();
         const hasGridRows = Array.from({ length: rows }, (_, row) => row).some((row) => !storageRows.has(row));
+        // Shelf racks have no row/col slots of their own, but the title should
+        // still open the equivalent browsable panel (handled by the card,
+        // which tells the two apart from the cabinet's own storage_rows).
+        const hasShelfRows = (this.cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
+        const titleClickable = hasGridRows || hasShelfRows;
         return b `
       <div class="cabinet">
         <div
-          class="cabinet-name ${hasGridRows ? "clickable" : ""}"
-          @click=${hasGridRows ? () => this._onRackClick() : A}
-          title=${hasGridRows ? this._t("ui.card.reorderRackTitle") : ""}
+          class="cabinet-name ${titleClickable ? "clickable" : ""}"
+          @click=${titleClickable ? () => this._onRackClick() : A}
+          title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
         >${this.cabinet.name}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) => storageRows.has(row)
@@ -4412,7 +4417,9 @@ CabinetGrid.styles = [
       /* Same empty/filled treatment as a classic grid cell — a faint,
          dashed outline when empty, a solid ring in the wine's colour
          when filled — rather than the paler, always-visible dot this
-         used to be. */
+         used to be. Hover/drag-over states below deliberately mirror
+         .cell's exactly, so a shelf dot enlarges on hover/drag-over the
+         same way a grid cell does. */
       .zone-shelf-dot {
         position: relative;
         flex-shrink: 0;
@@ -4424,10 +4431,27 @@ CabinetGrid.styles = [
         cursor: pointer;
         overflow: hidden;
         container-type: inline-size;
+        z-index: 1;
+        transition: all 0.2s;
+      }
+
+      .zone-shelf-dot:not(.filled):hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.3);
       }
 
       .zone-shelf-dot.filled {
         border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+          0 0 8px rgba(50, 100, 255, 0.15);
+      }
+
+      .zone-shelf-dot.filled:hover {
+        transform: scale(1.15);
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
+          0 0 16px rgba(50, 100, 255, 0.3);
       }
 
       .zone-shelf-dot[draggable="true"] {
@@ -4438,9 +4462,16 @@ CabinetGrid.styles = [
         cursor: grabbing;
       }
 
+      .zone-shelf-dot.drag-source {
+        opacity: 0.35;
+        transform: scale(0.9);
+      }
+
       .zone-shelf-dot.drag-over {
-        box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.8);
-        transform: scale(1.15);
+        box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.8);
+        transform: scale(1.1);
+        background: rgba(66, 165, 245, 0.15) !important;
+        z-index: 10;
       }
 
       /* Drag and drop */
@@ -14149,6 +14180,14 @@ let WineCellarCard = class WineCellarCard extends i {
         this._rackPanelWines = [];
         this._rackPanelDragWineId = null;
         this._rackPanelDragOverKey = null;
+        // Shelf panel (shelf-style cabinets: every board/lane across every shelf
+        // in the rack, list + reorder — the shelf equivalent of the rack panel
+        // above, since a shelf cabinet has no row/col slots of its own).
+        this._shelfPanelOpen = false;
+        this._shelfPanelCabinet = null;
+        this._shelfPanelWines = [];
+        this._shelfPanelDragWineId = null;
+        this._shelfPanelDragOverKey = null;
         // Briefly highlights a wine's slot after "locate" is used from the detail dialog.
         this._highlightWineId = null;
         this._confirmZoneSort = false;
@@ -14297,6 +14336,8 @@ let WineCellarCard = class WineCellarCard extends i {
             this._refreshZonePanel();
             // Refresh rack panel if open
             this._refreshRackPanel();
+            // Refresh shelf panel if open
+            this._refreshShelfPanel();
         }
         catch (err) {
             console.error("Cork Dork: Failed to load data", err);
@@ -14833,6 +14874,9 @@ let WineCellarCard = class WineCellarCard extends i {
         if (wine.row !== null && wine.col !== null) {
             this._openRackPanel(loc.cabinet);
         }
+        else if (loc.storageRow?.type === "shelf") {
+            this._openShelfPanel(loc.cabinet);
+        }
         else if (loc.zone && loc.zone !== "bottom" && loc.storageRow) {
             this._openZonePanel(loc.cabinet, loc.zone, loc.storageRow);
         }
@@ -14866,7 +14910,16 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Rack panel (grid-slot cabinets: list + reorder) ---
     _onRackClick(e) {
-        this._openRackPanel(e.detail.cabinet);
+        const cabinet = e.detail.cabinet;
+        // A cabinet is entirely one rack style — never a mix of grid rows and
+        // shelf storage rows — so this alone decides which panel applies.
+        const hasShelfRows = (cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
+        if (hasShelfRows) {
+            this._openShelfPanel(cabinet);
+        }
+        else {
+            this._openRackPanel(cabinet);
+        }
     }
     _openRackPanel(cabinet) {
         this._rackPanelCabinet = cabinet;
@@ -14883,6 +14936,113 @@ let WineCellarCard = class WineCellarCard extends i {
         if (fresh)
             this._rackPanelCabinet = fresh;
         this._rackPanelWines = this._wines.filter((w) => w.cabinet_id === this._rackPanelCabinet.id && w.row !== null && w.col !== null);
+    }
+    // --- Shelf panel (shelf-style cabinets: every board/lane, list + reorder) ---
+    // The shelf equivalent of the rack panel above: a shelf cabinet can have
+    // several named shelves (each its own storage_rows entry with its own
+    // zone id), so this aggregates all of them into one browsable list
+    // instead of the grid's single row/col addressing.
+    _openShelfPanel(cabinet) {
+        this._shelfPanelCabinet = cabinet;
+        this._shelfPanelWines = this._wines.filter((w) => w.cabinet_id === cabinet.id && (w.zone || "").startsWith("storage-"));
+        this._shelfPanelOpen = true;
+    }
+    _closeShelfPanel() {
+        this._shelfPanelOpen = false;
+    }
+    _refreshShelfPanel() {
+        if (!this._shelfPanelOpen || !this._shelfPanelCabinet)
+            return;
+        const fresh = this._cabinets.find((c) => c.id === this._shelfPanelCabinet.id);
+        if (fresh)
+            this._shelfPanelCabinet = fresh;
+        this._shelfPanelWines = this._wines.filter((w) => w.cabinet_id === this._shelfPanelCabinet.id && (w.zone || "").startsWith("storage-"));
+    }
+    _getShelfPanelRows() {
+        return (this._shelfPanelCabinet?.storage_rows || []).filter((sr) => sr.type === "shelf");
+    }
+    _onShelfPanelSlotClick(zone, depth, wine) {
+        if (!this._shelfPanelCabinet)
+            return;
+        if (wine) {
+            this._selectedWine = wine;
+            this._detailMode = "cellar";
+            this._showDetail = true;
+            return;
+        }
+        if (this._copiedWine) {
+            this._pasteWine(this._shelfPanelCabinet.id, null, null, depth, zone, true);
+            return;
+        }
+        if (this._movingWine) {
+            this._executeMoveWine(this._shelfPanelCabinet.id, null, null, zone, depth, true);
+            return;
+        }
+        this._addPreselect = { cabinet: this._shelfPanelCabinet.id, row: null, col: null, zone, depth };
+        this._showAddDialog = true;
+    }
+    _onShelfPanelDragStart(e, wine) {
+        this._shelfPanelDragWineId = wine.id;
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", JSON.stringify({
+                wineId: wine.id,
+                cabinetId: wine.cabinet_id,
+                row: wine.row ?? null,
+                col: wine.col ?? null,
+                zone: wine.zone || "",
+                depth: wine.depth ?? null,
+            }));
+        }
+    }
+    _onShelfPanelDragEnd() {
+        this._shelfPanelDragWineId = null;
+        this._shelfPanelDragOverKey = null;
+    }
+    _onShelfPanelDragOver(e, key) {
+        e.preventDefault();
+        if (e.dataTransfer)
+            e.dataTransfer.dropEffect = "move";
+        this._shelfPanelDragOverKey = key;
+    }
+    // Exact-slot swap/place — every shelf slot has a fixed physical position,
+    // so (unlike bulk) this never falls back to "first free"/on-top-of-pile.
+    async _onShelfPanelDrop(e, targetZone, targetDepth, targetWine) {
+        e.preventDefault();
+        this._shelfPanelDragOverKey = null;
+        const draggedId = this._shelfPanelDragWineId;
+        this._shelfPanelDragWineId = null;
+        if (!draggedId || !this._shelfPanelCabinet || draggedId === targetWine?.id)
+            return;
+        const draggedWine = this._wines.find((w) => w.id === draggedId);
+        if (!draggedWine)
+            return;
+        if (draggedWine.zone === targetZone && (draggedWine.depth ?? null) === targetDepth)
+            return;
+        try {
+            if (targetWine) {
+                await this.hass.callWS({
+                    type: "wine_cellar/move_wine",
+                    wine_id: targetWine.id,
+                    cabinet_id: this._shelfPanelCabinet.id,
+                    zone: draggedWine.zone || "",
+                    depth: draggedWine.depth || 0,
+                });
+            }
+            await this.hass.callWS({
+                type: "wine_cellar/move_wine",
+                wine_id: draggedWine.id,
+                cabinet_id: this._shelfPanelCabinet.id,
+                zone: targetZone,
+                depth: targetDepth,
+            });
+            this._showToast(this._t("toast.wineReordered"));
+            await this._loadData();
+        }
+        catch (err) {
+            console.error("Failed to reorder wine:", err);
+            this._showToast(this._t("toast.reorderFailed"));
+        }
     }
     // Every physical (row, col) slot in the rack, skipping bulk/box storage rows.
     _getRackSlots() {
@@ -15304,6 +15464,7 @@ let WineCellarCard = class WineCellarCard extends i {
         // Close any open side panel and show every rack, so the whole cellar is reachable to paste into.
         this._zonePanelOpen = false;
         this._rackPanelOpen = false;
+        this._shelfPanelOpen = false;
         this._depthPanelOpen = false;
         this._activeTab = "all";
     }
@@ -16433,6 +16594,7 @@ let WineCellarCard = class WineCellarCard extends i {
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
             this._zonePanelOpen = false;
             this._rackPanelOpen = false;
+            this._shelfPanelOpen = false;
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
@@ -16504,6 +16666,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showInventory = false;
             this._zonePanelOpen = false;
             this._rackPanelOpen = false;
+            this._shelfPanelOpen = false;
             this._depthPanelOpen = false;
             this._activeTab = "all";
             this._movingWine = e.detail.wine;
@@ -16944,6 +17107,97 @@ let WineCellarCard = class WineCellarCard extends i {
                   <div class="depth-panel-grow" @click=${this._addRackSlot}>
                     <span class="depth-slot-plus">+</span> ${this._t("ui.card.addSlot")}
                   </div>
+                </div>
+              </div>
+            `
+            : A}
+
+        <!-- Shelf Panel (shelf-style cabinets: every board/lane, list + reorder) -->
+        ${this._shelfPanelOpen
+            ? b `
+              <div class="depth-panel-backdrop ${this._shelfPanelDragWineId ? "drag-through" : ""}" @click=${this._closeShelfPanel}></div>
+              <div class="depth-panel open">
+                <div class="depth-panel-header">
+                  <span class="depth-panel-title">
+                    ${this._shelfPanelCabinet?.name}
+                    <span class="depth-panel-subtitle">
+                      ${this._t("ui.card.rackPanelBottlesCount", {
+                n: this._shelfPanelWines.length,
+                max: this._getShelfPanelRows().reduce((sum, sr) => sum + (sr.capacity || 0), 0),
+            })}
+                    </span>
+                  </span>
+                  <button class="depth-panel-close" @click=${this._closeShelfPanel}>✕</button>
+                </div>
+                <div class="depth-panel-slots">
+                  ${this._getShelfPanelRows().map((sr) => {
+                const zone = `storage-${sr.row}`;
+                const groups = getShelfSlotGroups(sr.shelf_levels);
+                return b `
+                      ${this._getShelfPanelRows().length > 1
+                    ? b `<div style="font-size:0.8em;font-weight:700;color:var(--wc-text-secondary);padding:8px 0 2px;">
+                            ${sr.name || this._t("wineLocation.storage")}
+                          </div>`
+                    : A}
+                      ${groups.map((group) => b `
+                        <div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${(group.level > 0 || group.lane === "back") ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                          ${this._t("ui.card.shelfGroupHeader", {
+                    n: group.level + 1,
+                    lane: group.lane === "front" ? this._t("ui.card.shelfFront") : this._t("ui.card.shelfBack"),
+                })}
+                        </div>
+                        ${Array.from({ length: group.size }, (_, slotInGroup) => {
+                    const depthIdx = group.start + slotInGroup;
+                    const wine = this._shelfPanelWines.find((w) => w.zone === zone && (w.depth || 0) === depthIdx);
+                    const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+                    const disp = wine?.disposition || "";
+                    const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                    const dragKey = `${zone}-${depthIdx}`;
+                    const highlighted = wine?.id === this._highlightWineId;
+                    return b `
+                            <div
+                              id=${highlighted ? "highlight-slot" : A}
+                              class="depth-slot ${wine ? "filled" : "empty"} ${this._shelfPanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
+                              draggable=${wine ? "true" : "false"}
+                              @click=${() => this._onShelfPanelSlotClick(zone, depthIdx, wine)}
+                              @dragstart=${wine ? (e) => this._onShelfPanelDragStart(e, wine) : A}
+                              @dragend=${wine ? () => this._onShelfPanelDragEnd() : A}
+                              @dragover=${(e) => this._onShelfPanelDragOver(e, dragKey)}
+                              @dragleave=${() => (this._shelfPanelDragOverKey = null)}
+                              @drop=${(e) => this._onShelfPanelDrop(e, zone, depthIdx, wine)}
+                            >
+                              <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInGroup + 1 })}</div>
+                              ${wine
+                        ? b `
+                                    <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
+                                      <div class="depth-slot-avatar">
+                                        ${wine.image_url
+                            ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                            : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                        ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                      </div>
+                                      <div class="depth-slot-info">
+                                        <div class="depth-slot-name">${wine.name}</div>
+                                        <div class="depth-slot-meta">
+                                          ${wine.vintage || "NV"}
+                                          ${wine.rating ? b ` · ★${wine.rating}` : A}
+                                          ${wine.price ? b ` · ${this._metadataCurrency} ${wine.price}` : A}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `
+                        : b `
+                                    <div class="depth-slot-empty">
+                                      <span class="depth-slot-plus">+</span>
+                                      <span>${this._t("ui.common.empty")}</span>
+                                    </div>
+                                  `}
+                            </div>
+                          `;
+                })}
+                      `)}
+                    `;
+            })}
                 </div>
               </div>
             `
@@ -17561,6 +17815,21 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_rackPanelDragOverKey", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_shelfPanelOpen", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_shelfPanelCabinet", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_shelfPanelWines", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_shelfPanelDragWineId", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_shelfPanelDragOverKey", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_highlightWineId", void 0);
