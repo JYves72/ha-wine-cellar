@@ -830,7 +830,11 @@ export class WineCellarCard extends LitElement {
   }
 
   private _onZoneClick(e: CustomEvent) {
-    const { wine, cabinet, zone } = e.detail;
+    const { wine, cabinet, zone, depth } = e.detail;
+    // Slot zones (shelf) send the exact depth clicked — that slot is
+    // authoritative, so skip the "first free"/on-top-of-pile placement
+    // used for bulk/box and land exactly there instead.
+    const hasExactDepth = depth !== undefined;
 
     // Picking the bottle for a pending Vivino removal takes precedence
     if (this._removalFocusVid && wine && this._removalHighlightIds.includes(wine.id)) {
@@ -840,20 +844,22 @@ export class WineCellarCard extends LitElement {
 
     // If we have a copied wine and clicked empty zone space, paste it here
     if (this._copiedWine && !wine) {
-      const nextDepth = this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
-      this._pasteWine(cabinet.id, null, null, nextDepth, zone || "bottom");
+      const nextDepth = hasExactDepth
+        ? depth
+        : this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
+      this._pasteWine(cabinet.id, null, null, nextDepth, zone || "bottom", hasExactDepth);
       return;
     }
 
     // If we're moving a wine, place it in this zone
     if (this._movingWine && !wine) {
-      this._executeMoveWine(cabinet.id, null, null, zone || "bottom");
+      this._executeMoveWine(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
       return;
     }
 
     // If we're placing a buy list item, move it to cellar
     if (this._movingBuyListItem && !wine) {
-      this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom");
+      this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
       return;
     }
 
@@ -862,7 +868,7 @@ export class WineCellarCard extends LitElement {
       this._detailMode = "cellar";
       this._showDetail = true;
     } else {
-      this._addPreselect = { cabinet: cabinet.id, row: null, col: null, zone: zone || "bottom", depth: 0 };
+      this._addPreselect = { cabinet: cabinet.id, row: null, col: null, zone: zone || "bottom", depth: hasExactDepth ? depth : 0 };
       this._showAddDialog = true;
     }
   }
@@ -1499,7 +1505,7 @@ export class WineCellarCard extends LitElement {
     }
   }
 
-  private async _executeMoveWine(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0) {
+  private async _executeMoveWine(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0, exactPosition = false) {
     if (!this._movingWine) return;
     try {
       await this.hass.callWS({
@@ -1513,7 +1519,10 @@ export class WineCellarCard extends LitElement {
         ...(row !== null ? { row } : {}),
         ...(col !== null ? { col } : {}),
       });
-      if (zone) await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
+      // A slot zone (shelf) was given its exact depth above — reordering
+      // to the top of the pile would scramble every other bottle's fixed
+      // position there, so only bulk/box zones get that treatment.
+      if (zone && !exactPosition) await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
       this._showToast(this._t("toast.wineMoved", { name: this._movingWine.name }));
       this._movingWine = null;
       await this._loadData();
@@ -1525,6 +1534,16 @@ export class WineCellarCard extends LitElement {
 
   private async _onWineDrop(e: CustomEvent) {
     const d = e.detail;
+
+    // Slot zone (shelf): the target IS the exact slot the drop landed on,
+    // not a "reorder near this bottle" or "first free depth" placement —
+    // swap if occupied, place directly if empty. Handled separately so it
+    // never falls into the bulk-zone reorder heuristic below (which would
+    // otherwise trigger for any same-zone shelf-to-shelf drag).
+    if (d.explicitDepth) {
+      await this._onExactSlotDrop(d);
+      return;
+    }
 
     // Reordering within the same bulk zone: dropped on/near another bottle
     // there, so insert before/after it (whichever side the drop landed on)
@@ -1671,6 +1690,77 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  // Drop onto an exact slot (currently only shelf zones): swap with
+  // whatever's already there, or place directly if the slot is empty.
+  // No "first free depth"/on-top-of-pile logic — the dropped-on slot is
+  // exactly where the bottle goes.
+  private async _onExactSlotDrop(d: any) {
+    if (
+      d.sourceCabinetId === d.targetCabinetId &&
+      d.sourceZone === d.targetZone &&
+      d.sourceRow === d.targetRow &&
+      d.sourceCol === d.targetCol &&
+      (d.sourceDepth ?? null) === d.targetDepth
+    ) {
+      return;
+    }
+
+    let swappedBack: (() => Promise<any>) | null = null;
+    try {
+      const targetWine = d.targetWineId ? this._wines.find((w) => w.id === d.targetWineId) : undefined;
+
+      if (targetWine) {
+        // Swap: move the occupant to the dragged bottle's old slot first.
+        await this.hass.callWS({
+          type: "wine_cellar/move_wine",
+          wine_id: targetWine.id,
+          cabinet_id: d.sourceCabinetId,
+          zone: d.sourceZone || "",
+          ...(d.sourceRow !== null && d.sourceRow !== undefined ? { row: d.sourceRow } : {}),
+          ...(d.sourceCol !== null && d.sourceCol !== undefined ? { col: d.sourceCol } : {}),
+          ...(d.sourceDepth !== null && d.sourceDepth !== undefined ? { depth: d.sourceDepth } : {}),
+        });
+        // Half of a swap is not a state the rack can be in: the target bottle
+        // is now sitting where the dragged one still is. If the second half
+        // fails, put it back before reporting the failure.
+        swappedBack = () =>
+          this.hass.callWS({
+            type: "wine_cellar/move_wine",
+            wine_id: targetWine.id,
+            cabinet_id: d.targetCabinetId,
+            zone: d.targetZone || "",
+            depth: d.targetDepth,
+          });
+      }
+
+      await this.hass.callWS({
+        type: "wine_cellar/move_wine",
+        wine_id: d.wineId,
+        cabinet_id: d.targetCabinetId,
+        zone: d.targetZone || "",
+        depth: d.targetDepth,
+      });
+
+      const sameContainer = d.sourceCabinetId === d.targetCabinetId;
+      this._showToast(sameContainer ? this._t("toast.wineReordered") : targetWine ? this._t("toast.wineSwapped") : this._t("toast.wineMovedShort"));
+      await this._loadData();
+    } catch (err) {
+      console.error("Failed to move wine:", err);
+      if (swappedBack) {
+        try {
+          await swappedBack();
+        } catch (undoErr) {
+          console.error("Failed to undo half-completed swap:", undoErr);
+          this._showToast(this._t("toast.moveUndoFailed"));
+          await this._loadData();
+          return;
+        }
+      }
+      this._showToast(this._t("toast.moveFailed"));
+      await this._loadData();
+    }
+  }
+
   private _copyWine(wine: Wine) {
     this._copiedWine = wine;
     this._showToast(this._t("toast.wineCopied", { name: wine.name }));
@@ -1682,7 +1772,7 @@ export class WineCellarCard extends LitElement {
     this._activeTab = "all";
   }
 
-  private async _pasteWine(cabinetId: string, row: number | null, col: number | null, depth = 0, zone = "") {
+  private async _pasteWine(cabinetId: string, row: number | null, col: number | null, depth = 0, zone = "", exactPosition = false) {
     if (!this._copiedWine) return;
     try {
       const result = await this.hass.callWS({
@@ -1731,7 +1821,10 @@ export class WineCellarCard extends LitElement {
         },
       });
       const pasted = result?.wine?.id;
-      if (zone && pasted) await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
+      // A slot zone (shelf) was given its exact depth above — reordering
+      // to the top of the pile would scramble every other bottle's fixed
+      // position there, so only bulk/box zones get that treatment.
+      if (zone && pasted && !exactPosition) await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
       this._showToast(this._t("toast.winePasted"));
       await this._loadData();
     } catch {
@@ -2100,7 +2193,7 @@ export class WineCellarCard extends LitElement {
     this._showToast(this._t("toast.tapToPlace", { name: item.name }));
   }
 
-  private async _executeMoveTocellar(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0) {
+  private async _executeMoveTocellar(cabinetId: string, row: number | null, col: number | null, zone: string, depth = 0, exactPosition = false) {
     if (!this._movingBuyListItem) return;
     try {
       const result = await this.hass.callWS({
@@ -2113,7 +2206,10 @@ export class WineCellarCard extends LitElement {
         depth,
       });
       const moved = result?.wine?.id;
-      if (zone && moved) await this._placeOnTopOfBin(cabinetId, zone, [moved]);
+      // A slot zone (shelf) was given its exact depth above — reordering
+      // to the top of the pile would scramble every other bottle's fixed
+      // position there, so only bulk/box zones get that treatment.
+      if (zone && moved && !exactPosition) await this._placeOnTopOfBin(cabinetId, zone, [moved]);
       this._showToast(this._t("toast.movedToCellar", { name: this._movingBuyListItem.name }));
       this._movingBuyListItem = null;
       await this._loadData();

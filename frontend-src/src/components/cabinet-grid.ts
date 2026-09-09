@@ -417,7 +417,8 @@ export class CabinetGrid extends LitElement {
       }
 
       .zone-shelf-lane-label {
-        font-size: 0.55em;
+        font-size: 0.8em;
+        font-weight: 600;
         line-height: 1.2;
         color: #fff;
         text-align: center;
@@ -435,10 +436,24 @@ export class CabinetGrid extends LitElement {
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.05);
         border: 1px dashed rgba(255, 255, 255, 0.15);
+        cursor: pointer;
       }
 
       .zone-shelf-dot.filled {
         border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
+      }
+
+      .zone-shelf-dot[draggable="true"] {
+        cursor: grab;
+      }
+
+      .zone-shelf-dot[draggable="true"]:active {
+        cursor: grabbing;
+      }
+
+      .zone-shelf-dot.drag-over {
+        box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.8);
+        transform: scale(1.15);
       }
 
       /* Drag and drop */
@@ -683,13 +698,17 @@ export class CabinetGrid extends LitElement {
     );
   }
 
-  private _onZoneClick(wine?: Wine, zone = "bottom") {
+  private _onZoneClick(wine?: Wine, zone = "bottom", depth?: number) {
     this.dispatchEvent(
       new CustomEvent("zone-click", {
         detail: {
           cabinet: this.cabinet,
           zone,
           wine,
+          // Set only for zones with per-slot addressing (shelf): the exact
+          // slot clicked, so the card places/pastes there instead of
+          // picking a depth itself.
+          depth,
         },
         bubbles: true,
         composed: true,
@@ -763,6 +782,7 @@ export class CabinetGrid extends LitElement {
       row: row ?? null,
       col: col ?? null,
       zone: zone || "",
+      depth: wine.depth ?? null,
     }));
     e.dataTransfer.effectAllowed = "move";
     (e.currentTarget as HTMLElement).classList.add("drag-source");
@@ -783,12 +803,39 @@ export class CabinetGrid extends LitElement {
     this._dragOverCell = null;
   }
 
-  private _onDrop(e: DragEvent, targetRow?: number, targetCol?: number, targetZone?: string, targetWine?: Wine) {
+  private _onDrop(e: DragEvent, targetRow?: number, targetCol?: number, targetZone?: string, targetWine?: Wine, explicitDepth?: number) {
     e.preventDefault();
     this._dragOverCell = null;
     if (!e.dataTransfer) return;
     try {
       const source = JSON.parse(e.dataTransfer.getData("text/plain"));
+
+      // Slot zones (shelf) pass their own exact depth — the drop target
+      // IS the slot, so skip the "nearest chip" reorder heuristic used
+      // for freeform bulk-zone drops and let the card swap/place exactly
+      // there instead of picking a depth itself.
+      if (explicitDepth !== undefined) {
+        this.dispatchEvent(new CustomEvent("wine-drop", {
+          detail: {
+            wineId: source.wineId,
+            sourceCabinetId: source.cabinetId,
+            sourceRow: source.row,
+            sourceCol: source.col,
+            sourceZone: source.zone,
+            sourceDepth: source.depth ?? null,
+            targetCabinetId: this.cabinet.id,
+            targetRow: null,
+            targetCol: null,
+            targetZone: targetZone || "",
+            targetWineId: targetWine?.id ?? null,
+            targetDepth: explicitDepth,
+            explicitDepth: true,
+          },
+          bubbles: true,
+          composed: true,
+        }));
+        return;
+      }
 
       // Bulk-zone reordering: figure out which bottle the drop landed
       // nearest to (and which half of it), so dropping anywhere in the zone
@@ -953,9 +1000,11 @@ export class CabinetGrid extends LitElement {
   }
 
   // Fridge-style shelf: one or more physical boards stacked bottom-to-top,
-  // each with its own front and back lane. Rendered as a compact summary
-  // tile (like bulk/box) — individual slot placement happens in the zone
-  // side panel, opened by clicking the tile.
+  // each with its own front and back lane. Every slot has a fixed physical
+  // position (unlike a bulk/box pile), so — like a classic grid cell —
+  // each dot is its own click/drag/drop target: click an empty one to add
+  // there, click an occupied one to open it, drop exactly on the dot you
+  // choose. There is no zone side panel for shelves.
   private _renderShelfZone(zoneId: string, zoneKey: string, name: string, capacity: number, wines: Wine[], isDragOver: boolean, sr: StorageRow) {
     const levelsData = sr.shelf_levels || [];
     const groups = getShelfSlotGroups(levelsData);
@@ -981,12 +1030,25 @@ export class CabinetGrid extends LitElement {
     const renderDots = (group: ShelfSlotGroup) => html`
       <div class="zone-shelf-lane ${group.lane}">
         ${Array.from({ length: group.size }, (_, i) => {
-          const wine = wines.find((w) => (w.depth || 0) === group.start + i);
+          const depth = group.start + i;
+          const dotKey = `${zoneKey}-${depth}`;
+          const wine = wines.find((w) => (w.depth || 0) === depth);
           const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
           const ring = wine ? this._brightenColor(bg) : "";
           return html`<span
-            class="zone-shelf-dot ${wine ? "filled" : ""}"
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+            draggable=${wine ? "true" : "false"}
+            @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+            @dragstart=${wine ? (e: DragEvent) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : nothing}
+            @dragend=${(e: DragEvent) => this._onDragEnd(e)}
+            @dragover=${(e: DragEvent) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+            @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
+            @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+            @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
+            @touchend=${() => this._onTouchEnd()}
+            @touchmove=${() => this._onTouchMove()}
           ></span>`;
         })}
       </div>
@@ -1011,11 +1073,7 @@ export class CabinetGrid extends LitElement {
     };
 
     return html`
-      <div class="bottom-zone zone-shelf ${isDragOver ? "drag-over" : ""}"
-        @click=${() => this._onZoneContainerClick(zoneId, sr)}
-        @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
-        @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
-        @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
+      <div class="bottom-zone zone-shelf">
         ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes]) => html`

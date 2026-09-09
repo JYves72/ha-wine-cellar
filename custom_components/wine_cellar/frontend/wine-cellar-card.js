@@ -3421,12 +3421,16 @@ let CabinetGrid = class CabinetGrid extends i {
             composed: true,
         }));
     }
-    _onZoneClick(wine, zone = "bottom") {
+    _onZoneClick(wine, zone = "bottom", depth) {
         this.dispatchEvent(new CustomEvent("zone-click", {
             detail: {
                 cabinet: this.cabinet,
                 zone,
                 wine,
+                // Set only for zones with per-slot addressing (shelf): the exact
+                // slot clicked, so the card places/pastes there instead of
+                // picking a depth itself.
+                depth,
             },
             bubbles: true,
             composed: true,
@@ -3487,6 +3491,7 @@ let CabinetGrid = class CabinetGrid extends i {
             row: row ?? null,
             col: col ?? null,
             zone: zone || "",
+            depth: wine.depth ?? null,
         }));
         e.dataTransfer.effectAllowed = "move";
         e.currentTarget.classList.add("drag-source");
@@ -3504,13 +3509,39 @@ let CabinetGrid = class CabinetGrid extends i {
     _onDragLeave(_e) {
         this._dragOverCell = null;
     }
-    _onDrop(e, targetRow, targetCol, targetZone, targetWine) {
+    _onDrop(e, targetRow, targetCol, targetZone, targetWine, explicitDepth) {
         e.preventDefault();
         this._dragOverCell = null;
         if (!e.dataTransfer)
             return;
         try {
             const source = JSON.parse(e.dataTransfer.getData("text/plain"));
+            // Slot zones (shelf) pass their own exact depth — the drop target
+            // IS the slot, so skip the "nearest chip" reorder heuristic used
+            // for freeform bulk-zone drops and let the card swap/place exactly
+            // there instead of picking a depth itself.
+            if (explicitDepth !== undefined) {
+                this.dispatchEvent(new CustomEvent("wine-drop", {
+                    detail: {
+                        wineId: source.wineId,
+                        sourceCabinetId: source.cabinetId,
+                        sourceRow: source.row,
+                        sourceCol: source.col,
+                        sourceZone: source.zone,
+                        sourceDepth: source.depth ?? null,
+                        targetCabinetId: this.cabinet.id,
+                        targetRow: null,
+                        targetCol: null,
+                        targetZone: targetZone || "",
+                        targetWineId: targetWine?.id ?? null,
+                        targetDepth: explicitDepth,
+                        explicitDepth: true,
+                    },
+                    bubbles: true,
+                    composed: true,
+                }));
+                return;
+            }
             // Bulk-zone reordering: figure out which bottle the drop landed
             // nearest to (and which half of it), so dropping anywhere in the zone
             // reorders sensibly instead of only working when the cursor lands
@@ -3668,9 +3699,11 @@ let CabinetGrid = class CabinetGrid extends i {
     `;
     }
     // Fridge-style shelf: one or more physical boards stacked bottom-to-top,
-    // each with its own front and back lane. Rendered as a compact summary
-    // tile (like bulk/box) — individual slot placement happens in the zone
-    // side panel, opened by clicking the tile.
+    // each with its own front and back lane. Every slot has a fixed physical
+    // position (unlike a bulk/box pile), so — like a classic grid cell —
+    // each dot is its own click/drag/drop target: click an empty one to add
+    // there, click an occupied one to open it, drop exactly on the dot you
+    // choose. There is no zone side panel for shelves.
     _renderShelfZone(zoneId, zoneKey, name, capacity, wines, isDragOver, sr) {
         const levelsData = sr.shelf_levels || [];
         const groups = getShelfSlotGroups(levelsData);
@@ -3694,12 +3727,25 @@ let CabinetGrid = class CabinetGrid extends i {
         const renderDots = (group) => b `
       <div class="zone-shelf-lane ${group.lane}">
         ${Array.from({ length: group.size }, (_, i) => {
-            const wine = wines.find((w) => (w.depth || 0) === group.start + i);
+            const depth = group.start + i;
+            const dotKey = `${zoneKey}-${depth}`;
+            const wine = wines.find((w) => (w.depth || 0) === depth);
             const bg = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
             const ring = wine ? this._brightenColor(bg) : "";
             return b `<span
-            class="zone-shelf-dot ${wine ? "filled" : ""}"
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+            draggable=${wine ? "true" : "false"}
+            @click=${(e) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+            @dragstart=${wine ? (e) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : A}
+            @dragend=${(e) => this._onDragEnd(e)}
+            @dragover=${(e) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+            @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
+            @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+            @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
+            @touchend=${() => this._onTouchEnd()}
+            @touchmove=${() => this._onTouchMove()}
           ></span>`;
         })}
       </div>
@@ -3724,11 +3770,7 @@ let CabinetGrid = class CabinetGrid extends i {
       `;
         };
         return b `
-      <div class="bottom-zone zone-shelf ${isDragOver ? "drag-over" : ""}"
-        @click=${() => this._onZoneContainerClick(zoneId, sr)}
-        @dragover=${(e) => this._onDragOver(e, zoneKey)}
-        @dragleave=${(e) => this._onDragLeave(e)}
-        @drop=${(e) => this._onDrop(e, undefined, undefined, zoneId)}>
+      <div class="bottom-zone zone-shelf">
         ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes]) => b `
@@ -4341,7 +4383,8 @@ CabinetGrid.styles = [
       }
 
       .zone-shelf-lane-label {
-        font-size: 0.55em;
+        font-size: 0.8em;
+        font-weight: 600;
         line-height: 1.2;
         color: #fff;
         text-align: center;
@@ -4359,10 +4402,24 @@ CabinetGrid.styles = [
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.05);
         border: 1px dashed rgba(255, 255, 255, 0.15);
+        cursor: pointer;
       }
 
       .zone-shelf-dot.filled {
         border: 2px solid var(--bottle-type-color, rgba(255, 255, 255, 0.1));
+      }
+
+      .zone-shelf-dot[draggable="true"] {
+        cursor: grab;
+      }
+
+      .zone-shelf-dot[draggable="true"]:active {
+        cursor: grabbing;
+      }
+
+      .zone-shelf-dot.drag-over {
+        box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.8);
+        transform: scale(1.15);
       }
 
       /* Drag and drop */
@@ -14340,7 +14397,11 @@ let WineCellarCard = class WineCellarCard extends i {
         return labels[index] || `${index + 1}th`;
     }
     _onZoneClick(e) {
-        const { wine, cabinet, zone } = e.detail;
+        const { wine, cabinet, zone, depth } = e.detail;
+        // Slot zones (shelf) send the exact depth clicked — that slot is
+        // authoritative, so skip the "first free"/on-top-of-pile placement
+        // used for bulk/box and land exactly there instead.
+        const hasExactDepth = depth !== undefined;
         // Picking the bottle for a pending Vivino removal takes precedence
         if (this._removalFocusVid && wine && this._removalHighlightIds.includes(wine.id)) {
             this._removalConfirmWine = wine;
@@ -14348,18 +14409,20 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         // If we have a copied wine and clicked empty zone space, paste it here
         if (this._copiedWine && !wine) {
-            const nextDepth = this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
-            this._pasteWine(cabinet.id, null, null, nextDepth, zone || "bottom");
+            const nextDepth = hasExactDepth
+                ? depth
+                : this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === (zone || "bottom")).length;
+            this._pasteWine(cabinet.id, null, null, nextDepth, zone || "bottom", hasExactDepth);
             return;
         }
         // If we're moving a wine, place it in this zone
         if (this._movingWine && !wine) {
-            this._executeMoveWine(cabinet.id, null, null, zone || "bottom");
+            this._executeMoveWine(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
             return;
         }
         // If we're placing a buy list item, move it to cellar
         if (this._movingBuyListItem && !wine) {
-            this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom");
+            this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
             return;
         }
         if (wine) {
@@ -14368,7 +14431,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showDetail = true;
         }
         else {
-            this._addPreselect = { cabinet: cabinet.id, row: null, col: null, zone: zone || "bottom", depth: 0 };
+            this._addPreselect = { cabinet: cabinet.id, row: null, col: null, zone: zone || "bottom", depth: hasExactDepth ? depth : 0 };
             this._showAddDialog = true;
         }
     }
@@ -14973,7 +15036,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.reorderFailed"));
         }
     }
-    async _executeMoveWine(cabinetId, row, col, zone, depth = 0) {
+    async _executeMoveWine(cabinetId, row, col, zone, depth = 0, exactPosition = false) {
         if (!this._movingWine)
             return;
         try {
@@ -14988,7 +15051,10 @@ let WineCellarCard = class WineCellarCard extends i {
                 ...(row !== null ? { row } : {}),
                 ...(col !== null ? { col } : {}),
             });
-            if (zone)
+            // A slot zone (shelf) was given its exact depth above — reordering
+            // to the top of the pile would scramble every other bottle's fixed
+            // position there, so only bulk/box zones get that treatment.
+            if (zone && !exactPosition)
                 await this._placeOnTopOfBin(cabinetId, zone, [this._movingWine.id]);
             this._showToast(this._t("toast.wineMoved", { name: this._movingWine.name }));
             this._movingWine = null;
@@ -15001,6 +15067,15 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     async _onWineDrop(e) {
         const d = e.detail;
+        // Slot zone (shelf): the target IS the exact slot the drop landed on,
+        // not a "reorder near this bottle" or "first free depth" placement —
+        // swap if occupied, place directly if empty. Handled separately so it
+        // never falls into the bulk-zone reorder heuristic below (which would
+        // otherwise trigger for any same-zone shelf-to-shelf drag).
+        if (d.explicitDepth) {
+            await this._onExactSlotDrop(d);
+            return;
+        }
         // Reordering within the same bulk zone: dropped on/near another bottle
         // there, so insert before/after it (whichever side the drop landed on)
         // and reflow the whole zone to sequential depths — a straight two-item
@@ -15136,6 +15211,71 @@ let WineCellarCard = class WineCellarCard extends i {
             await this._loadData();
         }
     }
+    // Drop onto an exact slot (currently only shelf zones): swap with
+    // whatever's already there, or place directly if the slot is empty.
+    // No "first free depth"/on-top-of-pile logic — the dropped-on slot is
+    // exactly where the bottle goes.
+    async _onExactSlotDrop(d) {
+        if (d.sourceCabinetId === d.targetCabinetId &&
+            d.sourceZone === d.targetZone &&
+            d.sourceRow === d.targetRow &&
+            d.sourceCol === d.targetCol &&
+            (d.sourceDepth ?? null) === d.targetDepth) {
+            return;
+        }
+        let swappedBack = null;
+        try {
+            const targetWine = d.targetWineId ? this._wines.find((w) => w.id === d.targetWineId) : undefined;
+            if (targetWine) {
+                // Swap: move the occupant to the dragged bottle's old slot first.
+                await this.hass.callWS({
+                    type: "wine_cellar/move_wine",
+                    wine_id: targetWine.id,
+                    cabinet_id: d.sourceCabinetId,
+                    zone: d.sourceZone || "",
+                    ...(d.sourceRow !== null && d.sourceRow !== undefined ? { row: d.sourceRow } : {}),
+                    ...(d.sourceCol !== null && d.sourceCol !== undefined ? { col: d.sourceCol } : {}),
+                    ...(d.sourceDepth !== null && d.sourceDepth !== undefined ? { depth: d.sourceDepth } : {}),
+                });
+                // Half of a swap is not a state the rack can be in: the target bottle
+                // is now sitting where the dragged one still is. If the second half
+                // fails, put it back before reporting the failure.
+                swappedBack = () => this.hass.callWS({
+                    type: "wine_cellar/move_wine",
+                    wine_id: targetWine.id,
+                    cabinet_id: d.targetCabinetId,
+                    zone: d.targetZone || "",
+                    depth: d.targetDepth,
+                });
+            }
+            await this.hass.callWS({
+                type: "wine_cellar/move_wine",
+                wine_id: d.wineId,
+                cabinet_id: d.targetCabinetId,
+                zone: d.targetZone || "",
+                depth: d.targetDepth,
+            });
+            const sameContainer = d.sourceCabinetId === d.targetCabinetId;
+            this._showToast(sameContainer ? this._t("toast.wineReordered") : targetWine ? this._t("toast.wineSwapped") : this._t("toast.wineMovedShort"));
+            await this._loadData();
+        }
+        catch (err) {
+            console.error("Failed to move wine:", err);
+            if (swappedBack) {
+                try {
+                    await swappedBack();
+                }
+                catch (undoErr) {
+                    console.error("Failed to undo half-completed swap:", undoErr);
+                    this._showToast(this._t("toast.moveUndoFailed"));
+                    await this._loadData();
+                    return;
+                }
+            }
+            this._showToast(this._t("toast.moveFailed"));
+            await this._loadData();
+        }
+    }
     _copyWine(wine) {
         this._copiedWine = wine;
         this._showToast(this._t("toast.wineCopied", { name: wine.name }));
@@ -15146,7 +15286,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._depthPanelOpen = false;
         this._activeTab = "all";
     }
-    async _pasteWine(cabinetId, row, col, depth = 0, zone = "") {
+    async _pasteWine(cabinetId, row, col, depth = 0, zone = "", exactPosition = false) {
         if (!this._copiedWine)
             return;
         try {
@@ -15196,7 +15336,10 @@ let WineCellarCard = class WineCellarCard extends i {
                 },
             });
             const pasted = result?.wine?.id;
-            if (zone && pasted)
+            // A slot zone (shelf) was given its exact depth above — reordering
+            // to the top of the pile would scramble every other bottle's fixed
+            // position there, so only bulk/box zones get that treatment.
+            if (zone && pasted && !exactPosition)
                 await this._placeOnTopOfBin(cabinetId, zone, [pasted]);
             this._showToast(this._t("toast.winePasted"));
             await this._loadData();
@@ -15552,7 +15695,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._activeTab = "all";
         this._showToast(this._t("toast.tapToPlace", { name: item.name }));
     }
-    async _executeMoveTocellar(cabinetId, row, col, zone, depth = 0) {
+    async _executeMoveTocellar(cabinetId, row, col, zone, depth = 0, exactPosition = false) {
         if (!this._movingBuyListItem)
             return;
         try {
@@ -15566,7 +15709,10 @@ let WineCellarCard = class WineCellarCard extends i {
                 depth,
             });
             const moved = result?.wine?.id;
-            if (zone && moved)
+            // A slot zone (shelf) was given its exact depth above — reordering
+            // to the top of the pile would scramble every other bottle's fixed
+            // position there, so only bulk/box zones get that treatment.
+            if (zone && moved && !exactPosition)
                 await this._placeOnTopOfBin(cabinetId, zone, [moved]);
             this._showToast(this._t("toast.movedToCellar", { name: this._movingBuyListItem.name }));
             this._movingBuyListItem = null;
