@@ -3775,10 +3775,9 @@ let CabinetGrid = class CabinetGrid extends i {
       <div class="bottom-zone zone-shelf">
         ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         <div class="zone-shelf-levels">
-          ${levels.map(([, lanes]) => b `
-            <div class="zone-shelf-level">
+          ${levels.map(([, lanes], idx) => b `
+            <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
               ${renderBack(lanes.back)}
-              ${lanes.back && lanes.front ? b `<div class="zone-shelf-lane-divider"></div>` : A}
               ${renderFront(lanes.front)}
             </div>
           `)}
@@ -4377,14 +4376,27 @@ CabinetGrid.styles = [
         padding-bottom: 5px;
       }
 
+      /* Board-to-board seam within the SAME étagère: thin, since it's just
+         marking where one stacked board ends and the next begins. */
       .zone-shelf-level::after {
         content: "";
         position: absolute;
         bottom: 0;
+        left: 20%;
+        right: 20%;
+        height: 1px;
+        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
+        opacity: 0.6;
+      }
+
+      /* The bottom-most board of the étagère: this ledge marks the end of
+         the whole étagère (before the next one), so it stays full-width
+         and full weight instead of the thin board-to-board seam above. */
+      .zone-shelf-level.last::after {
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
+        opacity: 1;
         border-radius: 0 0 2px 2px;
       }
 
@@ -4393,17 +4405,6 @@ CabinetGrid.styles = [
         justify-content: center;
         gap: 2px;
         width: 100%;
-      }
-
-      /* Clearly thinner/shorter than the ledge between two boards
-         (.zone-shelf-level::after) — this one just separates the front/back
-         lanes of the SAME board, it isn't a physical divider. */
-      .zone-shelf-lane-divider {
-        height: 1px;
-        width: 40%;
-        margin: 0 auto;
-        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
-        opacity: 0.6;
       }
 
       .zone-shelf-lane-label {
