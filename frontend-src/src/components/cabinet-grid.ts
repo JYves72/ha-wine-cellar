@@ -371,7 +371,9 @@ export class CabinetGrid extends LitElement {
       }
 
       /* Fridge-style shelf: front/back lanes per board, back lane offset
-         half a dot-width so it reads as sitting behind the front one. */
+         half a dot-width so it reads as sitting behind the front one.
+         Dots size like regular grid cells (flex:1 + aspect-ratio) so they
+         scale with the rack's width instead of staying a fixed size. */
       .zone-shelf-levels {
         display: flex;
         flex-direction: column;
@@ -388,23 +390,25 @@ export class CabinetGrid extends LitElement {
 
       .zone-shelf-lane {
         display: flex;
-        gap: 3px;
-        flex-wrap: wrap;
-        justify-content: center;
+        gap: 2px;
+        width: 100%;
       }
 
       .zone-shelf-lane.back {
-        margin-left: 6px;
+        width: 92%;
+        margin-left: auto;
+        margin-right: auto;
         opacity: 0.75;
       }
 
       .zone-shelf-dot {
-        width: 10px;
-        height: 10px;
+        flex: 1;
+        aspect-ratio: 1;
+        min-width: 0;
+        max-width: 28px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.12);
         border: 1px solid rgba(255, 255, 255, 0.25);
-        flex-shrink: 0;
       }
 
       .zone-shelf-dot.filled {
@@ -823,7 +827,9 @@ export class CabinetGrid extends LitElement {
 
   private _renderStorageZone(row: number) {
     const sr = this._getStorageRowConfig(row);
-    const zoneName = sr?.name || this._t("wineLocation.storage");
+    // No generic "Storage" filler when unnamed — the icon and count already
+    // say what this is; an unnamed zone just shows those two.
+    const zoneName = sr?.name || "";
     const zoneType = sr?.type || "bulk";
     const capacity = sr?.capacity || 20;
     const zoneId = `storage-${row}`;
@@ -848,7 +854,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">◇ ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
+        <div class="bottom-zone-label">◇ ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
         ${wines.map((wine) => {
           const disp = wine.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
@@ -910,7 +916,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">📦 ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
+        <div class="bottom-zone-label">📦 ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
         <div class="zone-box-grid">
           ${boxSegments.map((seg) => html`
             <div class="zone-box-item ${seg.wineCount > 0 ? "has-wine" : ""} ${seg.hasHighlight ? "locate-highlight" : ""} ${seg.hasRemoval ? "removal-highlight" : ""}">
@@ -959,7 +965,7 @@ export class CabinetGrid extends LitElement {
         @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
         @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
         @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
-        <div class="bottom-zone-label">▭ ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
+        <div class="bottom-zone-label">▭ ${name ? `${name} ` : ""}<span class="zone-count">${wines.length}/${capacity}</span></div>
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes]) => html`
             <div class="zone-shelf-level">
