@@ -867,7 +867,7 @@ export class AddWineDialog extends LitElement {
     // growing it beyond its configured capacity. Refuse instead, the way
     // drag-and-drop and paste already do.
     const { used, capacity, nextDepth, full } = this._zoneUsage(sr);
-    const label = sr.name || (sr.type === "box" ? this._t("ui.addWine.thisBox") : this._t("ui.addWine.thisBin"));
+    const label = sr.name || (sr.type === "box" ? this._t("ui.addWine.thisBox") : sr.type === "shelf" ? this._t("ui.addWine.thisShelf") : this._t("ui.addWine.thisBin"));
     if (full) {
       this._error = this._t("ui.addWine.zoneFull", { label, used, capacity });
       return;
@@ -1472,7 +1472,7 @@ export class AddWineDialog extends LitElement {
                     title=${usage.full ? this._t("ui.addWine.fullTitle") : ""}
                     @click=${() => this._selectZone(sr)}
                   >
-                    ${sr.name || (sr.type === "box" ? this._t("ui.addWine.boxShort") : this._t("storageRowType.bulk"))}
+                    ${sr.name || (sr.type === "box" ? this._t("ui.addWine.boxShort") : sr.type === "shelf" ? this._t("ui.addWine.shelfShort") : this._t("storageRowType.bulk"))}
                     <span style="opacity:0.75">${usage.used}/${usage.capacity}</span>
                   </button>
                 `;
@@ -1617,7 +1617,7 @@ export class AddWineDialog extends LitElement {
       ? zoneCabinet?.storage_rows.find((sr) => `storage-${sr.row}` === this._wineData.zone)
       : undefined;
     const posLabel = zoneRow
-      ? zoneRow.name || (zoneRow.type === "box" ? this._t("ui.addWine.boxShort") : this._t("storageRowType.bulk"))
+      ? zoneRow.name || (zoneRow.type === "box" ? this._t("ui.addWine.boxShort") : zoneRow.type === "shelf" ? this._t("ui.addWine.shelfShort") : this._t("storageRowType.bulk"))
       : this._wineData.row != null && this._wineData.col != null
         ? this._t("ui.addWine.posRowCol", { row: (this._wineData.row ?? 0) + 1, col: (this._wineData.col ?? 0) + 1 })
         : this._t("ui.addWine.notSpecified");

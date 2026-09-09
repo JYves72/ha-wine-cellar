@@ -63,11 +63,12 @@ export interface Wine {
   vivino_id: number | null;
 }
 
-export type StorageRowType = "bulk" | "box";
+export type StorageRowType = "bulk" | "box" | "shelf";
 
 export const STORAGE_ROW_TYPE_LABELS: Record<StorageRowType, string> = {
   bulk: "Bulk Bin",
   box: "Wine Box",
+  shelf: "Shelf (Front/Back)",
 };
 
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
@@ -85,6 +86,37 @@ export interface StorageRow {
   type: StorageRowType;
   capacity: number;
   boxes?: number[];  // for type="box": array of box sizes, e.g. [6, 12, 3]
+  // for type="shelf": one entry per physical shelf board, bottom to top.
+  // A fridge-style shelf commonly holds a different count in its front lane
+  // than in the lane behind it (and a 2-board shelf often flips which lane
+  // is bigger between the bottom and top board).
+  shelf_levels?: { front: number; back: number }[];
+}
+
+export interface ShelfSlotGroup {
+  level: number;   // 0 = bottom board
+  lane: "front" | "back";
+  start: number;   // first flat depth index in this group
+  size: number;
+}
+
+// Flattens a shelf's levels into (level, lane) groups with their depth-index
+// range, bottom-to-top, front-then-back within each level. This ordering is
+// the single source of truth for how a flat `wine.depth` index maps onto a
+// physical (level, lane, position) slot — the backend's
+// WineCellarStorage._storage_row_capacity sums the same levels in the same
+// order, so the two must stay in step if this ever changes.
+export function getShelfSlotGroups(levels: { front: number; back: number }[] | undefined): ShelfSlotGroup[] {
+  const groups: ShelfSlotGroup[] = [];
+  let offset = 0;
+  for (let level = 0; level < (levels?.length || 0); level++) {
+    const { front, back } = levels![level];
+    if (front > 0) groups.push({ level, lane: "front", start: offset, size: front });
+    offset += front;
+    if (back > 0) groups.push({ level, lane: "back", start: offset, size: back });
+    offset += back;
+  }
+  return groups;
 }
 
 export interface Cabinet {

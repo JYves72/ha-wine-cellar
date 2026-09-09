@@ -352,6 +352,17 @@ export class RackSettingsDialog extends LitElement {
         cursor: pointer;
       }
 
+      .row-shelf-input {
+        width: 32px;
+        padding: 2px 4px;
+        border: 1px solid var(--wc-border);
+        border-radius: 4px;
+        font-size: 0.8em;
+        background: var(--wc-bg);
+        color: var(--wc-text);
+        text-align: center;
+      }
+
       .row-cap-stepper {
         display: flex;
         align-items: center;
@@ -477,9 +488,11 @@ export class RackSettingsDialog extends LitElement {
   }
 
   private static _capacityOf(sr: StorageRow): number {
-    return sr.type === "box"
-      ? (sr.boxes || []).reduce((sum, b) => sum + b, 0)
-      : sr.capacity || 0;
+    if (sr.type === "box") return (sr.boxes || []).reduce((sum, b) => sum + b, 0);
+    if (sr.type === "shelf") {
+      return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0);
+    }
+    return sr.capacity || 0;
   }
 
   // Every bottle the pending edit would leave without a slot that exists.
@@ -536,6 +549,9 @@ export class RackSettingsDialog extends LitElement {
       if (sr.type === "box" && !sr.boxes) {
         return { ...sr, boxes: [sr.capacity || 12] };
       }
+      if (sr.type === "shelf" && !sr.shelf_levels) {
+        return { ...sr, shelf_levels: [{ front: sr.capacity || 4, back: 0 }] };
+      }
       return { ...sr };
     });
   }
@@ -553,13 +569,15 @@ export class RackSettingsDialog extends LitElement {
     } else {
       const existing = this._editStorageRows.find((sr) => sr.row === row);
       const isBox = type === "box";
-      const defaultCapacity = isBox ? 12 : 20;
+      const isShelf = type === "shelf";
+      const defaultCapacity = isBox ? 12 : isShelf ? 4 : 20;
       const newRow: StorageRow = {
         row,
         name: existing?.name || getStorageRowTypeLabels(this.hass?.language)[type],
         type,
         capacity: defaultCapacity,
         ...(isBox ? { boxes: [12] } : {}),
+        ...(isShelf ? { shelf_levels: [{ front: 4, back: 0 }] } : {}),
       };
       if (existing) {
         this._editStorageRows = this._editStorageRows.map((sr) =>
@@ -601,6 +619,31 @@ export class RackSettingsDialog extends LitElement {
       boxes[boxIndex] = size;
       const capacity = boxes.reduce((sum, s) => sum + s, 0);
       return { ...sr, boxes, capacity };
+    });
+  }
+
+  // Levels go bottom-to-top; a new level defaults to 4 front / 0 back so it
+  // starts out looking like a plain single row until the user sets a back
+  // count — matching how a new shelf row itself defaults.
+  private _updateShelfLevelCount(row: number, count: number) {
+    this._editStorageRows = this._editStorageRows.map((sr) => {
+      if (sr.row !== row || sr.type !== "shelf") return sr;
+      const levels = [...(sr.shelf_levels || [{ front: 4, back: 0 }])];
+      while (levels.length < count) levels.push({ front: 4, back: 0 });
+      while (levels.length > count) levels.pop();
+      const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+      return { ...sr, shelf_levels: levels, capacity };
+    });
+  }
+
+  private _updateShelfLane(row: number, levelIndex: number, lane: "front" | "back", value: number) {
+    this._editStorageRows = this._editStorageRows.map((sr) => {
+      if (sr.row !== row || sr.type !== "shelf") return sr;
+      const levels = (sr.shelf_levels || [{ front: 4, back: 0 }]).map((lvl, i) =>
+        i === levelIndex ? { ...lvl, [lane]: Math.max(0, value) } : lvl
+      );
+      const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
+      return { ...sr, shelf_levels: levels, capacity };
     });
   }
 
@@ -906,7 +949,7 @@ export class RackSettingsDialog extends LitElement {
             ${Array.from({ length: numRows }, (_, row) => {
               const isStorage = this._isStorageRow(row);
               const sr = this._getStorageRow(row);
-              const typeIcon = sr?.type === "box" ? "📦" : "◇";
+              const typeIcon = sr?.type === "box" ? "📦" : sr?.type === "shelf" ? "▭" : "◇";
               return html`
                 <div class="grid-preview-row ${isStorage ? "storage" : ""}">
                   <span class="grid-preview-label">R${row + 1}</span>
@@ -941,6 +984,7 @@ export class RackSettingsDialog extends LitElement {
                     @click=${(e: Event) => e.stopPropagation()}
                   >
                     <option value="slots" ?selected=${!isStorage}>${this._t("ui.rack.slotsOption")}</option>
+                    <option value="shelf" ?selected=${currentType === "shelf"}>${getStorageRowTypeLabels(this.hass?.language).shelf}</option>
                     <option value="bulk" ?selected=${currentType === "bulk"}>${getStorageRowTypeLabels(this.hass?.language).bulk}</option>
                     <option value="box" ?selected=${currentType === "box"}>${getStorageRowTypeLabels(this.hass?.language).box}</option>
                   </select>
@@ -974,6 +1018,35 @@ export class RackSettingsDialog extends LitElement {
                                   </select>
                                 `)}
                                 <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${sr?.capacity || 12}</span>
+                              </div>
+                            `
+                          : sr?.type === "shelf"
+                          ? html`
+                              <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                                <div class="row-cap-stepper">
+                                  <button class="stepper-btn-sm" @click=${(e: Event) => { e.stopPropagation(); this._updateShelfLevelCount(row, Math.max(1, (sr?.shelf_levels || [{ front: 4, back: 0 }]).length - 1)); }}>−</button>
+                                  <span class="stepper-val-sm">${(sr?.shelf_levels || [{ front: 4, back: 0 }]).length}</span>
+                                  <button class="stepper-btn-sm" @click=${(e: Event) => { e.stopPropagation(); this._updateShelfLevelCount(row, Math.min(4, (sr?.shelf_levels || [{ front: 4, back: 0 }]).length + 1)); }}>+</button>
+                                </div>
+                                ${(sr?.shelf_levels || [{ front: 4, back: 0 }]).map((lvl, li) => html`
+                                  <span style="font-size:0.65em;color:var(--wc-text-secondary)">${this._t('ui.rack.shelfLevel', { n: li + 1 })}</span>
+                                  <input
+                                    type="number" min="0" max="30" class="row-shelf-input"
+                                    title="${this._t('ui.rack.shelfFrontTitle')}"
+                                    .value=${String(lvl.front)}
+                                    @input=${(e: Event) => this._updateShelfLane(row, li, "front", parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                                    @click=${(e: Event) => e.stopPropagation()}
+                                  />
+                                  <span style="font-size:0.65em;color:var(--wc-text-secondary)">/</span>
+                                  <input
+                                    type="number" min="0" max="30" class="row-shelf-input"
+                                    title="${this._t('ui.rack.shelfBackTitle')}"
+                                    .value=${String(lvl.back)}
+                                    @input=${(e: Event) => this._updateShelfLane(row, li, "back", parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                                    @click=${(e: Event) => e.stopPropagation()}
+                                  />
+                                `)}
+                                <span style="font-size:0.7em;color:var(--wc-text-secondary);">= ${sr?.capacity || 0}</span>
                               </div>
                             `
                           : html`

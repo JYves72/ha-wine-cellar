@@ -16,7 +16,8 @@
   },
   "storageRowType": {
     "bulk": "Bulk Bin",
-    "box": "Wine Box"
+    "box": "Wine Box",
+    "shelf": "Shelf (Front/Back)"
   },
   "removalReason": {
     "drank": "Drank",
@@ -168,6 +169,9 @@
       "depthPanelDeepCount": "{n}/{max} deep",
       "rackPanelBottlesCount": "{n}/{max} bottles",
       "boxHeader": "Box {n} ({size}-pack)",
+      "shelfGroupHeader": "Board {n} · {lane}",
+      "shelfFront": "Front",
+      "shelfBack": "Back",
       "deepSuffix": "{n} deep",
       "emptyCellTitle": "Empty – Row {row}, Col {col}",
       "reorderRackTitle": "Tap to view and reorder this rack"
@@ -395,6 +399,7 @@
       "bulkBoxZone": "Bulk / Box Zone",
       "noneUseGrid": "None — use grid Row/Col",
       "boxShort": "Box",
+      "shelfShort": "Shelf",
       "fullTitle": "Full — free a slot or raise its capacity",
       "rowLabel": "Row (1-based)",
       "columnLabel": "Column (1-based)",
@@ -429,6 +434,7 @@
       "addWineFailed": "Failed to add wine.",
       "thisBox": "This box",
       "thisBin": "This bin",
+      "thisShelf": "This shelf",
       "posRowCol": "Row {row}, Col {col}"
     },
     "wineDetail": {
@@ -533,6 +539,9 @@
       "slotsOption": "Slots",
       "zoneNamePlaceholder": "Zone name",
       "boxSizeOption": "{s}-pk",
+      "shelfLevel": "N{n}",
+      "shelfFrontTitle": "Front lane bottle count",
+      "shelfBackTitle": "Back lane bottle count",
       "colsCount": "{n} col{plural}",
       "warningBeforeOne": "This leaves 1 bottle without a slot. It will be moved to",
       "warningBeforeMany": "This leaves {n} bottles without a slot. They will be moved to",

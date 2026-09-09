@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType } from "../models";
+import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
@@ -368,6 +368,47 @@ export class CabinetGrid extends LitElement {
 
       .zone-bottle:hover {
         transform: scale(1.1);
+      }
+
+      /* Fridge-style shelf: front/back lanes per board, back lane offset
+         half a dot-width so it reads as sitting behind the front one. */
+      .zone-shelf-levels {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        padding: 2px 0;
+      }
+
+      .zone-shelf-level {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .zone-shelf-lane {
+        display: flex;
+        gap: 3px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .zone-shelf-lane.back {
+        margin-left: 6px;
+        opacity: 0.75;
+      }
+
+      .zone-shelf-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        flex-shrink: 0;
+      }
+
+      .zone-shelf-dot.filled {
+        border-color: rgba(255, 255, 255, 0.5);
       }
 
       /* Drag and drop */
@@ -793,6 +834,9 @@ export class CabinetGrid extends LitElement {
     if (zoneType === "box") {
       return this._renderBoxZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
     }
+    if (zoneType === "shelf") {
+      return this._renderShelfZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
+    }
     // Default: bulk
     return this._renderBulkZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
   }
@@ -875,6 +919,52 @@ export class CabinetGrid extends LitElement {
                 <div class="box-body"><span class="box-count">${seg.wineCount}/${seg.size}</span></div>
               </div>
               <div class="zone-box-size">${this._t("ui.card.boxSizeOption", { s: seg.size })}</div>
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
+  // Fridge-style shelf: one or more physical boards stacked bottom-to-top,
+  // each with its own front and back lane. Rendered as a compact summary
+  // tile (like bulk/box) — individual slot placement happens in the zone
+  // side panel, opened by clicking the tile.
+  private _renderShelfZone(zoneId: string, zoneKey: string, name: string, capacity: number, wines: Wine[], isDragOver: boolean, sr: StorageRow) {
+    const groups = getShelfSlotGroups(sr.shelf_levels);
+    const byLevel = new Map<number, { front?: ShelfSlotGroup; back?: ShelfSlotGroup }>();
+    for (const g of groups) {
+      const entry = byLevel.get(g.level) || {};
+      entry[g.lane] = g;
+      byLevel.set(g.level, entry);
+    }
+    const levels = Array.from(byLevel.entries()).sort((a, b) => a[0] - b[0]);
+
+    const renderLane = (group: ShelfSlotGroup | undefined) => {
+      if (!group) return nothing;
+      return html`
+        <div class="zone-shelf-lane ${group.lane}">
+          ${Array.from({ length: group.size }, (_, i) => {
+            const wine = wines.find((w) => (w.depth || 0) === group.start + i);
+            const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+            return html`<span class="zone-shelf-dot ${wine ? "filled" : ""}" style=${wine ? `background:${bg}` : ""}></span>`;
+          })}
+        </div>
+      `;
+    };
+
+    return html`
+      <div class="bottom-zone zone-shelf ${isDragOver ? "drag-over" : ""}"
+        @click=${() => this._onZoneContainerClick(zoneId, sr)}
+        @dragover=${(e: DragEvent) => this._onDragOver(e, zoneKey)}
+        @dragleave=${(e: DragEvent) => this._onDragLeave(e)}
+        @drop=${(e: DragEvent) => this._onDrop(e, undefined, undefined, zoneId)}>
+        <div class="bottom-zone-label">▭ ${name} <span class="zone-count">${wines.length}/${capacity}</span></div>
+        <div class="zone-shelf-levels">
+          ${levels.map(([, lanes]) => html`
+            <div class="zone-shelf-level">
+              ${renderLane(lanes.back)}
+              ${renderLane(lanes.front)}
             </div>
           `)}
         </div>

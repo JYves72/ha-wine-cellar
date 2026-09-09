@@ -16,7 +16,8 @@
   },
   "storageRowType": {
     "bulk": "Casier en vrac",
-    "box": "Caisse à vin"
+    "box": "Caisse à vin",
+    "shelf": "Étagère (avant/arrière)"
   },
   "removalReason": {
     "drank": "Bue",
@@ -168,6 +169,9 @@
       "depthPanelDeepCount": "{n}/{max} en profondeur",
       "rackPanelBottlesCount": "{n}/{max} bouteilles",
       "boxHeader": "Caisse {n} ({size} bouteilles)",
+      "shelfGroupHeader": "Planche {n} · {lane}",
+      "shelfFront": "Avant",
+      "shelfBack": "Arrière",
       "deepSuffix": "{n} en profondeur",
       "emptyCellTitle": "Vide – Ligne {row}, Col {col}",
       "reorderRackTitle": "Toucher pour voir et réorganiser ce rack"
@@ -395,6 +399,7 @@
       "bulkBoxZone": "Zone casier/caisse",
       "noneUseGrid": "Aucune — utiliser ligne/colonne de la grille",
       "boxShort": "Caisse",
+      "shelfShort": "Étagère",
       "fullTitle": "Plein — libérez un emplacement ou augmentez sa capacité",
       "rowLabel": "Ligne (à partir de 1)",
       "columnLabel": "Colonne (à partir de 1)",
@@ -429,6 +434,7 @@
       "addWineFailed": "Échec de l'ajout du vin.",
       "thisBox": "Cette caisse",
       "thisBin": "Ce casier",
+      "thisShelf": "Cette étagère",
       "posRowCol": "Ligne {row}, Col {col}"
     },
     "wineDetail": {
@@ -533,6 +539,9 @@
       "slotsOption": "Emplacements",
       "zoneNamePlaceholder": "Nom de la zone",
       "boxSizeOption": "{s} bout.",
+      "shelfLevel": "N{n}",
+      "shelfFrontTitle": "Nombre de bouteilles à l'avant",
+      "shelfBackTitle": "Nombre de bouteilles à l'arrière",
       "colsCount": "{n} colonne{plural}",
       "warningBeforeOne": "Cela laisse 1 bouteille sans emplacement. Elle sera déplacée vers",
       "warningBeforeMany": "Cela laisse {n} bouteilles sans emplacement. Elles seront déplacées vers",

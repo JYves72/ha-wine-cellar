@@ -29,12 +29,16 @@ export interface ContainerUsage {
   full: boolean;
 }
 
-// A bin's real capacity: for a box row the sum of its boxes, otherwise the
-// row's own capacity.
+// A bin's real capacity: for a box row the sum of its boxes, for a shelf row
+// the sum of every level's front+back lanes, otherwise the row's own capacity.
 export function zoneCapacity(sr: StorageRow): number {
-  return sr.type === "box"
-    ? (sr.boxes || []).reduce((sum, b) => sum + b, 0) || sr.capacity || 0
-    : sr.capacity || 0;
+  if (sr.type === "box") {
+    return (sr.boxes || []).reduce((sum, b) => sum + b, 0) || sr.capacity || 0;
+  }
+  if (sr.type === "shelf") {
+    return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0) || sr.capacity || 0;
+  }
+  return sr.capacity || 0;
 }
 
 export function storageRowFor(cabinet: Cabinet | undefined, zone: string): StorageRow | undefined {
@@ -111,7 +115,7 @@ export function containerLabel(c: Container, cabinets: Cabinet[]): string {
   if (c.kind === "bottom") return `${cabinet.name} · ${cabinet.bottom_zone_name || "Storage"}`;
   if (c.kind === "zone") {
     const sr = storageRowFor(cabinet, c.zone);
-    return `${cabinet.name} · ${sr?.name || (sr?.type === "box" ? "Box" : "Bulk Bin")}`;
+    return `${cabinet.name} · ${sr?.name || (sr?.type === "box" ? "Box" : sr?.type === "shelf" ? "Shelf" : "Bulk Bin")}`;
   }
   const idx = getRackSlots(cabinet).findIndex((s) => s.row === c.row && s.col === c.col);
   const slot = idx >= 0 ? `Slot ${idx + 1}` : `R${(c.row ?? 0) + 1}C${(c.col ?? 0) + 1}`;
