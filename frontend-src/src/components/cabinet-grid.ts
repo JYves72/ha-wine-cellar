@@ -374,11 +374,18 @@ export class CabinetGrid extends LitElement {
          shelf shares one size (set inline from the longest lane anywhere
          in it), so a shorter lane is centered with wider gaps instead of
          rendering smaller dots — deliberately not the receding-stagger
-         look of a real photographed shelf. */
+         look of a real photographed shelf. Background is dark like the
+         classic grid's interior, with each board getting its own
+         golden ledge (matching .row::after) instead of the whole zone
+         being solid gold. */
+      .zone-shelf {
+        background: linear-gradient(180deg, #1a1a3a 0%, #0d0d2b 100%);
+      }
+
       .zone-shelf-levels {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
         width: 100%;
         padding: 2px 0;
       }
@@ -387,6 +394,19 @@ export class CabinetGrid extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        position: relative;
+        padding-bottom: 5px;
+      }
+
+      .zone-shelf-level::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #6b5010 0%, #a07828 50%, #6b5010 100%);
+        border-radius: 0 0 2px 2px;
       }
 
       .zone-shelf-lane {
@@ -394,6 +414,14 @@ export class CabinetGrid extends LitElement {
         justify-content: center;
         gap: 2px;
         width: 100%;
+      }
+
+      .zone-shelf-lane-label {
+        font-size: 0.55em;
+        line-height: 1.2;
+        color: #fff;
+        text-align: center;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
       }
 
       /* Same empty/filled treatment as a classic grid cell — a faint,
@@ -950,20 +978,35 @@ export class CabinetGrid extends LitElement {
     const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
     const dotBasis = `${100 / maxCount}%`;
 
-    const renderLane = (group: ShelfSlotGroup | undefined) => {
+    const renderDots = (group: ShelfSlotGroup) => html`
+      <div class="zone-shelf-lane ${group.lane}">
+        ${Array.from({ length: group.size }, (_, i) => {
+          const wine = wines.find((w) => (w.depth || 0) === group.start + i);
+          const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+          const ring = wine ? this._brightenColor(bg) : "";
+          return html`<span
+            class="zone-shelf-dot ${wine ? "filled" : ""}"
+            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+          ></span>`;
+        })}
+      </div>
+    `;
+
+    // Back lane's label sits above its dots, front lane's below — so each
+    // board reads top-to-bottom as "Back / [dots] / [dots] / Front",
+    // making it clear both rows belong to the same physical board.
+    const renderBack = (group: ShelfSlotGroup | undefined) => {
       if (!group) return nothing;
       return html`
-        <div class="zone-shelf-lane ${group.lane}">
-          ${Array.from({ length: group.size }, (_, i) => {
-            const wine = wines.find((w) => (w.depth || 0) === group.start + i);
-            const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
-            const ring = wine ? this._brightenColor(bg) : "";
-            return html`<span
-              class="zone-shelf-dot ${wine ? "filled" : ""}"
-              style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
-            ></span>`;
-          })}
-        </div>
+        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfBack")}</div>
+        ${renderDots(group)}
+      `;
+    };
+    const renderFront = (group: ShelfSlotGroup | undefined) => {
+      if (!group) return nothing;
+      return html`
+        ${renderDots(group)}
+        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfFront")}</div>
       `;
     };
 
@@ -977,8 +1020,8 @@ export class CabinetGrid extends LitElement {
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes]) => html`
             <div class="zone-shelf-level">
-              ${renderLane(lanes.back)}
-              ${renderLane(lanes.front)}
+              ${renderBack(lanes.back)}
+              ${renderFront(lanes.front)}
             </div>
           `)}
         </div>
