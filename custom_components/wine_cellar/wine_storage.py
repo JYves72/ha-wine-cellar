@@ -21,6 +21,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
+from .disposition import DISPOSITION_SOURCE_AUTO, compute_disposition
 
 
 class WineCellarStorage:
@@ -275,6 +276,20 @@ class WineCellarStorage:
                 # and never overwrites it again.
                 if "disposition" in updates and "disposition_source" not in updates:
                     wine.pop("disposition_source", None)
+                elif (
+                    ("drink_by" in updates or "drink_window" in updates)
+                    and "disposition" not in updates
+                ):
+                    # The drinking window just changed — recompute the D/H/P
+                    # badge right away instead of waiting for the next
+                    # startup/daily recompute (disposition.py), but only for
+                    # a wine this module is still allowed to manage: never
+                    # overwrite a Gemini- or human-assigned disposition.
+                    current = wine.get("disposition") or ""
+                    source = wine.get("disposition_source") or ""
+                    if not current or source == DISPOSITION_SOURCE_AUTO:
+                        wine["disposition"] = compute_disposition(wine)
+                        wine["disposition_source"] = DISPOSITION_SOURCE_AUTO
                 return wine
         return None
 
