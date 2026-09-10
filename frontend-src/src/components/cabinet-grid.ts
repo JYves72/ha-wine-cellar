@@ -252,16 +252,6 @@ export class CabinetGrid extends LitElement {
         background: #c62828;
       }
 
-      /* Dot style: same badge, no letter — a colored ring alone carries the
-         status. Drink/Hold keep their letter-style colors; Past Peak gets
-         its own purple instead of red, so it isn't visually confused with
-         the letter style's "danger" red at a glance. */
-      .cell .disposition.dot-style.past,
-      .zone-bottle .disposition.dot-style.past,
-      .zone-shelf-dot .disposition.dot-style.past {
-        background: #7b1fa2;
-      }
-
       .cell .rating-badge {
         position: absolute;
         bottom: -2px;
@@ -804,16 +794,28 @@ export class CabinetGrid extends LitElement {
     return brightMap[hex] || hex;
   }
 
-  // The disposition badge, in whichever style the user has chosen: the
-  // classic D/H/P letter, or a plain colored dot (no letter). `className`
-  // lets callers keep their own badge class (`.disposition` here vs.
-  // `.depth-slot-disposition` on the card's own panels) for its existing
-  // size/position CSS — only the "dot-style" modifier and the letter
-  // itself change.
+  // The classic D/H/P letter badge — only in "letter" mode. In "dot" mode
+  // there's no badge at all; _dispositionRingStyle below draws the status
+  // as a thicker colored ring around the bottle instead, so the photo
+  // stays uncovered.
   private _dispositionBadge(dispClass: string, disp: string, className = "disposition") {
-    if (!dispClass) return nothing;
-    const isDot = this.dispositionDisplay === "dot";
-    return html`<span class="${className} ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
+    if (!dispClass || this.dispositionDisplay === "dot") return nothing;
+    return html`<span class="${className} ${dispClass}">${disp}</span>`;
+  }
+
+  // "dot" mode's ring: a thicker border colored by disposition (green/blue/
+  // purple) instead of the classic centered badge — the whole point is to
+  // leave the bottle's own photo unobstructed. Every bottle in this mode
+  // gets the same border thickness, whether or not it has a disposition
+  // set, so bottle size doesn't jump around depending on which bottles
+  // happen to have one; with no disposition, the ring just falls back to
+  // the existing wine-type color instead of introducing a new color.
+  // Returns "" in "letter" mode, leaving the class's own CSS untouched.
+  private _dispositionRingStyle(dispClass: string, typeRingColor: string): string {
+    if (this.dispositionDisplay !== "dot") return "";
+    const dispositionColors: Record<string, string> = { drink: "#4caf50", hold: "#2196f3", past: "#ab47bc" };
+    const color = dispositionColors[dispClass] || typeRingColor;
+    return `border: 4px solid ${color};`;
   }
 
   // --- Long press (mobile move) ---
@@ -1000,10 +1002,11 @@ export class CabinetGrid extends LitElement {
           const disp = wine.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           const bottleKey = `${zoneKey}-${wine.id}`;
+          const bgColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
           return html`
             <div
               class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
-              style="background: ${WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red}"
+              style="background: ${bgColor};${this._dispositionRingStyle(dispClass, this._brightenColor(bgColor))}"
               data-wine-id="${wine.id}"
               draggable="true"
               @click=${(e: Event) => {
@@ -1112,7 +1115,7 @@ export class CabinetGrid extends LitElement {
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           return html`<span
             class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
-            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
             title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
             draggable=${wine ? "true" : "false"}
             @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
@@ -1189,7 +1192,7 @@ export class CabinetGrid extends LitElement {
           return html`
             <div
               class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
-              style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}` : ""}
+              style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
@@ -1263,7 +1266,7 @@ export class CabinetGrid extends LitElement {
     return html`
       <div
         class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""}"
-        style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}` : ""}
+        style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
