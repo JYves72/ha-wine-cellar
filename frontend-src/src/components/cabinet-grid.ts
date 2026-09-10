@@ -15,6 +15,10 @@ export class CabinetGrid extends LitElement {
   // Candidates for a pending Vivino removal: every listed bottle gets an
   // orange ring so the user can see which ones may be the removed bottle.
   @property({ attribute: false }) removalHighlightIds: string[] = [];
+  // "letter" (default): the classic D/H/P badge. "dot": a plain colored
+  // circle with no letter (green/blue/purple) — a settings-level choice,
+  // not per-bottle.
+  @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
 
   @state() private _dragOverCell: string | null = null;
 
@@ -790,6 +794,30 @@ export class CabinetGrid extends LitElement {
     return brightMap[hex] || hex;
   }
 
+  // The classic D/H/P letter badge — only in "letter" mode. In "dot" mode
+  // there's no badge at all; _dispositionRingStyle below draws the status
+  // as a thicker colored ring around the bottle instead, so the photo
+  // stays uncovered.
+  private _dispositionBadge(dispClass: string, disp: string, className = "disposition") {
+    if (!dispClass || this.dispositionDisplay === "dot") return nothing;
+    return html`<span class="${className} ${dispClass}">${disp}</span>`;
+  }
+
+  // "dot" mode's ring: a thicker border colored by disposition (green/blue/
+  // purple) instead of the classic centered badge — the whole point is to
+  // leave the bottle's own photo unobstructed. Every bottle in this mode
+  // gets the same border thickness, whether or not it has a disposition
+  // set, so bottle size doesn't jump around depending on which bottles
+  // happen to have one; with no disposition, the ring just falls back to
+  // the existing wine-type color instead of introducing a new color.
+  // Returns "" in "letter" mode, leaving the class's own CSS untouched.
+  private _dispositionRingStyle(dispClass: string, typeRingColor: string): string {
+    if (this.dispositionDisplay !== "dot") return "";
+    const dispositionColors: Record<string, string> = { drink: "#4caf50", hold: "#2196f3", past: "#ab47bc" };
+    const color = dispositionColors[dispClass] || typeRingColor;
+    return `border: 4px solid ${color};`;
+  }
+
   // --- Long press (mobile move) ---
 
   private _longPressTimer: number | null = null;
@@ -974,10 +1002,11 @@ export class CabinetGrid extends LitElement {
           const disp = wine.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           const bottleKey = `${zoneKey}-${wine.id}`;
+          const bgColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
           return html`
             <div
               class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
-              style="background: ${WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red}"
+              style="background: ${bgColor};${this._dispositionRingStyle(dispClass, this._brightenColor(bgColor))}"
               data-wine-id="${wine.id}"
               draggable="true"
               @click=${(e: Event) => {
@@ -995,7 +1024,7 @@ export class CabinetGrid extends LitElement {
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
-              ${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}
+              ${this._dispositionBadge(dispClass, disp)}
             </div>
           `;
         })}
@@ -1086,7 +1115,7 @@ export class CabinetGrid extends LitElement {
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           return html`<span
             class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
-            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring}` : ""}"
+            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
             title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
             draggable=${wine ? "true" : "false"}
             @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
@@ -1098,7 +1127,7 @@ export class CabinetGrid extends LitElement {
             @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
             @touchend=${() => this._onTouchEnd()}
             @touchmove=${() => this._onTouchMove()}
-          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}</span>`;
+          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
     `;
@@ -1163,7 +1192,7 @@ export class CabinetGrid extends LitElement {
           return html`
             <div
               class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
-              style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}` : ""}
+              style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
@@ -1182,7 +1211,7 @@ export class CabinetGrid extends LitElement {
                 ? html`
                     ${frontWine.image_url ? html`<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : nothing}
                     <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-                    ${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}
+                    ${this._dispositionBadge(dispClass, disp)}
                     ${ratingDisplay ? html`<span class="rating-badge">★${ratingDisplay}</span>` : nothing}
                     ${wineCount > 1 ? html`<span class="depth-badge">${wineCount}</span>` : nothing}
                     ${cabinetDepth >= 2
@@ -1237,7 +1266,7 @@ export class CabinetGrid extends LitElement {
     return html`
       <div
         class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""}"
-        style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}` : ""}
+        style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
@@ -1256,7 +1285,7 @@ export class CabinetGrid extends LitElement {
           ? html`
               ${frontWine.image_url ? html`<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : nothing}
               <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-              ${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}
+              ${this._dispositionBadge(dispClass, disp)}
               ${ratingDisplay ? html`<span class="rating-badge">★${ratingDisplay}</span>` : nothing}
               ${wineCount > 1 ? html`<span class="depth-badge">${wineCount}</span>` : nothing}
               ${cabinetDepth >= 2
