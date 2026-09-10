@@ -587,6 +587,13 @@ export const sharedStyles = css`
     background: #c62828;
   }
 
+  /* Dot style: same badge, no letter — see cabinet-grid.ts's .dot-style for
+     the rack-drawing equivalent. Past Peak gets its own purple instead of
+     red, same reasoning as there. */
+  .depth-slot-disposition.dot-style.past {
+    background: #7b1fa2;
+  }
+
   .depth-slot-info {
     flex: 1;
     min-width: 0;

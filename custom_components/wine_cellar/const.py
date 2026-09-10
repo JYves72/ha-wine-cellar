@@ -99,6 +99,15 @@ CONF_AI_FALLBACK_ALWAYS = "ai_fallback_always"
 # correctly either way — this only gates what's offered, not what's stored.
 CONF_ENABLE_WHISKY = "enable_whisky"
 
+# How the drink/hold/past-peak disposition is drawn on a bottle: "letter"
+# (default) is the classic D/H/P badge; "dot" is a plain colored circle with
+# no letter (green/blue/purple) for a subtler look.
+CONF_DISPOSITION_DISPLAY = "disposition_display"
+DISPOSITION_DISPLAY_LETTER = "letter"
+DISPOSITION_DISPLAY_DOT = "dot"
+DISPOSITION_DISPLAY_CHOICES = [DISPOSITION_DISPLAY_LETTER, DISPOSITION_DISPLAY_DOT]
+DEFAULT_DISPOSITION_DISPLAY = DISPOSITION_DISPLAY_LETTER
+
 # How many timestamped server backups to keep on disk. Older ones are pruned
 # after each new save; 0 keeps every backup forever.
 # Arrangement findings the user has waved off for good. Kept as a list of
@@ -129,4 +138,4 @@ VIVINO_AUTO_SYNC_INTERVAL_HOURS = 12
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20260910d"
+FRONTEND_VERSION = "20260910e"

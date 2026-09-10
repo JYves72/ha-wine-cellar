@@ -88,6 +88,7 @@ export class WineCellarCard extends LitElement {
   @state() private _supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
   @state() private _aiFallbackAlways = false;
   @state() private _enableWhisky = false;
+  @state() private _dispositionDisplay: "letter" | "dot" = "letter";
   @state() private _showVivinoAiSettings = false;
   @state() private _showWineList = false;
   @state() private _showInventory = false;
@@ -675,6 +676,7 @@ export class WineCellarCard extends LitElement {
       this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
       this._enableWhisky = capResult?.enable_whisky || false;
+      this._dispositionDisplay = capResult?.disposition_display || "letter";
       this._dismissedArrangements = capResult?.dismissed_arrangements || [];
       this._buyList = buyListResult?.buy_list || [];
       this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
@@ -737,6 +739,15 @@ export class WineCellarCard extends LitElement {
   // `this.hass?.language` at every t() call.
   private _t(key: string, params?: Record<string, string | number>): string {
     return t(key, this.hass?.language, params);
+  }
+
+  // The disposition badge for the card's own side panels (rack/shelf/zone
+  // panels) — same letter-vs-dot choice as cabinet-grid.ts's own helper,
+  // reading the same _dispositionDisplay state so both stay in sync.
+  private _dispositionBadge(dispClass: string, disp: string) {
+    if (!dispClass) return nothing;
+    const isDot = this._dispositionDisplay === "dot";
+    return html`<span class="depth-slot-disposition ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
   }
 
   private _showToast(message: string) {
@@ -2105,6 +2116,21 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  private async _setDispositionDisplay(value: "letter" | "dot") {
+    if (value === this._dispositionDisplay) return;
+    const previous = this._dispositionDisplay;
+    this._dispositionDisplay = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { disposition_display: value },
+      });
+    } catch (err) {
+      this._dispositionDisplay = previous;
+      this._showToast(this._t("toast.changeDispositionDisplayFailed"));
+    }
+  }
+
   // --- Batch Vivino Refresh ---
   private _batchRefreshVivino() {
     this._batchAiFallback = this._aiFallbackAlways;
@@ -2682,6 +2708,7 @@ export class WineCellarCard extends LitElement {
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
                           .removalHighlightIds=${this._removalHighlightIds}
+                          .dispositionDisplay=${this._dispositionDisplay}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
@@ -2704,6 +2731,7 @@ export class WineCellarCard extends LitElement {
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
                             .removalHighlightIds=${this._removalHighlightIds}
+                            .dispositionDisplay=${this._dispositionDisplay}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
@@ -3154,6 +3182,7 @@ export class WineCellarCard extends LitElement {
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .enableWhisky=${this._enableWhisky}
+          .dispositionDisplay=${this._dispositionDisplay}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
           .metadataCurrency=${this._metadataCurrency}
@@ -3161,6 +3190,7 @@ export class WineCellarCard extends LitElement {
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
           @set-enable-whisky=${(e: CustomEvent) => this._setEnableWhisky(e.detail.value)}
+          @set-disposition-display=${(e: CustomEvent) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e: CustomEvent) => this._setMetadataLanguage(e.detail.value)}
           @set-metadata-currency=${(e: CustomEvent) => this._setMetadataCurrency(e.detail.value)}
         ></vivino-ai-settings-dialog>
@@ -3198,7 +3228,7 @@ export class WineCellarCard extends LitElement {
                                   ${wine.image_url
                                     ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                     : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                  ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                  ${this._dispositionBadge(dispClass, disp)}
                                 </div>
                                 <div class="depth-slot-info">
                                   <div class="depth-slot-name">${wine.name}</div>
@@ -3316,7 +3346,7 @@ export class WineCellarCard extends LitElement {
                                         ${wine.image_url
                                           ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                           : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                        ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                        ${this._dispositionBadge(dispClass, disp)}
                                       </div>
                                       <div class="depth-slot-info">
                                         <div class="depth-slot-name">${wine.name}</div>
@@ -3384,7 +3414,7 @@ export class WineCellarCard extends LitElement {
                                           ${wine.image_url
                                             ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                             : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                          ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                          ${this._dispositionBadge(dispClass, disp)}
                                         </div>
                                         <div class="depth-slot-info">
                                           <div class="depth-slot-name">${wine.name}</div>
@@ -3454,7 +3484,7 @@ export class WineCellarCard extends LitElement {
                                               ${wine.image_url
                                                 ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                                 : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                              ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                              ${this._dispositionBadge(dispClass, disp)}
                                             </div>
                                             <div class="depth-slot-info">
                                               <div class="depth-slot-name">${wine.name}</div>
@@ -3547,7 +3577,7 @@ export class WineCellarCard extends LitElement {
                                   ${wine.image_url
                                     ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                     : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                  ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                  ${this._dispositionBadge(dispClass, disp)}
                                 </div>
                                 <div class="depth-slot-info">
                                   <div class="depth-slot-name">${wine.name}</div>
@@ -3638,7 +3668,7 @@ export class WineCellarCard extends LitElement {
                                         ${wine.image_url
                                           ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                           : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                        ${dispClass ? html`<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : nothing}
+                                        ${this._dispositionBadge(dispClass, disp)}
                                       </div>
                                       <div class="depth-slot-info">
                                         <div class="depth-slot-name">${wine.name}</div>

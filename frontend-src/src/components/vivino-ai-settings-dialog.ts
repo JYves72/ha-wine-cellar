@@ -9,6 +9,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
   @property({ type: String }) metadataLanguage = "en";
   @property({ attribute: false }) supportedLanguages: string[] = ["en", "fr", "de"];
   @property({ type: String }) metadataCurrency = "USD";
@@ -121,6 +122,10 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
   }
 
+  private _setDispositionDisplay(value: "letter" | "dot") {
+    this.dispatchEvent(new CustomEvent("set-disposition-display", { detail: { value } }));
+  }
+
   private _setLanguage(lang: string) {
     this.dispatchEvent(new CustomEvent("set-metadata-language", { detail: { value: lang } }));
   }
@@ -160,6 +165,20 @@ export class VivinoAiSettingsDialog extends LitElement {
               />
               ${this._t("ui.vivinoAiSettings.enableWhisky")}
             </label>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.dispositionDisplayLabel")}</span>
+            <div class="pill-group">
+              <button
+                class="pill ${this.dispositionDisplay === "letter" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("letter")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayLetter")}</button>
+              <button
+                class="pill ${this.dispositionDisplay === "dot" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("dot")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayDot")}</button>
+            </div>
           </div>
 
           <div class="settings-row">

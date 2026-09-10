@@ -15,6 +15,10 @@ export class CabinetGrid extends LitElement {
   // Candidates for a pending Vivino removal: every listed bottle gets an
   // orange ring so the user can see which ones may be the removed bottle.
   @property({ attribute: false }) removalHighlightIds: string[] = [];
+  // "letter" (default): the classic D/H/P badge. "dot": a plain colored
+  // circle with no letter (green/blue/purple) — a settings-level choice,
+  // not per-bottle.
+  @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
 
   @state() private _dragOverCell: string | null = null;
 
@@ -246,6 +250,16 @@ export class CabinetGrid extends LitElement {
       .zone-bottle .disposition.past,
       .zone-shelf-dot .disposition.past {
         background: #c62828;
+      }
+
+      /* Dot style: same badge, no letter — a colored ring alone carries the
+         status. Drink/Hold keep their letter-style colors; Past Peak gets
+         its own purple instead of red, so it isn't visually confused with
+         the letter style's "danger" red at a glance. */
+      .cell .disposition.dot-style.past,
+      .zone-bottle .disposition.dot-style.past,
+      .zone-shelf-dot .disposition.dot-style.past {
+        background: #7b1fa2;
       }
 
       .cell .rating-badge {
@@ -790,6 +804,18 @@ export class CabinetGrid extends LitElement {
     return brightMap[hex] || hex;
   }
 
+  // The disposition badge, in whichever style the user has chosen: the
+  // classic D/H/P letter, or a plain colored dot (no letter). `className`
+  // lets callers keep their own badge class (`.disposition` here vs.
+  // `.depth-slot-disposition` on the card's own panels) for its existing
+  // size/position CSS — only the "dot-style" modifier and the letter
+  // itself change.
+  private _dispositionBadge(dispClass: string, disp: string, className = "disposition") {
+    if (!dispClass) return nothing;
+    const isDot = this.dispositionDisplay === "dot";
+    return html`<span class="${className} ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
+  }
+
   // --- Long press (mobile move) ---
 
   private _longPressTimer: number | null = null;
@@ -995,7 +1021,7 @@ export class CabinetGrid extends LitElement {
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
-              ${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}
+              ${this._dispositionBadge(dispClass, disp)}
             </div>
           `;
         })}
@@ -1098,7 +1124,7 @@ export class CabinetGrid extends LitElement {
             @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
             @touchend=${() => this._onTouchEnd()}
             @touchmove=${() => this._onTouchMove()}
-          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}</span>`;
+          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
     `;
@@ -1182,7 +1208,7 @@ export class CabinetGrid extends LitElement {
                 ? html`
                     ${frontWine.image_url ? html`<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : nothing}
                     <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-                    ${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}
+                    ${this._dispositionBadge(dispClass, disp)}
                     ${ratingDisplay ? html`<span class="rating-badge">★${ratingDisplay}</span>` : nothing}
                     ${wineCount > 1 ? html`<span class="depth-badge">${wineCount}</span>` : nothing}
                     ${cabinetDepth >= 2
@@ -1256,7 +1282,7 @@ export class CabinetGrid extends LitElement {
           ? html`
               ${frontWine.image_url ? html`<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : nothing}
               <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-              ${dispClass ? html`<span class="disposition ${dispClass}">${disp}</span>` : nothing}
+              ${this._dispositionBadge(dispClass, disp)}
               ${ratingDisplay ? html`<span class="rating-badge">★${ratingDisplay}</span>` : nothing}
               ${wineCount > 1 ? html`<span class="depth-badge">${wineCount}</span>` : nothing}
               ${cabinetDepth >= 2

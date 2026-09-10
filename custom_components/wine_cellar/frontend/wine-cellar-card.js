@@ -659,6 +659,13 @@ const sharedStyles = i$3 `
     background: #c62828;
   }
 
+  /* Dot style: same badge, no letter — see cabinet-grid.ts's .dot-style for
+     the rack-drawing equivalent. Past Peak gets its own purple instead of
+     red, same reasoning as there. */
+  .depth-slot-disposition.dot-style.past {
+    background: #7b1fa2;
+  }
+
   .depth-slot-info {
     flex: 1;
     min-width: 0;
@@ -1323,6 +1330,9 @@ var ui$1 = {
 		title: "Vivino / AI Settings",
 		alwaysTryAi: "Always try AI when Vivino finds no match",
 		enableWhisky: "Track whisky bottles (offer \"Whisky\" as a type)",
+		dispositionDisplayLabel: "Drink/Hold badge",
+		dispositionDisplayLetter: "Letter",
+		dispositionDisplayDot: "Color only",
 		languageLabel: "Vivino/AI language",
 		currencyLabel: "Currency",
 		infoTitle: "Vivino vs AI — What Each Provides",
@@ -1423,6 +1433,7 @@ var toast$1 = {
 	changeCurrencyFailed: "Failed to change currency",
 	changeAiFallbackFailed: "Failed to change AI fallback setting",
 	changeEnableWhiskyFailed: "Failed to change the whisky setting",
+	changeDispositionDisplayFailed: "Failed to change the disposition badge setting",
 	vivinoRefreshing: "Refreshing all wines from Vivino...",
 	vivinoBatchFailedError: "Vivino Batch failed: {error}",
 	vivinoBatchComplete: "Vivino Batch complete! {updated}/{total} updated",
@@ -2062,6 +2073,9 @@ var ui = {
 		title: "Paramètres Vivino / IA",
 		alwaysTryAi: "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
 		enableWhisky: "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
+		dispositionDisplayLabel: "Pastille à boire/à garder",
+		dispositionDisplayLetter: "Lettre",
+		dispositionDisplayDot: "Couleur seule",
 		languageLabel: "Langue Vivino/IA",
 		currencyLabel: "Devise",
 		infoTitle: "Vivino vs IA — Ce que chacun fournit",
@@ -2162,6 +2176,7 @@ var toast = {
 	changeCurrencyFailed: "Échec du changement de devise",
 	changeAiFallbackFailed: "Échec du changement du paramètre de secours IA",
 	changeEnableWhiskyFailed: "Échec du changement du paramètre whisky",
+	changeDispositionDisplayFailed: "Échec du changement d'affichage de la pastille",
 	vivinoRefreshing: "Rafraîchissement de tous les vins depuis Vivino...",
 	vivinoBatchFailedError: "Échec de l'analyse Vivino groupée : {error}",
 	vivinoBatchComplete: "Analyse Vivino groupée terminée ! {updated}/{total} mis à jour",
@@ -3511,6 +3526,10 @@ let CabinetGrid = class CabinetGrid extends i {
         // Candidates for a pending Vivino removal: every listed bottle gets an
         // orange ring so the user can see which ones may be the removed bottle.
         this.removalHighlightIds = [];
+        // "letter" (default): the classic D/H/P badge. "dot": a plain colored
+        // circle with no letter (green/blue/purple) — a settings-level choice,
+        // not per-bottle.
+        this.dispositionDisplay = "letter";
         this._dragOverCell = null;
         // --- Long press (mobile move) ---
         this._longPressTimer = null;
@@ -3593,6 +3612,18 @@ let CabinetGrid = class CabinetGrid extends i {
             "#B5651D": "#d9843a", // whisky → brighter amber
         };
         return brightMap[hex] || hex;
+    }
+    // The disposition badge, in whichever style the user has chosen: the
+    // classic D/H/P letter, or a plain colored dot (no letter). `className`
+    // lets callers keep their own badge class (`.disposition` here vs.
+    // `.depth-slot-disposition` on the card's own panels) for its existing
+    // size/position CSS — only the "dot-style" modifier and the letter
+    // itself change.
+    _dispositionBadge(dispClass, disp, className = "disposition") {
+        if (!dispClass)
+            return A;
+        const isDot = this.dispositionDisplay === "dot";
+        return b `<span class="${className} ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
     }
     _onTouchStart(wine) {
         this._longPressTimer = window.setTimeout(() => {
@@ -3787,7 +3818,7 @@ let CabinetGrid = class CabinetGrid extends i {
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
-              ${dispClass ? b `<span class="disposition ${dispClass}">${disp}</span>` : A}
+              ${this._dispositionBadge(dispClass, disp)}
             </div>
           `;
         })}
@@ -3883,7 +3914,7 @@ let CabinetGrid = class CabinetGrid extends i {
             @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
             @touchend=${() => this._onTouchEnd()}
             @touchmove=${() => this._onTouchMove()}
-          >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${dispClass ? b `<span class="disposition ${dispClass}">${disp}</span>` : A}</span>`;
+          >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
     `;
@@ -3964,7 +3995,7 @@ let CabinetGrid = class CabinetGrid extends i {
                 ? b `
                     ${frontWine.image_url ? b `<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : A}
                     <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-                    ${dispClass ? b `<span class="disposition ${dispClass}">${disp}</span>` : A}
+                    ${this._dispositionBadge(dispClass, disp)}
                     ${ratingDisplay ? b `<span class="rating-badge">★${ratingDisplay}</span>` : A}
                     ${wineCount > 1 ? b `<span class="depth-badge">${wineCount}</span>` : A}
                     ${cabinetDepth >= 2
@@ -4035,7 +4066,7 @@ let CabinetGrid = class CabinetGrid extends i {
             ? b `
               ${frontWine.image_url ? b `<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : A}
               <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-              ${dispClass ? b `<span class="disposition ${dispClass}">${disp}</span>` : A}
+              ${this._dispositionBadge(dispClass, disp)}
               ${ratingDisplay ? b `<span class="rating-badge">★${ratingDisplay}</span>` : A}
               ${wineCount > 1 ? b `<span class="depth-badge">${wineCount}</span>` : A}
               ${cabinetDepth >= 2
@@ -4354,6 +4385,16 @@ CabinetGrid.styles = [
       .zone-bottle .disposition.past,
       .zone-shelf-dot .disposition.past {
         background: #c62828;
+      }
+
+      /* Dot style: same badge, no letter — a colored ring alone carries the
+         status. Drink/Hold keep their letter-style colors; Past Peak gets
+         its own purple instead of red, so it isn't visually confused with
+         the letter style's "danger" red at a glance. */
+      .cell .disposition.dot-style.past,
+      .zone-bottle .disposition.dot-style.past,
+      .zone-shelf-dot .disposition.dot-style.past {
+        background: #7b1fa2;
       }
 
       .cell .rating-badge {
@@ -4811,6 +4852,9 @@ __decorate([
 __decorate([
     n({ attribute: false })
 ], CabinetGrid.prototype, "removalHighlightIds", void 0);
+__decorate([
+    n({ type: String })
+], CabinetGrid.prototype, "dispositionDisplay", void 0);
 __decorate([
     r()
 ], CabinetGrid.prototype, "_dragOverCell", void 0);
@@ -13976,6 +14020,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.open = false;
         this.aiFallbackAlways = false;
         this.enableWhisky = false;
+        this.dispositionDisplay = "letter";
         this.metadataLanguage = "en";
         this.supportedLanguages = ["en", "fr", "de"];
         this.metadataCurrency = "USD";
@@ -13993,6 +14038,9 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setEnableWhisky(value) {
         this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
+    }
+    _setDispositionDisplay(value) {
+        this.dispatchEvent(new CustomEvent("set-disposition-display", { detail: { value } }));
     }
     _setLanguage(lang) {
         this.dispatchEvent(new CustomEvent("set-metadata-language", { detail: { value: lang } }));
@@ -14031,6 +14079,20 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
               />
               ${this._t("ui.vivinoAiSettings.enableWhisky")}
             </label>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.dispositionDisplayLabel")}</span>
+            <div class="pill-group">
+              <button
+                class="pill ${this.dispositionDisplay === "letter" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("letter")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayLetter")}</button>
+              <button
+                class="pill ${this.dispositionDisplay === "dot" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("dot")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayDot")}</button>
+            </div>
           </div>
 
           <div class="settings-row">
@@ -14200,6 +14262,9 @@ __decorate([
 ], VivinoAiSettingsDialog.prototype, "enableWhisky", void 0);
 __decorate([
     n({ type: String })
+], VivinoAiSettingsDialog.prototype, "dispositionDisplay", void 0);
+__decorate([
+    n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "metadataLanguage", void 0);
 __decorate([
     n({ attribute: false })
@@ -14277,6 +14342,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
         this._aiFallbackAlways = false;
         this._enableWhisky = false;
+        this._dispositionDisplay = "letter";
         this._showVivinoAiSettings = false;
         this._showWineList = false;
         this._showInventory = false;
@@ -14450,6 +14516,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
             this._enableWhisky = capResult?.enable_whisky || false;
+            this._dispositionDisplay = capResult?.disposition_display || "letter";
             this._dismissedArrangements = capResult?.dismissed_arrangements || [];
             this._buyList = buyListResult?.buy_list || [];
             this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
@@ -14504,6 +14571,15 @@ let WineCellarCard = class WineCellarCard extends i {
     // `this.hass?.language` at every t() call.
     _t(key, params) {
         return t(key, this.hass?.language, params);
+    }
+    // The disposition badge for the card's own side panels (rack/shelf/zone
+    // panels) — same letter-vs-dot choice as cabinet-grid.ts's own helper,
+    // reading the same _dispositionDisplay state so both stay in sync.
+    _dispositionBadge(dispClass, disp) {
+        if (!dispClass)
+            return A;
+        const isDot = this._dispositionDisplay === "dot";
+        return b `<span class="depth-slot-disposition ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
     }
     _showToast(message) {
         this._toast = message;
@@ -15807,6 +15883,22 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.changeEnableWhiskyFailed"));
         }
     }
+    async _setDispositionDisplay(value) {
+        if (value === this._dispositionDisplay)
+            return;
+        const previous = this._dispositionDisplay;
+        this._dispositionDisplay = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { disposition_display: value },
+            });
+        }
+        catch (err) {
+            this._dispositionDisplay = previous;
+            this._showToast(this._t("toast.changeDispositionDisplayFailed"));
+        }
+    }
     // --- Batch Vivino Refresh ---
     _batchRefreshVivino() {
         this._batchAiFallback = this._aiFallbackAlways;
@@ -16366,6 +16458,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
                           .removalHighlightIds=${this._removalHighlightIds}
+                          .dispositionDisplay=${this._dispositionDisplay}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
@@ -16386,6 +16479,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
                             .removalHighlightIds=${this._removalHighlightIds}
+                            .dispositionDisplay=${this._dispositionDisplay}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
@@ -16827,6 +16921,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .enableWhisky=${this._enableWhisky}
+          .dispositionDisplay=${this._dispositionDisplay}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
           .metadataCurrency=${this._metadataCurrency}
@@ -16834,6 +16929,7 @@ let WineCellarCard = class WineCellarCard extends i {
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
           @set-enable-whisky=${(e) => this._setEnableWhisky(e.detail.value)}
+          @set-disposition-display=${(e) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e) => this._setMetadataLanguage(e.detail.value)}
           @set-metadata-currency=${(e) => this._setMetadataCurrency(e.detail.value)}
         ></vivino-ai-settings-dialog>
@@ -16871,7 +16967,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                   ${wine.image_url
                         ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                         : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                  ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                  ${this._dispositionBadge(dispClass, disp)}
                                 </div>
                                 <div class="depth-slot-info">
                                   <div class="depth-slot-name">${wine.name}</div>
@@ -16989,7 +17085,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                         ${wine.image_url
                             ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                             : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                        ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                        ${this._dispositionBadge(dispClass, disp)}
                                       </div>
                                       <div class="depth-slot-info">
                                         <div class="depth-slot-name">${wine.name}</div>
@@ -17057,7 +17153,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                           ${wine.image_url
                                 ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                 : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                          ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                          ${this._dispositionBadge(dispClass, disp)}
                                         </div>
                                         <div class="depth-slot-info">
                                           <div class="depth-slot-name">${wine.name}</div>
@@ -17127,7 +17223,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                               ${wine.image_url
                                         ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                                         : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                              ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                              ${this._dispositionBadge(dispClass, disp)}
                                             </div>
                                             <div class="depth-slot-info">
                                               <div class="depth-slot-name">${wine.name}</div>
@@ -17220,7 +17316,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                   ${wine.image_url
                         ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                         : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                  ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                  ${this._dispositionBadge(dispClass, disp)}
                                 </div>
                                 <div class="depth-slot-info">
                                   <div class="depth-slot-name">${wine.name}</div>
@@ -17311,7 +17407,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                         ${wine.image_url
                             ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
                             : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
-                                        ${dispClass ? b `<span class="depth-slot-disposition ${dispClass}">${disp}</span>` : A}
+                                        ${this._dispositionBadge(dispClass, disp)}
                                       </div>
                                       <div class="depth-slot-info">
                                         <div class="depth-slot-name">${wine.name}</div>
@@ -17862,6 +17958,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_enableWhisky", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_dispositionDisplay", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_showVivinoAiSettings", void 0);

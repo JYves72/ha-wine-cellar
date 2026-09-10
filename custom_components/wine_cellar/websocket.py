@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 from .const import (
     CONF_AI_FALLBACK_ALWAYS,
     CONF_DISMISSED_ARRANGEMENTS,
+    CONF_DISPOSITION_DISPLAY,
     CONF_ENABLE_WHISKY,
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
@@ -22,10 +23,12 @@ from .const import (
     CONF_VIVINO_MODE,
     CONF_WINE_HISTORY,
     CONF_WINES,
+    DEFAULT_DISPOSITION_DISPLAY,
     DEFAULT_METADATA_CURRENCY,
     DEFAULT_METADATA_LANGUAGE,
     DEFAULT_SERVER_BACKUP_KEEP,
     DEFAULT_VIVINO_MODE,
+    DISPOSITION_DISPLAY_CHOICES,
     DOMAIN,
     VIVINO_MODE_SYNC,
     SERVER_BACKUP_KEEP_CHOICES,
@@ -971,6 +974,9 @@ def ws_get_capabilities(
             "enable_whisky": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_WHISKY, False)
             ),
+            "disposition_display": hass.data[DOMAIN]["storage"].settings.get(
+                CONF_DISPOSITION_DISPLAY, DEFAULT_DISPOSITION_DISPLAY
+            ),
             "server_backup_keep": _get_backup_keep(hass),
             "server_backup_keep_choices": SERVER_BACKUP_KEEP_CHOICES,
             "dismissed_arrangements": list(
@@ -1004,6 +1010,12 @@ async def ws_update_settings(
     currency = updates.get(CONF_METADATA_CURRENCY)
     if currency is not None and currency not in SUPPORTED_METADATA_CURRENCIES:
         connection.send_result(msg["id"], {"error": f"Unsupported currency: {currency}"})
+        return
+    disposition_display = updates.get(CONF_DISPOSITION_DISPLAY)
+    if disposition_display is not None and disposition_display not in DISPOSITION_DISPLAY_CHOICES:
+        connection.send_result(
+            msg["id"], {"error": f"Unsupported disposition display: {disposition_display}"}
+        )
         return
     keep = updates.get(CONF_SERVER_BACKUP_KEEP)
     if keep is not None:
