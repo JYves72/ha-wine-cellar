@@ -5545,13 +5545,18 @@ let WineDetailDialog = class WineDetailDialog extends i {
                         propagateNotes = window.confirm(this._t("ui.wineDetail.applyNoteConfirm", { count: duplicates.length, plural: duplicates.length > 1 ? "s" : "", name: this.wine.name }));
                     }
                 }
-                await this.hass.callWS({
+                const result = await this.hass.callWS({
                     type: "wine_cellar/update_wine",
                     wine_id: this.wine.id,
                     updates,
                     propagate_notes: propagateNotes,
                 });
-                if (!this._applyIfStillShowing(wineId, updates))
+                // Use the server's own wine back, not the raw edits: some fields
+                // (like `disposition`, recomputed server-side when drink_by/
+                // drink_window changes) aren't in `updates` at all, so patching
+                // with `updates` alone would leave the badge showing the stale
+                // value until the next full reload.
+                if (!this._applyIfStillShowing(wineId, result?.wine || updates))
                     return;
                 this._editingFields = false;
                 this._editData = {};
