@@ -280,16 +280,21 @@ class WineCellarStorage:
                     ("drink_by" in updates or "drink_window" in updates)
                     and "disposition" not in updates
                 ):
-                    # The drinking window just changed — recompute the D/H/P
-                    # badge right away instead of waiting for the next
-                    # startup/daily recompute (disposition.py), but only for
-                    # a wine this module is still allowed to manage: never
-                    # overwrite a Gemini- or human-assigned disposition.
-                    current = wine.get("disposition") or ""
-                    source = wine.get("disposition_source") or ""
-                    if not current or source == DISPOSITION_SOURCE_AUTO:
-                        wine["disposition"] = compute_disposition(wine)
-                        wine["disposition_source"] = DISPOSITION_SOURCE_AUTO
+                    # The drinking window itself just changed — recompute the
+                    # D/H/P badge right away to match instead of waiting for
+                    # the next startup/daily recompute (disposition.py).
+                    # Unlike that scheduled job (which must never second-guess
+                    # a Gemini- or human-assigned disposition on its own
+                    # initiative, and stays gated on disposition_source), an
+                    # explicit edit to the date is itself the signal to
+                    # recompute — every real caller that reaches this branch
+                    # (the detail dialog's manual edit, and its propagation to
+                    # duplicate bottles) is exactly that, never a background
+                    # pass. Every AI/Vivino path sets `disposition` in the
+                    # same call whenever it touches these fields, so it never
+                    # reaches here at all.
+                    wine["disposition"] = compute_disposition(wine)
+                    wine["disposition_source"] = DISPOSITION_SOURCE_AUTO
                 return wine
         return None
 
