@@ -69,7 +69,21 @@
       "leaveAsIsBtn": "Leave it as it is",
       "notedBtn": "Noted",
       "moveFailedFull": "{label} filled up before the move could be recorded.",
-      "moveRecordError": "Could not record the move: {detail}"
+      "moveRecordError": "Could not record the move: {detail}",
+      "findings": {
+        "consolidateFallbackName": "This wine",
+        "consolidateTitle": "{name} — {n} bottle{plural} across {m} place{placesPlural}",
+        "consolidateDetailPartial": "{targetLabel} holds {held} of them and has room for {movable} more, not all {strays}. Gathering what fits still cuts the search in half.",
+        "consolidateDetailFull": "{targetLabel} already holds {held} of them and has room for the other {movable}.",
+        "outlierTitle": "{label} is {pct}% {type}",
+        "outlierDetailOne": "One bottle does not belong to that group. Nothing says this bin is only for {type} — but it nearly is.",
+        "outlierDetailMany": "{n} bottles do not belong to that group. Nothing says this bin is only for {type} — but it nearly is.",
+        "buriedFallbackName": "A bottle",
+        "buriedTitleNoYear": "{name} is hard to reach",
+        "buriedTitleWithYear": "{name} is due by {year} but hard to reach",
+        "buriedDetailOne": "It sits at slot {slot} of {label}, behind a bottle marked to keep. Swap them by hand next time the door is open.",
+        "buriedDetailMany": "It sits at slot {slot} of {label}, behind {n} bottles marked to keep. Swap them by hand next time the door is open."
+      }
     },
     "barcode": {
       "notSupported": "Barcode scanning is not supported on this browser. Please enter the barcode manually below.",

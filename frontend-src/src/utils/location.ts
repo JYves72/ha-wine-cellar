@@ -1,4 +1,5 @@
-import { Cabinet, StorageRow, Wine, getRackSlots } from "../models";
+import { Cabinet, StorageRow, Wine, getRackSlots, getStorageRowTypeLabels } from "../models";
+import { tGroup } from "../i18n";
 
 // Shared "where does a bottle physically sit" helpers.
 //
@@ -109,16 +110,18 @@ export function containerUsage(
 
 // Human-readable name for the container itself — no slot number, since a
 // container holds several bottles.
-export function containerLabel(c: Container, cabinets: Cabinet[]): string {
+export function containerLabel(c: Container, cabinets: Cabinet[], language?: string): string {
+  const loc = tGroup("wineLocation", language);
   const cabinet = cabinets.find((cab) => cab.id === c.cabinetId);
-  if (!cabinet) return "Unassigned";
-  if (c.kind === "bottom") return `${cabinet.name} · ${cabinet.bottom_zone_name || "Storage"}`;
+  if (!cabinet) return loc.unassigned;
+  if (c.kind === "bottom") return `${cabinet.name} · ${cabinet.bottom_zone_name || loc.storage}`;
   if (c.kind === "zone") {
     const sr = storageRowFor(cabinet, c.zone);
-    return `${cabinet.name} · ${sr?.name || (sr?.type === "box" ? "Box" : sr?.type === "shelf" ? "Shelf" : "Bulk Bin")}`;
+    const typeLabels = getStorageRowTypeLabels(language);
+    return `${cabinet.name} · ${sr?.name || typeLabels[sr?.type || "bulk"]}`;
   }
   const idx = getRackSlots(cabinet).findIndex((s) => s.row === c.row && s.col === c.col);
-  const slot = idx >= 0 ? `Slot ${idx + 1}` : `R${(c.row ?? 0) + 1}C${(c.col ?? 0) + 1}`;
+  const slot = idx >= 0 ? `${loc.slot} ${idx + 1}` : `R${(c.row ?? 0) + 1}C${(c.col ?? 0) + 1}`;
   return `${cabinet.name} · ${slot}`;
 }
 

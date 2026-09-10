@@ -138,7 +138,7 @@ export class ArrangementDialog extends LitElement {
   }
 
   private get _findings(): Finding[] {
-    return analyzeArrangement(this.wines, this.cabinets, this.dismissed);
+    return analyzeArrangement(this.wines, this.cabinets, this.dismissed, this.hass?.language);
   }
 
   // Apply every move in a finding, then tell the card to reload. Moves are
