@@ -82,7 +82,9 @@
         "buriedTitleNoYear": "{name} is hard to reach",
         "buriedTitleWithYear": "{name} is due by {year} but hard to reach",
         "buriedDetailOne": "It sits at slot {slot} of {label}, behind a bottle marked to keep. Swap them by hand next time the door is open.",
-        "buriedDetailMany": "It sits at slot {slot} of {label}, behind {n} bottles marked to keep. Swap them by hand next time the door is open."
+        "buriedDetailMany": "It sits at slot {slot} of {label}, behind {n} bottles marked to keep. Swap them by hand next time the door is open.",
+        "wrongLevelDetailOne": "It sits on a lower board of {label} than a bottle marked to keep — the higher board is the easier one to reach. Swap them next time the door is open.",
+        "wrongLevelDetailMany": "It sits on a lower board of {label} than {n} bottles marked to keep — the higher board is the easier one to reach. Swap them next time the door is open."
       }
     },
     "barcode": {

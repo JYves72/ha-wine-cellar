@@ -82,7 +82,9 @@
         "buriedTitleNoYear": "{name} est difficile à atteindre",
         "buriedTitleWithYear": "{name} est à boire avant {year} mais difficile à atteindre",
         "buriedDetailOne": "Elle se trouve à l'emplacement {slot} de {label}, derrière une bouteille à garder. Échangez-les à la main la prochaine fois que la porte est ouverte.",
-        "buriedDetailMany": "Elle se trouve à l'emplacement {slot} de {label}, derrière {n} bouteilles à garder. Échangez-les à la main la prochaine fois que la porte est ouverte."
+        "buriedDetailMany": "Elle se trouve à l'emplacement {slot} de {label}, derrière {n} bouteilles à garder. Échangez-les à la main la prochaine fois que la porte est ouverte.",
+        "wrongLevelDetailOne": "Elle est sur une planche plus basse de {label} qu'une bouteille à garder — la planche du haut est plus facile d'accès. Échangez-les la prochaine fois que la porte est ouverte.",
+        "wrongLevelDetailMany": "Elle est sur une planche plus basse de {label} que {n} bouteilles à garder — la planche du haut est plus facile d'accès. Échangez-les la prochaine fois que la porte est ouverte."
       }
     },
     "barcode": {

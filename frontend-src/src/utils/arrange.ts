@@ -265,14 +265,18 @@ function findOutliers(
   return out;
 }
 
+// Whether a container is a shelf zone at all — used to keep shelf slots out
+// of the generic front-to-back "buried" check below, since a shelf board
+// slides out on its own rails and doesn't have that kind of blocking.
+function isShelfZone(container: Container, cabinets: Cabinet[]): boolean {
+  if (container.kind !== "zone") return false;
+  const cabinet = cabinets.find((c) => c.id === container.cabinetId);
+  return storageRowFor(cabinet, container.zone)?.type === "shelf";
+}
+
 // A shelf zone stacks several independent boards, each with its own
 // front/back lanes, all sharing one flat depth range (see
-// getShelfSlotGroups). A lower depth elsewhere in that same flat range is
-// not "in front of" this slot unless it's on the same board — a back-lane
-// bottle on the bottom board doesn't block a front-lane bottle on the board
-// above it. Returns null for anything that isn't a shelf zone, so the
-// caller's grid/bulk/box comparisons (where the whole container is one
-// stack) are unaffected.
+// getShelfSlotGroups). Returns null for anything that isn't a shelf zone.
 function shelfLevelOf(container: Container, cabinets: Cabinet[], depth: number): number | null {
   if (container.kind !== "zone") return null;
   const cabinet = cabinets.find((c) => c.id === container.cabinetId);
@@ -285,6 +289,11 @@ function shelfLevelOf(container: Container, cabinets: Cabinet[], depth: number):
 // A bottle whose drinking window is closing, stuck behind or under bottles
 // meant to be kept. No move is proposed: freeing it means two bottles trading
 // places, and writing that as one-way moves would misdescribe the rack.
+//
+// Shelf zones are excluded here: the whole board slides out on rails, so its
+// front and back lanes are equally reachable — there's no "stuck behind"
+// relationship there. A shelf's actual accessibility concern is which
+// stacked board a bottle sits on, handled separately by findWrongLevel.
 function findBuried(
   placed: { wine: Wine; container: Container }[],
   cabinets: Cabinet[],
@@ -301,16 +310,11 @@ function findBuried(
   const out: Finding[] = [];
   for (const entries of byContainer.values()) {
     if (entries.length < 2) continue;
+    if (isShelfZone(entries[0].container, cabinets)) continue;
     for (const e of entries) {
       if (!isDrinkSoon(e.wine)) continue;
       const depth = e.wine.depth || 0;
-      const myLevel = shelfLevelOf(e.container, cabinets, depth);
-      const inFront = entries.filter((o) => {
-        if ((o.wine.depth || 0) >= depth || !isKeeper(o.wine)) return false;
-        // Same shelf zone, different board: not actually in the way.
-        if (myLevel !== null && shelfLevelOf(o.container, cabinets, o.wine.depth || 0) !== myLevel) return false;
-        return true;
-      });
+      const inFront = entries.filter((o) => (o.wine.depth || 0) < depth && isKeeper(o.wine));
       if (!inFront.length) continue;
       const label = containerLabel(e.container, cabinets, language);
       const year = drinkByYear(e.wine);
@@ -327,6 +331,64 @@ function findBuried(
           { slot: depth + 1, label, n: inFront.length }
         ),
         wines: [e.wine, ...inFront.map((o) => o.wine)],
+        moves: [],
+      });
+    }
+  }
+  return out;
+}
+
+// A shelf-specific accessibility concern: when an étagère has 2+ stacked
+// boards, the lower ones are more work to reach than the higher ones (unlike
+// front vs back, which the sliding board makes equally reachable — see
+// findBuried above). Flags a bottle due soon sitting on a lower board while
+// a bottle marked to keep sits on a higher one in the same étagère.
+function findWrongLevel(
+  placed: { wine: Wine; container: Container }[],
+  cabinets: Cabinet[],
+  language?: string
+): Finding[] {
+  const byContainer = new Map<string, { wine: Wine; container: Container }[]>();
+  for (const e of placed) {
+    const ck = containerKey(e.container);
+    const list = byContainer.get(ck);
+    if (list) list.push(e);
+    else byContainer.set(ck, [e]);
+  }
+
+  const out: Finding[] = [];
+  for (const entries of byContainer.values()) {
+    const first = entries[0];
+    if (!isShelfZone(first.container, cabinets)) continue;
+    const cabinet = cabinets.find((c) => c.id === first.container.cabinetId);
+    const sr = cabinet ? storageRowFor(cabinet, first.container.zone) : undefined;
+    if (!sr || (sr.shelf_levels || []).length < 2) continue;
+
+    for (const e of entries) {
+      if (!isDrinkSoon(e.wine)) continue;
+      const myLevel = shelfLevelOf(e.container, cabinets, e.wine.depth || 0);
+      if (myLevel === null) continue;
+      const aboveKeepers = entries.filter((o) => {
+        const oLevel = shelfLevelOf(o.container, cabinets, o.wine.depth || 0);
+        return oLevel !== null && oLevel > myLevel && isKeeper(o.wine);
+      });
+      if (!aboveKeepers.length) continue;
+
+      const label = containerLabel(e.container, cabinets, language);
+      const year = drinkByYear(e.wine);
+      const name = e.wine.name || t("ui.arrangement.findings.buriedFallbackName", language);
+      out.push({
+        id: `wrongLevel:${e.wine.id}`,
+        kind: "buried",
+        title: year
+          ? t("ui.arrangement.findings.buriedTitleWithYear", language, { name, year })
+          : t("ui.arrangement.findings.buriedTitleNoYear", language, { name }),
+        detail: t(
+          aboveKeepers.length === 1 ? "ui.arrangement.findings.wrongLevelDetailOne" : "ui.arrangement.findings.wrongLevelDetailMany",
+          language,
+          { label, n: aboveKeepers.length }
+        ),
+        wines: [e.wine, ...aboveKeepers.map((o) => o.wine)],
         moves: [],
       });
     }
@@ -351,6 +413,7 @@ export function analyzeArrangement(
     ...findScatter(placed, live, cabinets, wines, language),
     ...findOutliers(placed, live, cabinets, wines, language),
     ...findBuried(placed, cabinets, language),
+    ...findWrongLevel(placed, cabinets, language),
   ]
     .filter((f) => !hidden.has(f.id))
     .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
