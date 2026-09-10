@@ -69,7 +69,23 @@
       "leaveAsIsBtn": "Laisser tel quel",
       "notedBtn": "Noté",
       "moveFailedFull": "{label} s'est rempli avant que le déplacement ait pu être enregistré.",
-      "moveRecordError": "Impossible d'enregistrer le déplacement : {detail}"
+      "moveRecordError": "Impossible d'enregistrer le déplacement : {detail}",
+      "findings": {
+        "consolidateFallbackName": "Ce vin",
+        "consolidateTitle": "{name} — {n} bouteille{plural} dans {m} endroit{placesPlural}",
+        "consolidateDetailPartial": "{targetLabel} en contient déjà {held} et peut en accueillir {movable} de plus, pas la totalité des {strays}. Regrouper ce qui rentre réduit déjà la recherche de moitié.",
+        "consolidateDetailFull": "{targetLabel} en contient déjà {held} et a de la place pour les {movable} autres.",
+        "outlierTitle": "{label} est à {pct} % de type {type}",
+        "outlierDetailOne": "Une bouteille n'appartient pas à ce groupe. Rien n'indique que ce casier est réservé au type {type} — mais c'est presque le cas.",
+        "outlierDetailMany": "{n} bouteilles n'appartiennent pas à ce groupe. Rien n'indique que ce casier est réservé au type {type} — mais c'est presque le cas.",
+        "buriedFallbackName": "Une bouteille",
+        "buriedTitleNoYear": "{name} est difficile à atteindre",
+        "buriedTitleWithYear": "{name} est à boire avant {year} mais difficile à atteindre",
+        "buriedDetailOne": "Elle se trouve à l'emplacement {slot} de {label}, derrière une bouteille à garder. Échangez-les à la main la prochaine fois que la porte est ouverte.",
+        "buriedDetailMany": "Elle se trouve à l'emplacement {slot} de {label}, derrière {n} bouteilles à garder. Échangez-les à la main la prochaine fois que la porte est ouverte.",
+        "wrongLevelDetailOne": "Elle est sur une planche plus basse de {label} qu'une bouteille à garder — la planche du haut est plus facile d'accès. Échangez-les la prochaine fois que la porte est ouverte.",
+        "wrongLevelDetailMany": "Elle est sur une planche plus basse de {label} que {n} bouteilles à garder — la planche du haut est plus facile d'accès. Échangez-les la prochaine fois que la porte est ouverte."
+      }
     },
     "barcode": {
       "notSupported": "La lecture de code-barres n'est pas prise en charge par ce navigateur. Saisissez le code-barres manuellement ci-dessous.",

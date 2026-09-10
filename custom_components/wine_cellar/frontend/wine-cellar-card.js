@@ -803,7 +803,23 @@ var ui$1 = {
 		leaveAsIsBtn: "Leave it as it is",
 		notedBtn: "Noted",
 		moveFailedFull: "{label} filled up before the move could be recorded.",
-		moveRecordError: "Could not record the move: {detail}"
+		moveRecordError: "Could not record the move: {detail}",
+		findings: {
+			consolidateFallbackName: "This wine",
+			consolidateTitle: "{name} — {n} bottle{plural} across {m} place{placesPlural}",
+			consolidateDetailPartial: "{targetLabel} holds {held} of them and has room for {movable} more, not all {strays}. Gathering what fits still cuts the search in half.",
+			consolidateDetailFull: "{targetLabel} already holds {held} of them and has room for the other {movable}.",
+			outlierTitle: "{label} is {pct}% {type}",
+			outlierDetailOne: "One bottle does not belong to that group. Nothing says this bin is only for {type} — but it nearly is.",
+			outlierDetailMany: "{n} bottles do not belong to that group. Nothing says this bin is only for {type} — but it nearly is.",
+			buriedFallbackName: "A bottle",
+			buriedTitleNoYear: "{name} is hard to reach",
+			buriedTitleWithYear: "{name} is due by {year} but hard to reach",
+			buriedDetailOne: "It sits at slot {slot} of {label}, behind a bottle marked to keep. Swap them by hand next time the door is open.",
+			buriedDetailMany: "It sits at slot {slot} of {label}, behind {n} bottles marked to keep. Swap them by hand next time the door is open.",
+			wrongLevelDetailOne: "It sits on a lower board of {label} than a bottle marked to keep — the higher board is the easier one to reach. Swap them next time the door is open.",
+			wrongLevelDetailMany: "It sits on a lower board of {label} than {n} bottles marked to keep — the higher board is the easier one to reach. Swap them next time the door is open."
+		}
 	},
 	barcode: {
 		notSupported: "Barcode scanning is not supported on this browser. Please enter the barcode manually below.",
@@ -1526,7 +1542,23 @@ var ui = {
 		leaveAsIsBtn: "Laisser tel quel",
 		notedBtn: "Noté",
 		moveFailedFull: "{label} s'est rempli avant que le déplacement ait pu être enregistré.",
-		moveRecordError: "Impossible d'enregistrer le déplacement : {detail}"
+		moveRecordError: "Impossible d'enregistrer le déplacement : {detail}",
+		findings: {
+			consolidateFallbackName: "Ce vin",
+			consolidateTitle: "{name} — {n} bouteille{plural} dans {m} endroit{placesPlural}",
+			consolidateDetailPartial: "{targetLabel} en contient déjà {held} et peut en accueillir {movable} de plus, pas la totalité des {strays}. Regrouper ce qui rentre réduit déjà la recherche de moitié.",
+			consolidateDetailFull: "{targetLabel} en contient déjà {held} et a de la place pour les {movable} autres.",
+			outlierTitle: "{label} est à {pct} % de type {type}",
+			outlierDetailOne: "Une bouteille n'appartient pas à ce groupe. Rien n'indique que ce casier est réservé au type {type} — mais c'est presque le cas.",
+			outlierDetailMany: "{n} bouteilles n'appartiennent pas à ce groupe. Rien n'indique que ce casier est réservé au type {type} — mais c'est presque le cas.",
+			buriedFallbackName: "Une bouteille",
+			buriedTitleNoYear: "{name} est difficile à atteindre",
+			buriedTitleWithYear: "{name} est à boire avant {year} mais difficile à atteindre",
+			buriedDetailOne: "Elle se trouve à l'emplacement {slot} de {label}, derrière une bouteille à garder. Échangez-les à la main la prochaine fois que la porte est ouverte.",
+			buriedDetailMany: "Elle se trouve à l'emplacement {slot} de {label}, derrière {n} bouteilles à garder. Échangez-les à la main la prochaine fois que la porte est ouverte.",
+			wrongLevelDetailOne: "Elle est sur une planche plus basse de {label} qu'une bouteille à garder — la planche du haut est plus facile d'accès. Échangez-les la prochaine fois que la porte est ouverte.",
+			wrongLevelDetailMany: "Elle est sur une planche plus basse de {label} que {n} bouteilles à garder — la planche du haut est plus facile d'accès. Échangez-les la prochaine fois que la porte est ouverte."
+		}
 	},
 	barcode: {
 		notSupported: "La lecture de code-barres n'est pas prise en charge par ce navigateur. Saisissez le code-barres manuellement ci-dessous.",
@@ -2586,18 +2618,20 @@ function containerUsage(c, cabinet, wines) {
 }
 // Human-readable name for the container itself — no slot number, since a
 // container holds several bottles.
-function containerLabel(c, cabinets) {
+function containerLabel(c, cabinets, language) {
+    const loc = tGroup("wineLocation", language);
     const cabinet = cabinets.find((cab) => cab.id === c.cabinetId);
     if (!cabinet)
-        return "Unassigned";
+        return loc.unassigned;
     if (c.kind === "bottom")
-        return `${cabinet.name} · ${cabinet.bottom_zone_name || "Storage"}`;
+        return `${cabinet.name} · ${cabinet.bottom_zone_name || loc.storage}`;
     if (c.kind === "zone") {
         const sr = storageRowFor(cabinet, c.zone);
-        return `${cabinet.name} · ${sr?.name || (sr?.type === "box" ? "Box" : sr?.type === "shelf" ? "Shelf" : "Bulk Bin")}`;
+        const typeLabels = getStorageRowTypeLabels(language);
+        return `${cabinet.name} · ${sr?.name || typeLabels[sr?.type || "bulk"]}`;
     }
     const idx = getRackSlots(cabinet).findIndex((s) => s.row === c.row && s.col === c.col);
-    const slot = idx >= 0 ? `Slot ${idx + 1}` : `R${(c.row ?? 0) + 1}C${(c.col ?? 0) + 1}`;
+    const slot = idx >= 0 ? `${loc.slot} ${idx + 1}` : `R${(c.row ?? 0) + 1}C${(c.col ?? 0) + 1}`;
     return `${cabinet.name} · ${slot}`;
 }
 // Every container in a cabinet, in the order the grid draws them: bins and
@@ -2895,7 +2929,7 @@ function dominantType(bottles) {
 }
 // Bottles of one wine scattered across several places. The fix is real work,
 // so only worth raising for a series big enough to be worth gathering.
-function findScatter(placed, live, cabinets, wines) {
+function findScatter(placed, live, cabinets, wines, language) {
     const groups = new Map();
     for (const entry of placed) {
         const k = groupKey(entry.wine);
@@ -2939,22 +2973,37 @@ function findScatter(placed, live, cabinets, wines) {
         const movable = strays.slice(0, Number.isFinite(target.free) ? target.free : strays.length);
         if (!movable.length)
             continue;
-        const targetLabel = containerLabel(target.container, cabinets);
-        const name = entries[0].wine.name || entries[0].wine.winery || "This wine";
+        const targetLabel = containerLabel(target.container, cabinets, language);
+        const name = entries[0].wine.name || entries[0].wine.winery || t("ui.arrangement.findings.consolidateFallbackName", language);
         const partial = movable.length < strays.length;
         out.push({
             id: `consolidate:${key}`,
             kind: "consolidate",
-            title: `${name} — ${entries.length} bottles across ${byContainer.size} places`,
+            title: t("ui.arrangement.findings.consolidateTitle", language, {
+                name,
+                n: entries.length,
+                plural: entries.length === 1 ? "" : "s",
+                m: byContainer.size,
+                placesPlural: byContainer.size === 1 ? "" : "s",
+            }),
             detail: partial
-                ? `${targetLabel} holds ${target.held.length} of them and has room for ${movable.length} more, not all ${strays.length}. Gathering what fits still cuts the search in half.`
-                : `${targetLabel} already holds ${target.held.length} of them and has room for the other ${movable.length}.`,
+                ? t("ui.arrangement.findings.consolidateDetailPartial", language, {
+                    targetLabel,
+                    held: target.held.length,
+                    movable: movable.length,
+                    strays: strays.length,
+                })
+                : t("ui.arrangement.findings.consolidateDetailFull", language, {
+                    targetLabel,
+                    held: target.held.length,
+                    movable: movable.length,
+                }),
             wines: entries.map((e) => e.wine),
             moves: movable.map((e) => ({
                 wine: e.wine,
                 from: e.container,
                 to: target.container,
-                fromLabel: containerLabel(e.container, cabinets),
+                fromLabel: containerLabel(e.container, cabinets, language),
                 toLabel: targetLabel,
             })),
         });
@@ -2964,7 +3013,7 @@ function findScatter(placed, live, cabinets, wines) {
 // A bin that is overwhelmingly one kind of wine, with a couple of bottles that
 // are not. The bin's purpose was never declared, but at this concentration it
 // plainly has one.
-function findOutliers(placed, live, cabinets, wines) {
+function findOutliers(placed, live, cabinets, wines, language) {
     const byContainer = new Map();
     for (const e of placed) {
         const ck = containerKey(e.container);
@@ -3009,29 +3058,56 @@ function findOutliers(placed, live, cabinets, wines) {
                 wine,
                 from: here.container,
                 to: better.container,
-                fromLabel: containerLabel(here.container, cabinets),
-                toLabel: containerLabel(better.container, cabinets),
+                fromLabel: containerLabel(here.container, cabinets, language),
+                toLabel: containerLabel(better.container, cabinets, language),
             });
         }
         if (!moves.length)
             continue;
-        const label = containerLabel(here.container, cabinets);
-        const typeName = WINE_TYPE_LABELS[dom.type] || dom.type;
+        const label = containerLabel(here.container, cabinets, language);
+        const typeName = getWineTypeLabels(language)[dom.type] || dom.type;
         out.push({
             id: `outlier:${ck}:${dom.type}`,
             kind: "outlier",
-            title: `${label} is ${Math.round(dom.share * 100)}% ${typeName}`,
-            detail: `${intruders.length === 1 ? "One bottle does" : `${intruders.length} bottles do`} not belong to that group. Nothing says this bin is only for ${typeName} — but it nearly is.`,
+            title: t("ui.arrangement.findings.outlierTitle", language, { label, pct: Math.round(dom.share * 100), type: typeName }),
+            detail: t(intruders.length === 1 ? "ui.arrangement.findings.outlierDetailOne" : "ui.arrangement.findings.outlierDetailMany", language, { n: intruders.length, type: typeName }),
             wines: intruders,
             moves,
         });
     }
     return out;
 }
+// Whether a container is a shelf zone at all — used to keep shelf slots out
+// of the generic front-to-back "buried" check below, since a shelf board
+// slides out on its own rails and doesn't have that kind of blocking.
+function isShelfZone(container, cabinets) {
+    if (container.kind !== "zone")
+        return false;
+    const cabinet = cabinets.find((c) => c.id === container.cabinetId);
+    return storageRowFor(cabinet, container.zone)?.type === "shelf";
+}
+// A shelf zone stacks several independent boards, each with its own
+// front/back lanes, all sharing one flat depth range (see
+// getShelfSlotGroups). Returns null for anything that isn't a shelf zone.
+function shelfLevelOf(container, cabinets, depth) {
+    if (container.kind !== "zone")
+        return null;
+    const cabinet = cabinets.find((c) => c.id === container.cabinetId);
+    const sr = cabinet ? storageRowFor(cabinet, container.zone) : undefined;
+    if (!sr || sr.type !== "shelf")
+        return null;
+    const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+    return group ? group.level : null;
+}
 // A bottle whose drinking window is closing, stuck behind or under bottles
 // meant to be kept. No move is proposed: freeing it means two bottles trading
 // places, and writing that as one-way moves would misdescribe the rack.
-function findBuried(placed, cabinets) {
+//
+// Shelf zones are excluded here: the whole board slides out on rails, so its
+// front and back lanes are equally reachable — there's no "stuck behind"
+// relationship there. A shelf's actual accessibility concern is which
+// stacked board a bottle sits on, handled separately by findWrongLevel.
+function findBuried(placed, cabinets, language) {
     const byContainer = new Map();
     for (const e of placed) {
         const ck = containerKey(e.container);
@@ -3045,6 +3121,8 @@ function findBuried(placed, cabinets) {
     for (const entries of byContainer.values()) {
         if (entries.length < 2)
             continue;
+        if (isShelfZone(entries[0].container, cabinets))
+            continue;
         for (const e of entries) {
             if (!isDrinkSoon(e.wine))
                 continue;
@@ -3052,14 +3130,70 @@ function findBuried(placed, cabinets) {
             const inFront = entries.filter((o) => (o.wine.depth || 0) < depth && isKeeper(o.wine));
             if (!inFront.length)
                 continue;
-            const label = containerLabel(e.container, cabinets);
+            const label = containerLabel(e.container, cabinets, language);
             const year = drinkByYear(e.wine);
+            const name = e.wine.name || t("ui.arrangement.findings.buriedFallbackName", language);
             out.push({
                 id: `buried:${e.wine.id}`,
                 kind: "buried",
-                title: `${e.wine.name || "A bottle"} is due${year ? ` by ${year}` : ""} but hard to reach`,
-                detail: `It sits at slot ${depth + 1} of ${label}, behind ${inFront.length === 1 ? "a bottle" : `${inFront.length} bottles`} marked to keep. Swap them by hand next time the door is open.`,
+                title: year
+                    ? t("ui.arrangement.findings.buriedTitleWithYear", language, { name, year })
+                    : t("ui.arrangement.findings.buriedTitleNoYear", language, { name }),
+                detail: t(inFront.length === 1 ? "ui.arrangement.findings.buriedDetailOne" : "ui.arrangement.findings.buriedDetailMany", language, { slot: depth + 1, label, n: inFront.length }),
                 wines: [e.wine, ...inFront.map((o) => o.wine)],
+                moves: [],
+            });
+        }
+    }
+    return out;
+}
+// A shelf-specific accessibility concern: when an étagère has 2+ stacked
+// boards, the lower ones are more work to reach than the higher ones (unlike
+// front vs back, which the sliding board makes equally reachable — see
+// findBuried above). Flags a bottle due soon sitting on a lower board while
+// a bottle marked to keep sits on a higher one in the same étagère.
+function findWrongLevel(placed, cabinets, language) {
+    const byContainer = new Map();
+    for (const e of placed) {
+        const ck = containerKey(e.container);
+        const list = byContainer.get(ck);
+        if (list)
+            list.push(e);
+        else
+            byContainer.set(ck, [e]);
+    }
+    const out = [];
+    for (const entries of byContainer.values()) {
+        const first = entries[0];
+        if (!isShelfZone(first.container, cabinets))
+            continue;
+        const cabinet = cabinets.find((c) => c.id === first.container.cabinetId);
+        const sr = cabinet ? storageRowFor(cabinet, first.container.zone) : undefined;
+        if (!sr || (sr.shelf_levels || []).length < 2)
+            continue;
+        for (const e of entries) {
+            if (!isDrinkSoon(e.wine))
+                continue;
+            const myLevel = shelfLevelOf(e.container, cabinets, e.wine.depth || 0);
+            if (myLevel === null)
+                continue;
+            const aboveKeepers = entries.filter((o) => {
+                const oLevel = shelfLevelOf(o.container, cabinets, o.wine.depth || 0);
+                return oLevel !== null && oLevel > myLevel && isKeeper(o.wine);
+            });
+            if (!aboveKeepers.length)
+                continue;
+            const label = containerLabel(e.container, cabinets, language);
+            const year = drinkByYear(e.wine);
+            const name = e.wine.name || t("ui.arrangement.findings.buriedFallbackName", language);
+            out.push({
+                id: `wrongLevel:${e.wine.id}`,
+                kind: "buried",
+                title: year
+                    ? t("ui.arrangement.findings.buriedTitleWithYear", language, { name, year })
+                    : t("ui.arrangement.findings.buriedTitleNoYear", language, { name }),
+                detail: t(aboveKeepers.length === 1 ? "ui.arrangement.findings.wrongLevelDetailOne" : "ui.arrangement.findings.wrongLevelDetailMany", language, { label, n: aboveKeepers.length }),
+                wines: [e.wine, ...aboveKeepers.map((o) => o.wine)],
                 moves: [],
             });
         }
@@ -3069,14 +3203,15 @@ function findBuried(placed, cabinets) {
 const KIND_ORDER = ["consolidate", "outlier", "buried"];
 // Everything the cellar's own arrangement disagrees about, minus what the user
 // has waved off for good.
-function analyzeArrangement(wines, cabinets, dismissed = []) {
+function analyzeArrangement(wines, cabinets, dismissed = [], language) {
     const live = liveContainers(cabinets);
     const placed = placedWines(wines, live);
     const hidden = new Set(dismissed);
     return [
-        ...findScatter(placed, live, cabinets, wines),
-        ...findOutliers(placed, live, cabinets, wines),
-        ...findBuried(placed, cabinets),
+        ...findScatter(placed, live, cabinets, wines, language),
+        ...findOutliers(placed, live, cabinets, wines, language),
+        ...findBuried(placed, cabinets, language),
+        ...findWrongLevel(placed, cabinets, language),
     ]
         .filter((f) => !hidden.has(f.id))
         .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
@@ -3123,7 +3258,7 @@ let ArrangementDialog = class ArrangementDialog extends i {
         return t(key, this.hass?.language, params);
     }
     get _findings() {
-        return analyzeArrangement(this.wines, this.cabinets, this.dismissed);
+        return analyzeArrangement(this.wines, this.cabinets, this.dismissed, this.hass?.language);
     }
     // Apply every move in a finding, then tell the card to reload. Moves are
     // sequential on purpose: each one consumes a slot the next one might have
@@ -15579,7 +15714,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._findingsCache.dismissed === this._dismissedArrangements) {
             return this._findingsCache.findings;
         }
-        const findings = analyzeArrangement(this._wines, this._cabinets, this._dismissedArrangements);
+        const findings = analyzeArrangement(this._wines, this._cabinets, this._dismissedArrangements, this.hass?.language);
         this._findingsCache = {
             wines: this._wines,
             cabinets: this._cabinets,

@@ -2014,7 +2014,8 @@ export class WineCellarCard extends LitElement {
     const findings = analyzeArrangement(
       this._wines,
       this._cabinets,
-      this._dismissedArrangements
+      this._dismissedArrangements,
+      this.hass?.language
     );
     this._findingsCache = {
       wines: this._wines,
