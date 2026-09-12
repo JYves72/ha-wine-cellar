@@ -1192,7 +1192,7 @@ export class CabinetGrid extends LitElement {
           return html`
             <div
               class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
-              style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
+              style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor};${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
@@ -1266,7 +1266,7 @@ export class CabinetGrid extends LitElement {
     return html`
       <div
         class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""}"
-        style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor}${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
+        style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor};${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
