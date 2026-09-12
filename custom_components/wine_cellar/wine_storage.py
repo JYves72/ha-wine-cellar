@@ -269,11 +269,13 @@ class WineCellarStorage:
                     if key != "id":
                         wine[key] = value
                 # A caller setting disposition without also setting its
-                # source is Gemini AI or a human, not the date-based
-                # auto-recompute (disposition.py writes disposition_source
-                # itself, bypassing this method). Clear the marker so the
-                # nightly recompute treats this wine as already classified
-                # and never overwrites it again.
+                # source is Gemini AI, not the date-based auto-recompute
+                # (disposition.py writes disposition_source itself,
+                # bypassing this method) — clear the marker so it accurately
+                # reflects that this value didn't come from that module.
+                # Purely informational now (see disposition.py's docstring):
+                # nothing gates on it any more, recompute_all() and this
+                # method's own elif below both always recompute regardless.
                 if "disposition" in updates and "disposition_source" not in updates:
                     wine.pop("disposition_source", None)
                 elif (
@@ -283,16 +285,6 @@ class WineCellarStorage:
                     # The drinking window itself just changed — recompute the
                     # D/H/P badge right away to match instead of waiting for
                     # the next startup/daily recompute (disposition.py).
-                    # Unlike that scheduled job (which must never second-guess
-                    # a Gemini- or human-assigned disposition on its own
-                    # initiative, and stays gated on disposition_source), an
-                    # explicit edit to the date is itself the signal to
-                    # recompute — every real caller that reaches this branch
-                    # (the detail dialog's manual edit, and its propagation to
-                    # duplicate bottles) is exactly that, never a background
-                    # pass. Every AI/Vivino path sets `disposition` in the
-                    # same call whenever it touches these fields, so it never
-                    # reaches here at all.
                     wine["disposition"] = compute_disposition(wine)
                     wine["disposition_source"] = DISPOSITION_SOURCE_AUTO
                 return wine

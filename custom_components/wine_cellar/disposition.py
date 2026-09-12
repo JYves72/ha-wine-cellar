@@ -1,17 +1,24 @@
 """Compute the drink-now / hold / past-peak badge shown on the rack view.
 
 Cork Dork's ``disposition`` field ("D" / "H" / "P" / "") drives the small
-colored badge on ``wine-cellar-card`` in the frontend. Upstream only ever
-sets this field from the optional Gemini AI label-analysis feature
-(``gemini.py``); a cellar without a Gemini API key configured never gets a
-badge on any bottle, no matter how the free-text ``drink_window``/``drink_by``
-fields read.
+colored badge (or ring) on ``wine-cellar-card`` in the frontend.
 
-This module adds a second, independent way to populate ``disposition``: a
-pure date-based computation from the wine's own recorded drinking window.
-It never overwrites a value that Gemini (or a human) set directly — see
-``disposition_source`` below — so it's safe to enable even on a cellar that
-also uses the Gemini feature.
+``disposition`` is always a pure function of the wine's own recorded
+``drink_by``/``drink_window`` and today's date — see ``compute_disposition``
+below — recomputed on every Home Assistant startup, once a day, and
+whenever those fields are edited (``wine_storage.py``'s ``update_wine``).
+There is no UI path for a human to pick D/H/P directly, and Gemini AI
+(``gemini.py``) always sets ``disposition`` together with ``drink_by``/
+``drink_window`` in the same call, so this recompute isn't overriding a
+separate judgment — it's just keeping the badge in sync with whatever
+window is actually on the wine right now. An earlier version of this
+module tried to "protect" a disposition set some other way by never
+touching it again once `disposition_source` wasn't "auto" — in practice
+that meant any wine ever touched by AI, or predating this feature, got
+permanently frozen at whatever it first computed to, drifting wrong as
+the calendar moved on. Given there's nothing else to protect it from,
+that gate was removed: disposition_source now only records that this
+module computed the value, not a permission check on future recomputes.
 
 Rule (as of 20 Aug 2026, chosen by the cellar owner after trying a broader
 version first):
@@ -46,10 +53,11 @@ DISPOSITION_DRINK_NOW = "D"
 DISPOSITION_HOLD = "H"
 DISPOSITION_PAST_PEAK = "P"
 
-# Marks a wine whose `disposition` this module is allowed to keep managing.
-# Set the first time we assign a disposition to a wine that didn't already
-# have a Gemini- or human-assigned one. Any wine with a truthy `disposition`
-# and a `disposition_source` other than "auto" is left alone forever.
+# Marks a wine's `disposition` as having been set by this module (as
+# opposed to Gemini AI, which writes its own value straight to storage
+# without this marker). Purely informational at this point — see the
+# module docstring — kept so a future feature that does need to tell the
+# two apart doesn't have to re-add the bookkeeping.
 DISPOSITION_SOURCE_AUTO = "auto"
 
 
@@ -86,24 +94,19 @@ def compute_disposition(wine: dict[str, Any], *, current_year: int | None = None
 
 
 def recompute_all(wines: list[dict[str, Any]], *, current_year: int | None = None) -> int:
-    """Recompute `disposition` in place for every eligible wine.
+    """Recompute `disposition` in place for every wine.
 
-    A wine is eligible if it has never been classified (`disposition` is
-    falsy) or if this module set its current value (`disposition_source`
-    == "auto"). Anything else - notably a Gemini AI classification, or a
-    value a human typed in directly - is left untouched.
+    Unconditional: every wine's `disposition` is set to whatever
+    `compute_disposition` says right now, regardless of what it was before
+    or how it got there — see the module docstring for why there's nothing
+    left worth protecting it from.
 
     Returns the number of wines whose `disposition` changed.
     """
     changed = 0
     for wine in wines:
-        current = wine.get("disposition") or ""
-        source = wine.get("disposition_source") or ""
-        if current and source != DISPOSITION_SOURCE_AUTO:
-            continue
-
         new_value = compute_disposition(wine, current_year=current_year)
-        if wine.get("disposition") != new_value or source != DISPOSITION_SOURCE_AUTO:
+        if wine.get("disposition") != new_value or wine.get("disposition_source") != DISPOSITION_SOURCE_AUTO:
             wine["disposition"] = new_value
             wine["disposition_source"] = DISPOSITION_SOURCE_AUTO
             changed += 1
