@@ -39,7 +39,6 @@ from .const import (
     DEFAULT_VIVINO_MODE,
     DOMAIN,
     VIVINO_MODES,
-    WINE_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,16 +99,6 @@ class WineCellarOptionsFlow(OptionsFlow):
             errors=errors,
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
-                        "default_wine_type",
-                        default=current.get("default_wine_type", "red"),
-                    ): SelectSelector(
-                        SelectSelectorConfig(
-                            options=WINE_TYPES,
-                            translation_key="wine_type",
-                            mode=SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
                     vol.Optional(
                         CONF_AI_PROVIDER,
                         default=current.get(CONF_AI_PROVIDER, DEFAULT_AI_PROVIDER),

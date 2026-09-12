@@ -46,6 +46,7 @@ export class AddWineDialog extends LitElement {
   @property({ attribute: false }) preselectedDepth: number = 0;
   @property({ type: Boolean }) buyListMode = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: String }) defaultWineType: WineType = "red";
 
   @state() private _step: Step = "scan";
   @state() private _scanMode: ScanMode = "idle";
@@ -600,7 +601,7 @@ export class AddWineDialog extends LitElement {
         this._wineData = {
           name: "",
           winery: "",
-          type: "red",
+          type: this.defaultWineType,
           vintage: null,
           region: "",
           country: "",

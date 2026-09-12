@@ -88,6 +88,7 @@ export class WineCellarCard extends LitElement {
   @state() private _supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
   @state() private _aiFallbackAlways = false;
   @state() private _enableWhisky = false;
+  @state() private _defaultWineType: WineType = "red";
   @state() private _dispositionDisplay: "letter" | "dot" = "letter";
   @state() private _showVivinoAiSettings = false;
   @state() private _showWineList = false;
@@ -676,6 +677,7 @@ export class WineCellarCard extends LitElement {
       this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
       this._enableWhisky = capResult?.enable_whisky || false;
+      this._defaultWineType = capResult?.default_wine_type || "red";
       this._dispositionDisplay = capResult?.disposition_display || "letter";
       this._dismissedArrangements = capResult?.dismissed_arrangements || [];
       this._buyList = buyListResult?.buy_list || [];
@@ -2116,6 +2118,21 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  private async _setDefaultWineType(value: WineType) {
+    if (value === this._defaultWineType) return;
+    const previous = this._defaultWineType;
+    this._defaultWineType = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { default_wine_type: value },
+      });
+    } catch (err) {
+      this._defaultWineType = previous;
+      this._showToast(this._t("toast.changeDefaultWineTypeFailed"));
+    }
+  }
+
   private async _setDispositionDisplay(value: "letter" | "dot") {
     if (value === this._dispositionDisplay) return;
     const previous = this._dispositionDisplay;
@@ -3107,6 +3124,7 @@ export class WineCellarCard extends LitElement {
           .preselectedDepth=${this._addPreselect.depth || 0}
           .buyListMode=${this._addToBuyListMode}
           .enableWhisky=${this._enableWhisky}
+          .defaultWineType=${this._defaultWineType}
           @close=${() => { this._showAddDialog = false; this._addToBuyListMode = false; }}
           @wine-added=${this._onWineAdded}
           @buy-list-updated=${() => this._loadData()}
@@ -3182,6 +3200,7 @@ export class WineCellarCard extends LitElement {
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .enableWhisky=${this._enableWhisky}
+          .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
@@ -3190,6 +3209,7 @@ export class WineCellarCard extends LitElement {
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
           @set-enable-whisky=${(e: CustomEvent) => this._setEnableWhisky(e.detail.value)}
+          @set-default-wine-type=${(e: CustomEvent) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e: CustomEvent) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e: CustomEvent) => this._setMetadataLanguage(e.detail.value)}
           @set-metadata-currency=${(e: CustomEvent) => this._setMetadataCurrency(e.detail.value)}

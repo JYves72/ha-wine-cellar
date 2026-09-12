@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { WineType, getSelectableWineTypes } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
@@ -9,6 +10,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: String }) defaultWineType: WineType = "red";
   @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
   @property({ type: String }) metadataLanguage = "en";
   @property({ attribute: false }) supportedLanguages: string[] = ["en", "fr", "de"];
@@ -55,6 +57,15 @@ export class VivinoAiSettingsDialog extends LitElement {
         background: var(--wc-primary-text);
         color: #fff;
         border-color: var(--wc-primary-text);
+      }
+
+      .settings-select {
+        padding: 3px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--wc-border);
+        background: var(--wc-bg);
+        color: var(--wc-text);
+        font-size: 0.9em;
       }
 
       .fallback-label {
@@ -122,6 +133,10 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
   }
 
+  private _setDefaultWineType(value: WineType) {
+    this.dispatchEvent(new CustomEvent("set-default-wine-type", { detail: { value } }));
+  }
+
   private _setDispositionDisplay(value: "letter" | "dot") {
     this.dispatchEvent(new CustomEvent("set-disposition-display", { detail: { value } }));
   }
@@ -149,22 +164,24 @@ export class VivinoAiSettingsDialog extends LitElement {
             <label class="fallback-label">
               <input
                 type="checkbox"
-                .checked=${this.aiFallbackAlways}
-                @change=${(e: Event) => this._setFallback((e.target as HTMLInputElement).checked)}
-              />
-              ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
-            </label>
-          </div>
-
-          <div class="settings-row">
-            <label class="fallback-label">
-              <input
-                type="checkbox"
                 .checked=${this.enableWhisky}
                 @change=${(e: Event) => this._setEnableWhisky((e.target as HTMLInputElement).checked)}
               />
               ${this._t("ui.vivinoAiSettings.enableWhisky")}
             </label>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.defaultWineTypeLabel")}</span>
+            <select
+              class="settings-select"
+              .value=${this.defaultWineType}
+              @change=${(e: Event) => this._setDefaultWineType((e.target as HTMLSelectElement).value as WineType)}
+            >
+              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(([value, label]) => html`
+                <option value=${value} ?selected=${value === this.defaultWineType}>${label}</option>
+              `)}
+            </select>
           </div>
 
           <div class="settings-row">
@@ -182,6 +199,18 @@ export class VivinoAiSettingsDialog extends LitElement {
           </div>
 
           <div class="settings-row">
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
+            <div class="pill-group">
+              ${this.supportedCurrencies.map((cur) => html`
+                <button
+                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
+                  @click=${() => this._setCurrency(cur)}
+                >${cur}</button>
+              `)}
+            </div>
+          </div>
+
+          <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
             <div class="pill-group">
               ${this.supportedLanguages.map((lang) => html`
@@ -194,15 +223,14 @@ export class VivinoAiSettingsDialog extends LitElement {
           </div>
 
           <div class="settings-row">
-            <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedCurrencies.map((cur) => html`
-                <button
-                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
-                  @click=${() => this._setCurrency(cur)}
-                >${cur}</button>
-              `)}
-            </div>
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.aiFallbackAlways}
+                @change=${(e: Event) => this._setFallback((e.target as HTMLInputElement).checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
+            </label>
           </div>
 
           <div class="info-section">

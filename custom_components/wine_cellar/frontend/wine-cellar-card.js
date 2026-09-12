@@ -894,7 +894,7 @@ var ui$1 = {
 		unassignedSectionHeader: "📦 Unassigned ({n})",
 		buyListTab: "Buy List ({n})",
 		manageRacks: "Manage Racks",
-		vivinoAiSettings: "⚙️ Vivino/AI Settings",
+		vivinoAiSettings: "⚙️ Settings",
 		buyListEmpty: "Your buy list is empty",
 		buyListEmptyHint: "Use 🛒 Buy List in Add Wine, or 🛒 Buy in the list scanner",
 		moveToCellar: "Move to cellar",
@@ -1327,12 +1327,13 @@ var ui$1 = {
 		dialogTitleDeleteConfirm: "Delete Rack?"
 	},
 	vivinoAiSettings: {
-		title: "Vivino / AI Settings",
+		title: "Settings",
 		alwaysTryAi: "Always try AI when Vivino finds no match",
 		enableWhisky: "Track whisky bottles (offer \"Whisky\" as a type)",
-		dispositionDisplayLabel: "Drink/Hold badge",
-		dispositionDisplayLetter: "Letter",
-		dispositionDisplayDot: "Color only",
+		defaultWineTypeLabel: "Default wine type",
+		dispositionDisplayLabel: "Drink Now / Hold / Past Peak display",
+		dispositionDisplayLetter: "Badge with letter",
+		dispositionDisplayDot: "Colored circle",
 		languageLabel: "Vivino/AI language",
 		currencyLabel: "Currency",
 		infoTitle: "Vivino vs AI — What Each Provides",
@@ -1434,6 +1435,7 @@ var toast$1 = {
 	changeAiFallbackFailed: "Failed to change AI fallback setting",
 	changeEnableWhiskyFailed: "Failed to change the whisky setting",
 	changeDispositionDisplayFailed: "Failed to change the disposition badge setting",
+	changeDefaultWineTypeFailed: "Failed to change the default wine type",
 	vivinoRefreshing: "Refreshing all wines from Vivino...",
 	vivinoBatchFailedError: "Vivino Batch failed: {error}",
 	vivinoBatchComplete: "Vivino Batch complete! {updated}/{total} updated",
@@ -1637,7 +1639,7 @@ var ui = {
 		unassignedSectionHeader: "📦 Non assignés ({n})",
 		buyListTab: "Liste d'achat ({n})",
 		manageRacks: "Gérer les racks",
-		vivinoAiSettings: "⚙️ Paramètres Vivino/IA",
+		vivinoAiSettings: "⚙️ Paramètres",
 		buyListEmpty: "Votre liste d'achat est vide",
 		buyListEmptyHint: "Utilisez 🛒 Liste d'achat dans Ajouter un vin, ou 🛒 Acheter dans le scanner de liste",
 		moveToCellar: "Déplacer vers la cave",
@@ -2070,12 +2072,13 @@ var ui = {
 		dialogTitleDeleteConfirm: "Supprimer le rack ?"
 	},
 	vivinoAiSettings: {
-		title: "Paramètres Vivino / IA",
+		title: "Paramètres",
 		alwaysTryAi: "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
 		enableWhisky: "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
-		dispositionDisplayLabel: "Pastille à boire/à garder",
-		dispositionDisplayLetter: "Lettre",
-		dispositionDisplayDot: "Couleur seule",
+		defaultWineTypeLabel: "Type de vin par défaut",
+		dispositionDisplayLabel: "Affichage à boire/à garder/sur le déclin",
+		dispositionDisplayLetter: "Pastille avec lettre",
+		dispositionDisplayDot: "Cercle de couleur",
 		languageLabel: "Langue Vivino/IA",
 		currencyLabel: "Devise",
 		infoTitle: "Vivino vs IA — Ce que chacun fournit",
@@ -2177,6 +2180,7 @@ var toast = {
 	changeAiFallbackFailed: "Échec du changement du paramètre de secours IA",
 	changeEnableWhiskyFailed: "Échec du changement du paramètre whisky",
 	changeDispositionDisplayFailed: "Échec du changement d'affichage de la pastille",
+	changeDefaultWineTypeFailed: "Échec du changement du type de vin par défaut",
 	vivinoRefreshing: "Rafraîchissement de tous les vins depuis Vivino...",
 	vivinoBatchFailedError: "Échec de l'analyse Vivino groupée : {error}",
 	vivinoBatchComplete: "Analyse Vivino groupée terminée ! {updated}/{total} mis à jour",
@@ -7360,6 +7364,7 @@ let AddWineDialog = class AddWineDialog extends i {
         this.preselectedDepth = 0;
         this.buyListMode = false;
         this.enableWhisky = false;
+        this.defaultWineType = "red";
         this._step = "scan";
         this._scanMode = "idle";
         this._barcode = "";
@@ -7407,7 +7412,7 @@ let AddWineDialog = class AddWineDialog extends i {
                 this._wineData = {
                     name: "",
                     winery: "",
-                    type: "red",
+                    type: this.defaultWineType,
                     vintage: null,
                     region: "",
                     country: "",
@@ -9000,6 +9005,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], AddWineDialog.prototype, "enableWhisky", void 0);
+__decorate([
+    n({ type: String })
+], AddWineDialog.prototype, "defaultWineType", void 0);
 __decorate([
     r()
 ], AddWineDialog.prototype, "_step", void 0);
@@ -14028,6 +14036,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.open = false;
         this.aiFallbackAlways = false;
         this.enableWhisky = false;
+        this.defaultWineType = "red";
         this.dispositionDisplay = "letter";
         this.metadataLanguage = "en";
         this.supportedLanguages = ["en", "fr", "de"];
@@ -14046,6 +14055,9 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setEnableWhisky(value) {
         this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
+    }
+    _setDefaultWineType(value) {
+        this.dispatchEvent(new CustomEvent("set-default-wine-type", { detail: { value } }));
     }
     _setDispositionDisplay(value) {
         this.dispatchEvent(new CustomEvent("set-disposition-display", { detail: { value } }));
@@ -14071,22 +14083,24 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
             <label class="fallback-label">
               <input
                 type="checkbox"
-                .checked=${this.aiFallbackAlways}
-                @change=${(e) => this._setFallback(e.target.checked)}
-              />
-              ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
-            </label>
-          </div>
-
-          <div class="settings-row">
-            <label class="fallback-label">
-              <input
-                type="checkbox"
                 .checked=${this.enableWhisky}
                 @change=${(e) => this._setEnableWhisky(e.target.checked)}
               />
               ${this._t("ui.vivinoAiSettings.enableWhisky")}
             </label>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.defaultWineTypeLabel")}</span>
+            <select
+              class="settings-select"
+              .value=${this.defaultWineType}
+              @change=${(e) => this._setDefaultWineType(e.target.value)}
+            >
+              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(([value, label]) => b `
+                <option value=${value} ?selected=${value === this.defaultWineType}>${label}</option>
+              `)}
+            </select>
           </div>
 
           <div class="settings-row">
@@ -14104,6 +14118,18 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
           </div>
 
           <div class="settings-row">
+            <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
+            <div class="pill-group">
+              ${this.supportedCurrencies.map((cur) => b `
+                <button
+                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
+                  @click=${() => this._setCurrency(cur)}
+                >${cur}</button>
+              `)}
+            </div>
+          </div>
+
+          <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
             <div class="pill-group">
               ${this.supportedLanguages.map((lang) => b `
@@ -14116,15 +14142,14 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
           </div>
 
           <div class="settings-row">
-            <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedCurrencies.map((cur) => b `
-                <button
-                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
-                  @click=${() => this._setCurrency(cur)}
-                >${cur}</button>
-              `)}
-            </div>
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.aiFallbackAlways}
+                @change=${(e) => this._setFallback(e.target.checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
+            </label>
           </div>
 
           <div class="info-section">
@@ -14209,6 +14234,15 @@ VivinoAiSettingsDialog.styles = [
         border-color: var(--wc-primary-text);
       }
 
+      .settings-select {
+        padding: 3px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--wc-border);
+        background: var(--wc-bg);
+        color: var(--wc-text);
+        font-size: 0.9em;
+      }
+
       .fallback-label {
         display: flex;
         align-items: center;
@@ -14268,6 +14302,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], VivinoAiSettingsDialog.prototype, "enableWhisky", void 0);
+__decorate([
+    n({ type: String })
+], VivinoAiSettingsDialog.prototype, "defaultWineType", void 0);
 __decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "dispositionDisplay", void 0);
@@ -14350,6 +14387,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
         this._aiFallbackAlways = false;
         this._enableWhisky = false;
+        this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
         this._showVivinoAiSettings = false;
         this._showWineList = false;
@@ -14524,6 +14562,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
             this._enableWhisky = capResult?.enable_whisky || false;
+            this._defaultWineType = capResult?.default_wine_type || "red";
             this._dispositionDisplay = capResult?.disposition_display || "letter";
             this._dismissedArrangements = capResult?.dismissed_arrangements || [];
             this._buyList = buyListResult?.buy_list || [];
@@ -15891,6 +15930,22 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.changeEnableWhiskyFailed"));
         }
     }
+    async _setDefaultWineType(value) {
+        if (value === this._defaultWineType)
+            return;
+        const previous = this._defaultWineType;
+        this._defaultWineType = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { default_wine_type: value },
+            });
+        }
+        catch (err) {
+            this._defaultWineType = previous;
+            this._showToast(this._t("toast.changeDefaultWineTypeFailed"));
+        }
+    }
     async _setDispositionDisplay(value) {
         if (value === this._dispositionDisplay)
             return;
@@ -16854,6 +16909,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .preselectedDepth=${this._addPreselect.depth || 0}
           .buyListMode=${this._addToBuyListMode}
           .enableWhisky=${this._enableWhisky}
+          .defaultWineType=${this._defaultWineType}
           @close=${() => { this._showAddDialog = false; this._addToBuyListMode = false; }}
           @wine-added=${this._onWineAdded}
           @buy-list-updated=${() => this._loadData()}
@@ -16929,6 +16985,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .enableWhisky=${this._enableWhisky}
+          .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
           .metadataLanguage=${this._metadataLanguage}
           .supportedLanguages=${this._supportedLanguages}
@@ -16937,6 +16994,7 @@ let WineCellarCard = class WineCellarCard extends i {
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
           @set-enable-whisky=${(e) => this._setEnableWhisky(e.detail.value)}
+          @set-default-wine-type=${(e) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e) => this._setMetadataLanguage(e.detail.value)}
           @set-metadata-currency=${(e) => this._setMetadataCurrency(e.detail.value)}
@@ -17966,6 +18024,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_enableWhisky", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_defaultWineType", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_dispositionDisplay", void 0);

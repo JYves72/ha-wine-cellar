@@ -99,6 +99,13 @@ CONF_AI_FALLBACK_ALWAYS = "ai_fallback_always"
 # correctly either way — this only gates what's offered, not what's stored.
 CONF_ENABLE_WHISKY = "enable_whisky"
 
+# Which wine type the add-wine form starts on. Moved here (an in-card
+# setting) from Home Assistant's own config/options flow, which is a
+# better fit for account/connection-level settings (API keys, Vivino
+# cookie) than a per-cellar display preference like this one.
+CONF_DEFAULT_WINE_TYPE = "default_wine_type"
+DEFAULT_WINE_TYPE = "red"
+
 # How the drink/hold/past-peak disposition is drawn on a bottle: "letter"
 # (default) is the classic D/H/P badge; "dot" is a plain colored circle with
 # no letter (green/blue/purple) for a subtler look.

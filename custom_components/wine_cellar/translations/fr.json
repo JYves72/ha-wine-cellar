@@ -17,7 +17,6 @@
         "title": "Options de Cork Dork",
         "description": "Pour synchroniser votre cave Vivino, collez l'URL de la page de votre cave ainsi que votre cookie de session Vivino (voir la documentation : docs/vivino-import.md). Le cookie est vérifié par rapport à votre cave lors de l'enregistrement.",
         "data": {
-          "default_wine_type": "Type de vin par défaut pour les nouvelles entrées",
           "ai_provider": "Fournisseur IA",
           "gemini_api_key": "Clé API Google Gemini (utilisée si le fournisseur est Google Gemini)",
           "gemini_model": "Nom du modèle Gemini",
@@ -49,16 +48,6 @@
     }
   },
   "selector": {
-    "wine_type": {
-      "options": {
-        "red": "Rouge",
-        "white": "Blanc",
-        "rosé": "Rosé",
-        "sparkling": "Pétillant",
-        "dessert": "Sucré",
-        "whisky": "Whisky"
-      }
-    },
     "vivino_mode": {
       "options": {
         "import": "Import (à sens unique — n'écrit jamais dans Vivino)",
