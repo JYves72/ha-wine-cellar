@@ -758,7 +758,8 @@ var bottleFields$1 = {
 var storageRowType$1 = {
 	bulk: "Bulk Bin",
 	box: "Wine Box",
-	shelf: "Shelf (Front/Back)"
+	shelf: "Shelf (Front/Back)",
+	stepped: "Compressor Shelf"
 };
 var removalReason$1 = {
 	drank: "Drank",
@@ -927,6 +928,7 @@ var ui$1 = {
 		rackPanelBottlesCount: "{n}/{max} bottles",
 		boxHeader: "Box {n} ({size}-pack)",
 		shelfGroupHeader: "Board {n} · {lane}",
+		steppedGroupHeader: "Row {n}",
 		shelfFront: "Front",
 		shelfBack: "Back",
 		deepSuffix: "{n} deep",
@@ -1303,6 +1305,10 @@ var ui$1 = {
 		shelfNamePlaceholder: "Shelf {n}",
 		bulkCapacityLabel: "Bottles",
 		boxCountLabel: "Boxes",
+		steppedZoneLabel: "Add a compressor shelf at the bottom",
+		steppedZoneHint: "For the shallow, single-depth area above a fridge's compressor bump. The bottom row holds a set number of bottles; each row above it holds one fewer, nested between the bottles below.",
+		steppedFirstRowLabel: "Bottom row bottles",
+		steppedRowCountLabel: "Number of rows",
 		rowsLabel: "Rows",
 		columnsLabel: "Columns",
 		depthLabel: "Depth",
@@ -1503,7 +1509,8 @@ var bottleFields = {
 var storageRowType = {
 	bulk: "Casier en vrac",
 	box: "Caisse à vin",
-	shelf: "Étagère (avant/arrière)"
+	shelf: "Étagère (avant/arrière)",
+	stepped: "Étagère compresseur"
 };
 var removalReason = {
 	drank: "Bue",
@@ -1672,6 +1679,7 @@ var ui = {
 		rackPanelBottlesCount: "{n}/{max} bouteilles",
 		boxHeader: "Caisse {n} ({size} bouteilles)",
 		shelfGroupHeader: "Planche {n} · {lane}",
+		steppedGroupHeader: "Rangée {n}",
 		shelfFront: "Avant",
 		shelfBack: "Arrière",
 		deepSuffix: "{n} en profondeur",
@@ -2048,6 +2056,10 @@ var ui = {
 		shelfNamePlaceholder: "Étagère {n}",
 		bulkCapacityLabel: "Bouteilles",
 		boxCountLabel: "Caisses",
+		steppedZoneLabel: "Ajouter une étagère compresseur en bas",
+		steppedZoneHint: "Pour la zone peu profonde et à profondeur unique au-dessus de la bosse du compresseur du frigo. La rangée du bas contient un nombre défini de bouteilles ; chaque rangée au-dessus en contient une de moins, nichée entre les bouteilles du bas.",
+		steppedFirstRowLabel: "Bouteilles en rangée du bas",
+		steppedRowCountLabel: "Nombre de rangées",
 		rowsLabel: "Lignes",
 		columnsLabel: "Colonnes",
 		depthLabel: "Profondeur",
@@ -2289,6 +2301,29 @@ function getStorageRowTypeLabels(language) {
     return tGroup("storageRowType", language);
 }
 const BOX_SIZES = [1, 3, 6, 12, 24];
+// The bottom row holds `firstRow` bottles; every row stacked above it nests
+// into the gaps left by the row below, holding one fewer — and stays at
+// that count for any further rows, rather than continuing to taper off.
+function getSteppedLevels(firstRow, rows) {
+    const first = Math.max(0, firstRow);
+    const count = Math.max(1, rows);
+    return Array.from({ length: count }, (_, i) => (i === 0 ? first : Math.max(0, first - 1)));
+}
+// Flattens a stepped zone's levels into (level, depth-range) groups, mirroring
+// getShelfSlotGroups above but with a single lane per level. The backend's
+// WineCellarStorage._storage_row_capacity sums the same levels in the same
+// order, so the two must stay in step if this ever changes.
+function getSteppedSlotGroups(levels) {
+    const groups = [];
+    let offset = 0;
+    for (let level = 0; level < (levels?.length || 0); level++) {
+        const size = levels[level];
+        if (size > 0)
+            groups.push({ level, start: offset, size });
+        offset += size;
+    }
+    return groups;
+}
 // Flattens a shelf's levels into (level, lane) groups with their depth-index
 // range, bottom-to-top, front-then-back within each level. This ordering is
 // the single source of truth for how a flat `wine.depth` index maps onto a
@@ -2572,6 +2607,9 @@ function zoneCapacity(sr) {
     }
     if (sr.type === "shelf") {
         return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0) || sr.capacity || 0;
+    }
+    if (sr.type === "stepped") {
+        return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0) || sr.capacity || 0;
     }
     return sr.capacity || 0;
 }
@@ -3096,36 +3134,48 @@ function findOutliers(placed, live, cabinets, wines, language) {
     }
     return out;
 }
-// Whether a container is a shelf zone at all — used to keep shelf slots out
-// of the generic front-to-back "buried" check below, since a shelf board
-// slides out on its own rails and doesn't have that kind of blocking.
-function isShelfZone(container, cabinets) {
+// Whether a container has physically fixed, individually reachable slots
+// (a shelf's boards, or a stepped compressor zone's single-depth rows) —
+// used to keep them out of the generic front-to-back "buried" check below,
+// since neither has anything a bottle could sit "behind" the way a bulk
+// bin's pile does.
+function isLeveledZone(container, cabinets) {
     if (container.kind !== "zone")
         return false;
     const cabinet = cabinets.find((c) => c.id === container.cabinetId);
-    return storageRowFor(cabinet, container.zone)?.type === "shelf";
+    const type = storageRowFor(cabinet, container.zone)?.type;
+    return type === "shelf" || type === "stepped";
 }
 // A shelf zone stacks several independent boards, each with its own
-// front/back lanes, all sharing one flat depth range (see
-// getShelfSlotGroups). Returns null for anything that isn't a shelf zone.
-function shelfLevelOf(container, cabinets, depth) {
+// front/back lanes; a stepped zone stacks several single-depth rows —
+// both share one flat depth range per zone (see getShelfSlotGroups /
+// getSteppedSlotGroups). Returns null for anything else.
+function levelOf(container, cabinets, depth) {
     if (container.kind !== "zone")
         return null;
     const cabinet = cabinets.find((c) => c.id === container.cabinetId);
     const sr = cabinet ? storageRowFor(cabinet, container.zone) : undefined;
-    if (!sr || sr.type !== "shelf")
+    if (!sr)
         return null;
-    const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
-    return group ? group.level : null;
+    if (sr.type === "shelf") {
+        const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+        return group ? group.level : null;
+    }
+    if (sr.type === "stepped") {
+        const group = getSteppedSlotGroups(sr.stepped_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+        return group ? group.level : null;
+    }
+    return null;
 }
 // A bottle whose drinking window is closing, stuck behind or under bottles
 // meant to be kept. No move is proposed: freeing it means two bottles trading
 // places, and writing that as one-way moves would misdescribe the rack.
 //
-// Shelf zones are excluded here: the whole board slides out on rails, so its
-// front and back lanes are equally reachable — there's no "stuck behind"
-// relationship there. A shelf's actual accessibility concern is which
-// stacked board a bottle sits on, handled separately by findWrongLevel.
+// Shelf and stepped zones are excluded here: a shelf board slides out on
+// rails (front/back lanes are equally reachable) and a stepped zone is only
+// ever one bottle deep — neither has anything a bottle sits "behind". Their
+// actual accessibility concern is which stacked level a bottle sits on,
+// handled separately by findWrongLevel.
 function findBuried(placed, cabinets, language) {
     const byContainer = new Map();
     for (const e of placed) {
@@ -3140,7 +3190,7 @@ function findBuried(placed, cabinets, language) {
     for (const entries of byContainer.values()) {
         if (entries.length < 2)
             continue;
-        if (isShelfZone(entries[0].container, cabinets))
+        if (isLeveledZone(entries[0].container, cabinets))
             continue;
         for (const e of entries) {
             if (!isDrinkSoon(e.wine))
@@ -3166,11 +3216,12 @@ function findBuried(placed, cabinets, language) {
     }
     return out;
 }
-// A shelf-specific accessibility concern: when an étagère has 2+ stacked
-// boards, the lower ones are more work to reach than the higher ones (unlike
-// front vs back, which the sliding board makes equally reachable — see
-// findBuried above). Flags a bottle due soon sitting on a lower board while
-// a bottle marked to keep sits on a higher one in the same étagère.
+// A leveled-zone accessibility concern: when a shelf has 2+ stacked boards,
+// or a stepped compressor zone has 2+ stacked rows, the lower ones are more
+// work to reach than the higher ones (unlike front vs back on a shelf, which
+// the sliding board makes equally reachable — see findBuried above). Flags a
+// bottle due soon sitting on a lower level while a bottle marked to keep sits
+// on a higher one in the same zone.
 function findWrongLevel(placed, cabinets, language) {
     const byContainer = new Map();
     for (const e of placed) {
@@ -3184,20 +3235,25 @@ function findWrongLevel(placed, cabinets, language) {
     const out = [];
     for (const entries of byContainer.values()) {
         const first = entries[0];
-        if (!isShelfZone(first.container, cabinets))
+        if (!isLeveledZone(first.container, cabinets))
             continue;
         const cabinet = cabinets.find((c) => c.id === first.container.cabinetId);
         const sr = cabinet ? storageRowFor(cabinet, first.container.zone) : undefined;
-        if (!sr || (sr.shelf_levels || []).length < 2)
+        const levelCount = sr?.type === "shelf"
+            ? (sr.shelf_levels || []).length
+            : sr?.type === "stepped"
+                ? (sr.stepped_levels || []).length
+                : 0;
+        if (levelCount < 2)
             continue;
         for (const e of entries) {
             if (!isDrinkSoon(e.wine))
                 continue;
-            const myLevel = shelfLevelOf(e.container, cabinets, e.wine.depth || 0);
+            const myLevel = levelOf(e.container, cabinets, e.wine.depth || 0);
             if (myLevel === null)
                 continue;
             const aboveKeepers = entries.filter((o) => {
-                const oLevel = shelfLevelOf(o.container, cabinets, o.wine.depth || 0);
+                const oLevel = levelOf(o.container, cabinets, o.wine.depth || 0);
                 return oLevel !== null && oLevel > myLevel && isKeeper(o.wine);
             });
             if (!aboveKeepers.length)
@@ -3798,6 +3854,9 @@ let CabinetGrid = class CabinetGrid extends i {
         if (zoneType === "shelf") {
             return this._renderShelfZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr);
         }
+        if (zoneType === "stepped") {
+            return this._renderSteppedZone(zoneId, zoneKey, zoneName, wines, sr);
+        }
         // Default: bulk
         return this._renderBulkZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr);
     }
@@ -3962,6 +4021,62 @@ let CabinetGrid = class CabinetGrid extends i {
             <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
               ${renderBack(lanes.back)}
               ${renderFront(lanes.front)}
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+    }
+    // Compressor-bump zone: the shallow, single-depth area above a fridge's
+    // compressor, where bottles lie one deep and each row above the bottom one
+    // nests into the gaps of the row below (see getSteppedLevels in models.ts).
+    // Reuses the shelf zone's dot styling — visually it's the same idea, one
+    // lane per level instead of two — but each level here is its own
+    // individually-addressable row, same as a shelf board, not a front/back
+    // pair, so there's no lane split or label.
+    _renderSteppedZone(zoneId, zoneKey, name, wines, sr) {
+        const levelsData = sr.stepped_levels || [];
+        const groups = getSteppedSlotGroups(levelsData);
+        const maxCount = Math.max(1, ...levelsData);
+        const dotBasis = `${100 / maxCount}%`;
+        const renderDots = (group) => b `
+      <div class="zone-shelf-lane">
+        ${Array.from({ length: group.size }, (_, i) => {
+            const depth = group.start + i;
+            const dotKey = `${zoneKey}-${depth}`;
+            const wine = wines.find((w) => (w.depth || 0) === depth);
+            const bg = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+            const ring = wine ? this._brightenColor(bg) : "";
+            const disp = wine?.disposition || "";
+            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+            return b `<span
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
+            title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+            draggable=${wine ? "true" : "false"}
+            @click=${(e) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+            @dragstart=${wine ? (e) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : A}
+            @dragend=${(e) => this._onDragEnd(e)}
+            @dragover=${(e) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+            @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
+            @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+            @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
+            @touchend=${() => this._onTouchEnd()}
+            @touchmove=${() => this._onTouchMove()}
+          >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
+        })}
+      </div>
+    `;
+        // Level 0 is the bottom row (see models.ts) — reverse for display, since
+        // flex-direction: column lays out children top-to-bottom.
+        const reversed = [...groups].sort((a, b) => b.level - a.level);
+        return b `
+      <div class="bottom-zone zone-shelf">
+        ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
+        <div class="zone-shelf-levels">
+          ${reversed.map((group, idx) => b `
+            <div class="zone-shelf-level ${idx === reversed.length - 1 ? "last" : ""}">
+              ${renderDots(group)}
             </div>
           `)}
         </div>
@@ -9342,12 +9457,15 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
     _boxRow() {
         return this._editStorageRows.find((sr) => sr.type === "box");
     }
-    // What actually gets saved, freshly computed from the active style —
-    // never a stale mix of whatever _editStorageRows happens to be holding
-    // from earlier style exploration. Shelf rows are always renumbered
-    // 0..N-1 in list order; the physical row a bottle sits behind never
-    // survives a shelf being removed anyway (see _displacedWines).
-    _finalStorageRows() {
+    // The compressor-bump zone is an add-on, not one of the four exclusive
+    // styles above — it can be appended under any of them, so it's tracked
+    // and filtered separately from _shelfRows/_bulkRow/_boxRow.
+    _steppedRow() {
+        return this._editStorageRows.find((sr) => sr.type === "stepped");
+    }
+    // The active style's own rows, before any compressor-bump zone is
+    // appended — see _finalStorageRows/_finalRows below.
+    _baseStorageRows() {
         if (this._cabinetStyle === "shelf") {
             return this._shelfRows().map((sr, i) => ({ ...sr, row: i }));
         }
@@ -9361,12 +9479,28 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         }
         return [];
     }
-    _finalRows() {
+    _baseRows() {
         if (this._cabinetStyle === "grid")
             return this._editCabinet.rows || 1;
         if (this._cabinetStyle === "shelf")
             return Math.max(1, this._shelfRows().length);
         return 1;
+    }
+    // What actually gets saved, freshly computed from the active style —
+    // never a stale mix of whatever _editStorageRows happens to be holding
+    // from earlier style exploration. Shelf rows are always renumbered
+    // 0..N-1 in list order; the physical row a bottle sits behind never
+    // survives a shelf being removed anyway (see _displacedWines). A
+    // compressor-bump zone, if enabled, is always appended last (row index =
+    // however many rows the base style already uses) — it renders at the
+    // bottom of the rack, matching the physical compressor bump it models.
+    _finalStorageRows() {
+        const base = this._baseStorageRows();
+        const stepped = this._steppedRow();
+        return stepped ? [...base, { ...stepped, row: base.length }] : base;
+    }
+    _finalRows() {
+        return this._baseRows() + (this._steppedRow() ? 1 : 0);
     }
     _finalCols() {
         return this._cabinetStyle === "grid" ? this._editCabinet.cols || 8 : 1;
@@ -9379,6 +9513,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             return (sr.boxes || []).reduce((sum, b) => sum + b, 0);
         if (sr.type === "shelf") {
             return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0);
+        }
+        if (sr.type === "stepped") {
+            return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0);
         }
         return sr.capacity || 0;
     }
@@ -9443,19 +9580,29 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             if (sr.type === "shelf" && !sr.shelf_levels) {
                 return { ...sr, shelf_levels: [{ front: sr.capacity || 4, back: 0 }] };
             }
+            if (sr.type === "stepped" && !sr.stepped_levels) {
+                return { ...sr, stepped_levels: getSteppedLevels(sr.capacity || 5, 3) };
+            }
             return { ...sr };
         });
-        const types = new Set(this._editStorageRows.map((sr) => sr.type));
+        // The compressor-bump zone is an add-on (see _steppedRow), never part of
+        // what determines the base style below — pulled out first so the style
+        // detection below sees only the rows that actually distinguish shelf/
+        // bulk/box/grid from each other.
+        const hasStepped = this._editStorageRows.some((sr) => sr.type === "stepped");
+        const baseStorageRows = this._editStorageRows.filter((sr) => sr.type !== "stepped");
+        const baseRowCount = (cabinet.rows || 0) - (hasStepped ? 1 : 0);
+        const types = new Set(baseStorageRows.map((sr) => sr.type));
         if (types.size === 0) {
             this._cabinetStyle = "grid";
         }
-        else if (types.has("shelf") && this._editStorageRows.length === (cabinet.rows || 0)) {
+        else if (types.has("shelf") && baseStorageRows.length === baseRowCount) {
             this._cabinetStyle = "shelf";
         }
-        else if (types.has("bulk") && this._editStorageRows.length === 1) {
+        else if (types.has("bulk") && baseStorageRows.length === 1) {
             this._cabinetStyle = "bulk";
         }
-        else if (types.has("box") && this._editStorageRows.length === 1) {
+        else if (types.has("box") && baseStorageRows.length === 1) {
             this._cabinetStyle = "box";
         }
         else {
@@ -9554,6 +9701,34 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const capacity = boxes.reduce((sum, s) => sum + s, 0);
         const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
         this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+    }
+    // Compressor-bump zone: an optional extra row appended below whichever
+    // style is active (see _finalStorageRows). Unlike the four styles above,
+    // it's driven by just two numbers — the bottom row's bottle count and how
+    // many rows stack above it — with the per-level breakdown always derived
+    // via getSteppedLevels rather than edited directly.
+    _setSteppedConfig(firstRow, rowCount) {
+        firstRow = Math.max(1, Math.min(30, firstRow));
+        rowCount = Math.max(1, Math.min(10, rowCount));
+        const levels = getSteppedLevels(firstRow, rowCount);
+        const capacity = levels.reduce((sum, n) => sum + n, 0);
+        const row = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
+        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "stepped"), row];
+    }
+    _setSteppedEnabled(enabled) {
+        if (enabled) {
+            if (!this._steppedRow())
+                this._setSteppedConfig(5, 3);
+        }
+        else {
+            this._editStorageRows = this._editStorageRows.filter((sr) => sr.type !== "stepped");
+        }
+    }
+    _setSteppedFirstRow(value) {
+        this._setSteppedConfig(value, this._steppedRow()?.stepped_levels?.length || 3);
+    }
+    _setSteppedRowCount(value) {
+        this._setSteppedConfig(this._steppedRow()?.stepped_levels?.[0] || 5, value);
     }
     // Switching style lazily creates that style's default config the first
     // time it's chosen; any other style's config already built this session
@@ -9957,6 +10132,37 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       </div>
     `;
     }
+    _renderSteppedForm() {
+        const stepped = this._steppedRow();
+        if (!stepped)
+            return A;
+        const levels = stepped.stepped_levels || [];
+        const firstRow = levels[0] ?? 5;
+        const rowCount = levels.length || 3;
+        return b `
+      <div class="stepper-row" style="margin-top:10px">
+        <div class="stepper-wrap">
+          <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+          <div class="stepper">
+            <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
+            <span class="stepper-value">${firstRow}</span>
+            <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+          </div>
+        </div>
+        <div class="stepper-wrap">
+          <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+          <div class="stepper">
+            <button class="stepper-btn" @click=${() => this._setSteppedRowCount(rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+            <span class="stepper-value">${rowCount}</span>
+            <button class="stepper-btn" @click=${() => this._setSteppedRowCount(rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
+        ${levels.join(" + ")} = ${stepped.capacity}
+      </p>
+    `;
+    }
     _renderForm() {
         const isEdit = this._mode === "edit";
         // Which bottles this edit would displace, whichever way it shrinks.
@@ -9999,6 +10205,21 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         </div>
 
         <div class="grid-editor">${this._renderStyleForm()}</div>
+
+        <!-- Compressor-bump zone: optional, stacks under whichever style is
+             chosen above. -->
+        <div class="form-group">
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              .checked=${!!this._steppedRow()}
+              @change=${(e) => this._setSteppedEnabled(e.target.checked)}
+            />
+            ${this._t("ui.rack.steppedZoneLabel")}
+          </label>
+          <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:4px 0 0">${this._t("ui.rack.steppedZoneHint")}</p>
+          ${this._renderSteppedForm()}
+        </div>
 
         ${displaced.length > 0
             ? b `
@@ -10216,6 +10437,15 @@ RackSettingsDialog.styles = [
         cursor: pointer;
         font-size: 0.85em;
         transition: all 0.15s;
+      }
+
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        color: var(--wc-text);
+        font-size: 0.85em;
       }
 
       .style-toggle-btn.active {
@@ -15171,8 +15401,11 @@ let WineCellarCard = class WineCellarCard extends i {
     // --- Rack panel (grid-slot cabinets: list + reorder) ---
     _onRackClick(e) {
         const cabinet = e.detail.cabinet;
-        // A cabinet is entirely one rack style — never a mix of grid rows and
-        // shelf storage rows — so this alone decides which panel applies.
+        // A "shelf" style cabinet is entirely shelves, no grid rows — so this
+        // alone decides which panel applies. (A grid cabinet may still have a
+        // non-shelf storage row of its own, e.g. an appended compressor-bump
+        // zone — its bottles aren't in either panel, but are always reachable
+        // directly on the rack drawing itself.)
         const hasShelfRows = (cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
         if (hasShelfRows) {
             this._openShelfPanel(cabinet);
@@ -17242,29 +17475,92 @@ let WineCellarCard = class WineCellarCard extends i {
                     })}
                         `)}
                       `
-                    : b `
+                    : this._zonePanelType === "stepped"
+                        ? b `
+                        <!-- Compressor-shelf mode: slots grouped by row, bottom to top -->
+                        ${getSteppedSlotGroups(this._zonePanelStorageRow?.stepped_levels).map((group) => b `
+                          <div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${group.level > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                            ${this._t("ui.card.steppedGroupHeader", { n: group.level + 1 })}
+                          </div>
+                          ${Array.from({ length: group.size }, (_, slotInGroup) => {
+                            const depthIdx = group.start + slotInGroup;
+                            const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
+                            const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+                            const disp = wine?.disposition || "";
+                            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                            const dragKey = `stepped-${depthIdx}`;
+                            const highlighted = wine?.id === this._highlightWineId;
+                            return b `
+                              <div
+                                id=${highlighted ? "highlight-slot" : A}
+                                class="depth-slot ${wine ? "filled" : "empty"} ${this._zonePanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
+                                draggable=${wine ? "true" : "false"}
+                                @click=${() => this._onZonePanelSlotClick(depthIdx, wine)}
+                                @dragstart=${wine ? (e) => this._onZonePanelDragStart(e, wine) : A}
+                                @dragend=${wine ? () => this._onZonePanelDragEnd() : A}
+                                @dragover=${(e) => this._onZonePanelDragOver(e, dragKey)}
+                                @dragleave=${() => (this._zonePanelDragOverKey = null)}
+                                @drop=${(e) => this._onZonePanelBoxReorder(e, depthIdx, wine)}
+                              >
+                                <span
+                                  class="depth-slot-delete"
+                                  title="${this._t("ui.card.deleteThisSlot")}"
+                                  @click=${(e) => { e.stopPropagation(); this._deleteZoneSlot(depthIdx); }}
+                                >✕</span>
+                                <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInGroup + 1 })}</div>
+                                ${wine
+                                ? b `
+                                      <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
+                                        <div class="depth-slot-avatar">
+                                          ${wine.image_url
+                                    ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                    : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                          ${this._dispositionBadge(dispClass, disp)}
+                                        </div>
+                                        <div class="depth-slot-info">
+                                          <div class="depth-slot-name">${wine.name}</div>
+                                          <div class="depth-slot-meta">
+                                            ${wine.vintage || "NV"}
+                                            ${wine.rating ? b ` · ★${wine.rating}` : A}
+                                            ${wine.price ? b ` · ${this._metadataCurrency} ${wine.price}` : A}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    `
+                                : b `
+                                      <div class="depth-slot-empty">
+                                        <span class="depth-slot-plus">+</span>
+                                        <span>${this._t("ui.common.empty")}</span>
+                                      </div>
+                                    `}
+                              </div>
+                            `;
+                        })}
+                        `)}
+                      `
+                        : b `
                         <!-- Box mode: slots grouped by box -->
                         ${(() => {
-                        const boxes = this._zonePanelStorageRow?.boxes || [this._zonePanelCapacity];
-                        let offset = 0;
-                        return boxes.map((boxSize, bi) => {
-                            const start = offset;
-                            offset += boxSize;
-                            return b `
+                            const boxes = this._zonePanelStorageRow?.boxes || [this._zonePanelCapacity];
+                            let offset = 0;
+                            return boxes.map((boxSize, bi) => {
+                                const start = offset;
+                                offset += boxSize;
+                                return b `
                               ${boxes.length > 1
-                                ? b `<div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${bi > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                                    ? b `<div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${bi > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
                                     ${this._t("ui.card.boxHeader", { n: bi + 1, size: boxSize })}
                                   </div>`
-                                : A}
+                                    : A}
                               ${Array.from({ length: boxSize }, (_, slotInBox) => {
-                                const depthIdx = start + slotInBox;
-                                const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
-                                const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
-                                const disp = wine?.disposition || "";
-                                const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
-                                const dragKey = `box-${depthIdx}`;
-                                const highlighted = wine?.id === this._highlightWineId;
-                                return b `
+                                    const depthIdx = start + slotInBox;
+                                    const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
+                                    const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+                                    const disp = wine?.disposition || "";
+                                    const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                                    const dragKey = `box-${depthIdx}`;
+                                    const highlighted = wine?.id === this._highlightWineId;
+                                    return b `
                                   <div
                                     id=${highlighted ? "highlight-slot" : A}
                                     class="depth-slot ${wine ? "filled" : "empty"} ${this._zonePanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
@@ -17283,12 +17579,12 @@ let WineCellarCard = class WineCellarCard extends i {
                                     >✕</span>
                                     <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInBox + 1 })}</div>
                                     ${wine
-                                    ? b `
+                                        ? b `
                                           <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
                                             <div class="depth-slot-avatar">
                                               ${wine.image_url
-                                        ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
-                                        : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                            ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                            : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
                                               ${this._dispositionBadge(dispClass, disp)}
                                             </div>
                                             <div class="depth-slot-info">
@@ -17301,7 +17597,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                             </div>
                                           </div>
                                         `
-                                    : b `
+                                        : b `
                                           <div class="depth-slot-empty">
                                             <span class="depth-slot-plus">+</span>
                                             <span>${this._t("ui.common.empty")}</span>
@@ -17309,10 +17605,10 @@ let WineCellarCard = class WineCellarCard extends i {
                                         `}
                                   </div>
                                 `;
-                            })}
+                                })}
                             `;
-                        });
-                    })()}
+                            });
+                        })()}
                         <div class="depth-panel-add-box">
                           <select
                             .value=${String(this._zonePanelNewBoxSize)}

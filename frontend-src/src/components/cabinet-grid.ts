@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup } from "../models";
+import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
@@ -986,6 +986,9 @@ export class CabinetGrid extends LitElement {
     if (zoneType === "shelf") {
       return this._renderShelfZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
     }
+    if (zoneType === "stepped") {
+      return this._renderSteppedZone(zoneId, zoneKey, zoneName, wines, sr!);
+    }
     // Default: bulk
     return this._renderBulkZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
   }
@@ -1158,6 +1161,66 @@ export class CabinetGrid extends LitElement {
             <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
               ${renderBack(lanes.back)}
               ${renderFront(lanes.front)}
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
+  // Compressor-bump zone: the shallow, single-depth area above a fridge's
+  // compressor, where bottles lie one deep and each row above the bottom one
+  // nests into the gaps of the row below (see getSteppedLevels in models.ts).
+  // Reuses the shelf zone's dot styling — visually it's the same idea, one
+  // lane per level instead of two — but each level here is its own
+  // individually-addressable row, same as a shelf board, not a front/back
+  // pair, so there's no lane split or label.
+  private _renderSteppedZone(zoneId: string, zoneKey: string, name: string, wines: Wine[], sr: StorageRow) {
+    const levelsData = sr.stepped_levels || [];
+    const groups = getSteppedSlotGroups(levelsData);
+    const maxCount = Math.max(1, ...levelsData);
+    const dotBasis = `${100 / maxCount}%`;
+
+    const renderDots = (group: SteppedSlotGroup) => html`
+      <div class="zone-shelf-lane">
+        ${Array.from({ length: group.size }, (_, i) => {
+          const depth = group.start + i;
+          const dotKey = `${zoneKey}-${depth}`;
+          const wine = wines.find((w) => (w.depth || 0) === depth);
+          const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+          const ring = wine ? this._brightenColor(bg) : "";
+          const disp = wine?.disposition || "";
+          const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+          return html`<span
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
+            title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+            draggable=${wine ? "true" : "false"}
+            @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+            @dragstart=${wine ? (e: DragEvent) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : nothing}
+            @dragend=${(e: DragEvent) => this._onDragEnd(e)}
+            @dragover=${(e: DragEvent) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+            @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
+            @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+            @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
+            @touchend=${() => this._onTouchEnd()}
+            @touchmove=${() => this._onTouchMove()}
+          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
+        })}
+      </div>
+    `;
+
+    // Level 0 is the bottom row (see models.ts) — reverse for display, since
+    // flex-direction: column lays out children top-to-bottom.
+    const reversed = [...groups].sort((a, b) => b.level - a.level);
+
+    return html`
+      <div class="bottom-zone zone-shelf">
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
+        <div class="zone-shelf-levels">
+          ${reversed.map((group, idx) => html`
+            <div class="zone-shelf-level ${idx === reversed.length - 1 ? "last" : ""}">
+              ${renderDots(group)}
             </div>
           `)}
         </div>

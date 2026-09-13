@@ -1,4 +1,4 @@
-import { Cabinet, Wine, WineType, getWineTypeLabels, getShelfSlotGroups } from "../models";
+import { Cabinet, Wine, WineType, getWineTypeLabels, getShelfSlotGroups, getSteppedSlotGroups } from "../models";
 import { drinkByYear, normalizeText } from "./search";
 import {
   Container,
@@ -265,35 +265,47 @@ function findOutliers(
   return out;
 }
 
-// Whether a container is a shelf zone at all — used to keep shelf slots out
-// of the generic front-to-back "buried" check below, since a shelf board
-// slides out on its own rails and doesn't have that kind of blocking.
-function isShelfZone(container: Container, cabinets: Cabinet[]): boolean {
+// Whether a container has physically fixed, individually reachable slots
+// (a shelf's boards, or a stepped compressor zone's single-depth rows) —
+// used to keep them out of the generic front-to-back "buried" check below,
+// since neither has anything a bottle could sit "behind" the way a bulk
+// bin's pile does.
+function isLeveledZone(container: Container, cabinets: Cabinet[]): boolean {
   if (container.kind !== "zone") return false;
   const cabinet = cabinets.find((c) => c.id === container.cabinetId);
-  return storageRowFor(cabinet, container.zone)?.type === "shelf";
+  const type = storageRowFor(cabinet, container.zone)?.type;
+  return type === "shelf" || type === "stepped";
 }
 
 // A shelf zone stacks several independent boards, each with its own
-// front/back lanes, all sharing one flat depth range (see
-// getShelfSlotGroups). Returns null for anything that isn't a shelf zone.
-function shelfLevelOf(container: Container, cabinets: Cabinet[], depth: number): number | null {
+// front/back lanes; a stepped zone stacks several single-depth rows —
+// both share one flat depth range per zone (see getShelfSlotGroups /
+// getSteppedSlotGroups). Returns null for anything else.
+function levelOf(container: Container, cabinets: Cabinet[], depth: number): number | null {
   if (container.kind !== "zone") return null;
   const cabinet = cabinets.find((c) => c.id === container.cabinetId);
   const sr = cabinet ? storageRowFor(cabinet, container.zone) : undefined;
-  if (!sr || sr.type !== "shelf") return null;
-  const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
-  return group ? group.level : null;
+  if (!sr) return null;
+  if (sr.type === "shelf") {
+    const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+    return group ? group.level : null;
+  }
+  if (sr.type === "stepped") {
+    const group = getSteppedSlotGroups(sr.stepped_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+    return group ? group.level : null;
+  }
+  return null;
 }
 
 // A bottle whose drinking window is closing, stuck behind or under bottles
 // meant to be kept. No move is proposed: freeing it means two bottles trading
 // places, and writing that as one-way moves would misdescribe the rack.
 //
-// Shelf zones are excluded here: the whole board slides out on rails, so its
-// front and back lanes are equally reachable — there's no "stuck behind"
-// relationship there. A shelf's actual accessibility concern is which
-// stacked board a bottle sits on, handled separately by findWrongLevel.
+// Shelf and stepped zones are excluded here: a shelf board slides out on
+// rails (front/back lanes are equally reachable) and a stepped zone is only
+// ever one bottle deep — neither has anything a bottle sits "behind". Their
+// actual accessibility concern is which stacked level a bottle sits on,
+// handled separately by findWrongLevel.
 function findBuried(
   placed: { wine: Wine; container: Container }[],
   cabinets: Cabinet[],
@@ -310,7 +322,7 @@ function findBuried(
   const out: Finding[] = [];
   for (const entries of byContainer.values()) {
     if (entries.length < 2) continue;
-    if (isShelfZone(entries[0].container, cabinets)) continue;
+    if (isLeveledZone(entries[0].container, cabinets)) continue;
     for (const e of entries) {
       if (!isDrinkSoon(e.wine)) continue;
       const depth = e.wine.depth || 0;
@@ -338,11 +350,12 @@ function findBuried(
   return out;
 }
 
-// A shelf-specific accessibility concern: when an étagère has 2+ stacked
-// boards, the lower ones are more work to reach than the higher ones (unlike
-// front vs back, which the sliding board makes equally reachable — see
-// findBuried above). Flags a bottle due soon sitting on a lower board while
-// a bottle marked to keep sits on a higher one in the same étagère.
+// A leveled-zone accessibility concern: when a shelf has 2+ stacked boards,
+// or a stepped compressor zone has 2+ stacked rows, the lower ones are more
+// work to reach than the higher ones (unlike front vs back on a shelf, which
+// the sliding board makes equally reachable — see findBuried above). Flags a
+// bottle due soon sitting on a lower level while a bottle marked to keep sits
+// on a higher one in the same zone.
 function findWrongLevel(
   placed: { wine: Wine; container: Container }[],
   cabinets: Cabinet[],
@@ -359,17 +372,22 @@ function findWrongLevel(
   const out: Finding[] = [];
   for (const entries of byContainer.values()) {
     const first = entries[0];
-    if (!isShelfZone(first.container, cabinets)) continue;
+    if (!isLeveledZone(first.container, cabinets)) continue;
     const cabinet = cabinets.find((c) => c.id === first.container.cabinetId);
     const sr = cabinet ? storageRowFor(cabinet, first.container.zone) : undefined;
-    if (!sr || (sr.shelf_levels || []).length < 2) continue;
+    const levelCount = sr?.type === "shelf"
+      ? (sr.shelf_levels || []).length
+      : sr?.type === "stepped"
+        ? (sr.stepped_levels || []).length
+        : 0;
+    if (levelCount < 2) continue;
 
     for (const e of entries) {
       if (!isDrinkSoon(e.wine)) continue;
-      const myLevel = shelfLevelOf(e.container, cabinets, e.wine.depth || 0);
+      const myLevel = levelOf(e.container, cabinets, e.wine.depth || 0);
       if (myLevel === null) continue;
       const aboveKeepers = entries.filter((o) => {
-        const oLevel = shelfLevelOf(o.container, cabinets, o.wine.depth || 0);
+        const oLevel = levelOf(o.container, cabinets, o.wine.depth || 0);
         return oLevel !== null && oLevel > myLevel && isKeeper(o.wine);
       });
       if (!aboveKeepers.length) continue;

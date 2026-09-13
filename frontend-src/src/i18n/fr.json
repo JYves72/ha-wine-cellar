@@ -17,7 +17,8 @@
   "storageRowType": {
     "bulk": "Casier en vrac",
     "box": "Caisse à vin",
-    "shelf": "Étagère (avant/arrière)"
+    "shelf": "Étagère (avant/arrière)",
+    "stepped": "Étagère compresseur"
   },
   "removalReason": {
     "drank": "Bue",
@@ -186,6 +187,7 @@
       "rackPanelBottlesCount": "{n}/{max} bouteilles",
       "boxHeader": "Caisse {n} ({size} bouteilles)",
       "shelfGroupHeader": "Planche {n} · {lane}",
+      "steppedGroupHeader": "Rangée {n}",
       "shelfFront": "Avant",
       "shelfBack": "Arrière",
       "deepSuffix": "{n} en profondeur",
@@ -562,6 +564,10 @@
       "shelfNamePlaceholder": "Étagère {n}",
       "bulkCapacityLabel": "Bouteilles",
       "boxCountLabel": "Caisses",
+      "steppedZoneLabel": "Ajouter une étagère compresseur en bas",
+      "steppedZoneHint": "Pour la zone peu profonde et à profondeur unique au-dessus de la bosse du compresseur du frigo. La rangée du bas contient un nombre défini de bouteilles ; chaque rangée au-dessus en contient une de moins, nichée entre les bouteilles du bas.",
+      "steppedFirstRowLabel": "Bouteilles en rangée du bas",
+      "steppedRowCountLabel": "Nombre de rangées",
       "rowsLabel": "Lignes",
       "columnsLabel": "Colonnes",
       "depthLabel": "Profondeur",

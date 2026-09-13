@@ -17,7 +17,8 @@
   "storageRowType": {
     "bulk": "Bulk Bin",
     "box": "Wine Box",
-    "shelf": "Shelf (Front/Back)"
+    "shelf": "Shelf (Front/Back)",
+    "stepped": "Compressor Shelf"
   },
   "removalReason": {
     "drank": "Drank",
@@ -186,6 +187,7 @@
       "rackPanelBottlesCount": "{n}/{max} bottles",
       "boxHeader": "Box {n} ({size}-pack)",
       "shelfGroupHeader": "Board {n} · {lane}",
+      "steppedGroupHeader": "Row {n}",
       "shelfFront": "Front",
       "shelfBack": "Back",
       "deepSuffix": "{n} deep",
@@ -562,6 +564,10 @@
       "shelfNamePlaceholder": "Shelf {n}",
       "bulkCapacityLabel": "Bottles",
       "boxCountLabel": "Boxes",
+      "steppedZoneLabel": "Add a compressor shelf at the bottom",
+      "steppedZoneHint": "For the shallow, single-depth area above a fridge's compressor bump. The bottom row holds a set number of bottles; each row above it holds one fewer, nested between the bottles below.",
+      "steppedFirstRowLabel": "Bottom row bottles",
+      "steppedRowCountLabel": "Number of rows",
       "rowsLabel": "Rows",
       "columnsLabel": "Columns",
       "depthLabel": "Depth",

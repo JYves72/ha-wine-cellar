@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES } from "../models";
+import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES, getSteppedLevels } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
@@ -146,6 +146,15 @@ export class RackSettingsDialog extends LitElement {
         cursor: pointer;
         font-size: 0.85em;
         transition: all 0.15s;
+      }
+
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        color: var(--wc-text);
+        font-size: 0.85em;
       }
 
       .style-toggle-btn.active {
@@ -528,12 +537,16 @@ export class RackSettingsDialog extends LitElement {
     return this._editStorageRows.find((sr) => sr.type === "box");
   }
 
-  // What actually gets saved, freshly computed from the active style —
-  // never a stale mix of whatever _editStorageRows happens to be holding
-  // from earlier style exploration. Shelf rows are always renumbered
-  // 0..N-1 in list order; the physical row a bottle sits behind never
-  // survives a shelf being removed anyway (see _displacedWines).
-  private _finalStorageRows(): StorageRow[] {
+  // The compressor-bump zone is an add-on, not one of the four exclusive
+  // styles above — it can be appended under any of them, so it's tracked
+  // and filtered separately from _shelfRows/_bulkRow/_boxRow.
+  private _steppedRow(): StorageRow | undefined {
+    return this._editStorageRows.find((sr) => sr.type === "stepped");
+  }
+
+  // The active style's own rows, before any compressor-bump zone is
+  // appended — see _finalStorageRows/_finalRows below.
+  private _baseStorageRows(): StorageRow[] {
     if (this._cabinetStyle === "shelf") {
       return this._shelfRows().map((sr, i) => ({ ...sr, row: i }));
     }
@@ -548,10 +561,28 @@ export class RackSettingsDialog extends LitElement {
     return [];
   }
 
-  private _finalRows(): number {
+  private _baseRows(): number {
     if (this._cabinetStyle === "grid") return this._editCabinet.rows || 1;
     if (this._cabinetStyle === "shelf") return Math.max(1, this._shelfRows().length);
     return 1;
+  }
+
+  // What actually gets saved, freshly computed from the active style —
+  // never a stale mix of whatever _editStorageRows happens to be holding
+  // from earlier style exploration. Shelf rows are always renumbered
+  // 0..N-1 in list order; the physical row a bottle sits behind never
+  // survives a shelf being removed anyway (see _displacedWines). A
+  // compressor-bump zone, if enabled, is always appended last (row index =
+  // however many rows the base style already uses) — it renders at the
+  // bottom of the rack, matching the physical compressor bump it models.
+  private _finalStorageRows(): StorageRow[] {
+    const base = this._baseStorageRows();
+    const stepped = this._steppedRow();
+    return stepped ? [...base, { ...stepped, row: base.length }] : base;
+  }
+
+  private _finalRows(): number {
+    return this._baseRows() + (this._steppedRow() ? 1 : 0);
   }
 
   private _finalCols(): number {
@@ -566,6 +597,9 @@ export class RackSettingsDialog extends LitElement {
     if (sr.type === "box") return (sr.boxes || []).reduce((sum, b) => sum + b, 0);
     if (sr.type === "shelf") {
       return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0);
+    }
+    if (sr.type === "stepped") {
+      return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0);
     }
     return sr.capacity || 0;
   }
@@ -628,16 +662,26 @@ export class RackSettingsDialog extends LitElement {
       if (sr.type === "shelf" && !sr.shelf_levels) {
         return { ...sr, shelf_levels: [{ front: sr.capacity || 4, back: 0 }] };
       }
+      if (sr.type === "stepped" && !sr.stepped_levels) {
+        return { ...sr, stepped_levels: getSteppedLevels(sr.capacity || 5, 3) };
+      }
       return { ...sr };
     });
-    const types = new Set(this._editStorageRows.map((sr) => sr.type));
+    // The compressor-bump zone is an add-on (see _steppedRow), never part of
+    // what determines the base style below — pulled out first so the style
+    // detection below sees only the rows that actually distinguish shelf/
+    // bulk/box/grid from each other.
+    const hasStepped = this._editStorageRows.some((sr) => sr.type === "stepped");
+    const baseStorageRows = this._editStorageRows.filter((sr) => sr.type !== "stepped");
+    const baseRowCount = (cabinet.rows || 0) - (hasStepped ? 1 : 0);
+    const types = new Set(baseStorageRows.map((sr) => sr.type));
     if (types.size === 0) {
       this._cabinetStyle = "grid";
-    } else if (types.has("shelf") && this._editStorageRows.length === (cabinet.rows || 0)) {
+    } else if (types.has("shelf") && baseStorageRows.length === baseRowCount) {
       this._cabinetStyle = "shelf";
-    } else if (types.has("bulk") && this._editStorageRows.length === 1) {
+    } else if (types.has("bulk") && baseStorageRows.length === 1) {
       this._cabinetStyle = "bulk";
-    } else if (types.has("box") && this._editStorageRows.length === 1) {
+    } else if (types.has("box") && baseStorageRows.length === 1) {
       this._cabinetStyle = "box";
     } else {
       // Doesn't cleanly match one of the four styles (e.g. an older mixed
@@ -746,6 +790,36 @@ export class RackSettingsDialog extends LitElement {
     const capacity = boxes.reduce((sum, s) => sum + s, 0);
     const row: StorageRow = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
     this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+  }
+
+  // Compressor-bump zone: an optional extra row appended below whichever
+  // style is active (see _finalStorageRows). Unlike the four styles above,
+  // it's driven by just two numbers — the bottom row's bottle count and how
+  // many rows stack above it — with the per-level breakdown always derived
+  // via getSteppedLevels rather than edited directly.
+  private _setSteppedConfig(firstRow: number, rowCount: number) {
+    firstRow = Math.max(1, Math.min(30, firstRow));
+    rowCount = Math.max(1, Math.min(10, rowCount));
+    const levels = getSteppedLevels(firstRow, rowCount);
+    const capacity = levels.reduce((sum, n) => sum + n, 0);
+    const row: StorageRow = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
+    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "stepped"), row];
+  }
+
+  private _setSteppedEnabled(enabled: boolean) {
+    if (enabled) {
+      if (!this._steppedRow()) this._setSteppedConfig(5, 3);
+    } else {
+      this._editStorageRows = this._editStorageRows.filter((sr) => sr.type !== "stepped");
+    }
+  }
+
+  private _setSteppedFirstRow(value: number) {
+    this._setSteppedConfig(value, this._steppedRow()?.stepped_levels?.length || 3);
+  }
+
+  private _setSteppedRowCount(value: number) {
+    this._setSteppedConfig(this._steppedRow()?.stepped_levels?.[0] || 5, value);
   }
 
   // Switching style lazily creates that style's default config the first
@@ -1159,6 +1233,37 @@ export class RackSettingsDialog extends LitElement {
     `;
   }
 
+  private _renderSteppedForm() {
+    const stepped = this._steppedRow();
+    if (!stepped) return nothing;
+    const levels = stepped.stepped_levels || [];
+    const firstRow = levels[0] ?? 5;
+    const rowCount = levels.length || 3;
+    return html`
+      <div class="stepper-row" style="margin-top:10px">
+        <div class="stepper-wrap">
+          <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+          <div class="stepper">
+            <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
+            <span class="stepper-value">${firstRow}</span>
+            <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+          </div>
+        </div>
+        <div class="stepper-wrap">
+          <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+          <div class="stepper">
+            <button class="stepper-btn" @click=${() => this._setSteppedRowCount(rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+            <span class="stepper-value">${rowCount}</span>
+            <button class="stepper-btn" @click=${() => this._setSteppedRowCount(rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
+        ${levels.join(" + ")} = ${stepped.capacity}
+      </p>
+    `;
+  }
+
   private _renderForm() {
     const isEdit = this._mode === "edit";
 
@@ -1204,6 +1309,21 @@ export class RackSettingsDialog extends LitElement {
         </div>
 
         <div class="grid-editor">${this._renderStyleForm()}</div>
+
+        <!-- Compressor-bump zone: optional, stacks under whichever style is
+             chosen above. -->
+        <div class="form-group">
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              .checked=${!!this._steppedRow()}
+              @change=${(e: Event) => this._setSteppedEnabled((e.target as HTMLInputElement).checked)}
+            />
+            ${this._t("ui.rack.steppedZoneLabel")}
+          </label>
+          <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:4px 0 0">${this._t("ui.rack.steppedZoneHint")}</p>
+          ${this._renderSteppedForm()}
+        </div>
 
         ${displaced.length > 0
           ? html`

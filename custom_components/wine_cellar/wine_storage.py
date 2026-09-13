@@ -392,6 +392,11 @@ class WineCellarStorage:
                 int(level.get("front", 0)) + int(level.get("back", 0))
                 for level in storage_row.get("shelf_levels", [])
             )
+        if row_type == "stepped":
+            # The shallow, single-depth area above a fridge's compressor
+            # bump: one count per physical row, bottom-to-top — see
+            # get_stepped_slot_groups in models.ts.
+            return sum(int(n) for n in storage_row.get("stepped_levels", []))
         return storage_row.get("capacity", 0)
 
     def _placement_is_lost(self, wine: dict[str, Any]) -> str | None:
