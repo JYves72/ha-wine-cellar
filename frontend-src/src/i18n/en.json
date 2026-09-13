@@ -18,7 +18,7 @@
     "bulk": "Bulk Bin",
     "box": "Wine Box",
     "shelf": "Shelf (Front/Back)",
-    "stepped": "Compressor Shelf"
+    "stepped": "Staggered Shelf"
   },
   "removalReason": {
     "drank": "Drank",
@@ -453,6 +453,7 @@
       "thisBox": "This box",
       "thisBin": "This bin",
       "thisShelf": "This shelf",
+      "thisStepped": "This staggered zone",
       "posRowCol": "Row {row}, Col {col}"
     },
     "wineDetail": {
@@ -564,8 +565,13 @@
       "shelfNamePlaceholder": "Shelf {n}",
       "bulkCapacityLabel": "Bottles",
       "boxCountLabel": "Boxes",
-      "steppedZoneLabel": "Add a compressor shelf at the bottom",
-      "steppedZoneHint": "For the shallow, single-depth area above a fridge's compressor bump. The bottom row holds a set number of bottles; each row above it holds one fewer, nested between the bottles below.",
+      "secondaryStyleLabel": "Secondary storage",
+      "secondaryNone": "None",
+      "secondaryHint": "A second storage zone, of a different (or the same) style, stacked above or below the primary one.",
+      "secondaryPositionLabel": "Secondary zone position",
+      "secondaryAbove": "Above",
+      "secondaryBelow": "Below",
+      "secondaryGridHint": "Uses the same columns and depth as the main grid.",
       "steppedFirstRowLabel": "Bottom row bottles",
       "steppedRowCountLabel": "Number of rows",
       "rowsLabel": "Rows",
