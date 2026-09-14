@@ -111,11 +111,14 @@ export class CabinetGrid extends LitElement {
         min-width: 0;
         z-index: 1;
         container-type: inline-size;
+        box-sizing: border-box;
       }
 
       .cell.empty {
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
+        /* Same 2px width as .filled below — see the longer note on
+           .zone-shelf-dot's empty state for why this has to match. */
+        border: 2px dashed rgba(255, 255, 255, 0.15);
       }
 
       .cell.empty:hover {
@@ -460,7 +463,13 @@ export class CabinetGrid extends LitElement {
         min-width: 0;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
+        /* Same border width as .filled below (2px) — only the dash pattern,
+           color and opacity change between empty/filled. A thinner empty
+           border would shrink the box itself under content-box sizing, and
+           even with box-sizing: border-box (below) a visibly thinner ring
+           still reads as a smaller circle next to a bold filled one. */
+        border: 2px dashed rgba(255, 255, 255, 0.15);
+        box-sizing: border-box;
         cursor: pointer;
         overflow: hidden;
         container-type: inline-size;
@@ -1104,11 +1113,14 @@ export class CabinetGrid extends LitElement {
     // the receding stagger of a photo (the user explicitly didn't want
     // that reproduced here).
     const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
-    // Subtracts the lane's own gaps so maxCount dots at this width plus
-    // (maxCount-1) 2px gaps sum to exactly 100% — a flat 100%/maxCount
-    // ignored the gap entirely, overflowing the row by (maxCount-1)*2px
-    // and getting clipped by .grid-inner's overflow:hidden.
-    const dotBasis = `calc((100% - ${(maxCount - 1) * 2}px) / ${maxCount})`;
+    // Subtracts the lane's own gaps, plus a fixed 8px so the row's total
+    // width comes out a little under 100% — centered by .zone-shelf-lane's
+    // justify-content, that shortfall becomes a ~4px margin on each side
+    // instead of the end dots sitting flush against the cabinet's frame.
+    // A flat 100%/maxCount ignored the gaps entirely and had no margin at
+    // all, overflowing the row by (maxCount-1)*2px (clipped by
+    // .grid-inner's overflow:hidden) with the end dots touching the frame.
+    const dotBasis = `calc((100% - ${(maxCount - 1) * 2 + 8}px) / ${maxCount})`;
 
     const renderDots = (group: ShelfSlotGroup) => html`
       <div class="zone-shelf-lane ${group.lane}">
@@ -1184,8 +1196,9 @@ export class CabinetGrid extends LitElement {
     const groups = getSteppedSlotGroups(levelsData);
     const maxCount = Math.max(1, ...levelsData);
     // See the same calc() in _renderShelfZone: accounts for the lane's own
-    // gaps so the row doesn't overflow (and get clipped) by a few px.
-    const dotBasis = `calc((100% - ${(maxCount - 1) * 2}px) / ${maxCount})`;
+    // gaps, plus a fixed margin so the end dots don't sit flush against the
+    // cabinet's frame.
+    const dotBasis = `calc((100% - ${(maxCount - 1) * 2 + 8}px) / ${maxCount})`;
 
     const renderDots = (group: SteppedSlotGroup) => html`
       <div class="zone-shelf-lane">
