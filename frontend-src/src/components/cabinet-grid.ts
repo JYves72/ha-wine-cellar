@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from "lit";
+import { LitElement, html, css, nothing, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
@@ -1124,51 +1124,51 @@ export class CabinetGrid extends LitElement {
     // .grid-inner's overflow:hidden) with the end dots touching the frame.
     const dotBasis = `calc((100% - ${(maxCount - 1) * 2 + 8}px) / ${maxCount})`;
 
-    const renderDots = (group: ShelfSlotGroup) => html`
-      <div class="zone-shelf-lane ${group.lane}">
-        ${Array.from({ length: group.size }, (_, i) => {
-          const depth = group.start + i;
-          const dotKey = `${zoneKey}-${depth}`;
-          const wine = wines.find((w) => (w.depth || 0) === depth);
-          const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
-          const ring = wine ? this._brightenColor(bg) : "";
-          const disp = wine?.disposition || "";
-          const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
-          return html`<span
-            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
-            style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
-            title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
-            draggable=${wine ? "true" : "false"}
-            @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
-            @dragstart=${wine ? (e: DragEvent) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : nothing}
-            @dragend=${(e: DragEvent) => this._onDragEnd(e)}
-            @dragover=${(e: DragEvent) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
-            @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
-            @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
-            @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
-            @touchend=${() => this._onTouchEnd()}
-            @touchmove=${() => this._onTouchMove()}
-          >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
-        })}
-      </div>
-    `;
-
-    // Back lane's label sits above its dots, front lane's below — so each
-    // board reads top-to-bottom as "Back / [dots] / [dots] / Front",
-    // making it clear both rows belong to the same physical board.
-    const renderBack = (group: ShelfSlotGroup | undefined) => {
-      if (!group) return nothing;
-      return html`
-        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfBack")}</div>
-        ${renderDots(group)}
-      `;
+    // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
+    // if it doesn't work out. Interleaves the back lane's dots between the
+    // front lane's, at half size, in one row instead of two labeled ones —
+    // meant to roughly halve each board's height. Nothing about
+    // shelf_levels/front/back/name config changes, only how this one
+    // zone renders.
+    const renderDot = (group: ShelfSlotGroup, indexInGroup: number, scale: number) => {
+      const depth = group.start + indexInGroup;
+      const dotKey = `${zoneKey}-${depth}`;
+      const wine = wines.find((w) => (w.depth || 0) === depth);
+      const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+      const ring = wine ? this._brightenColor(bg) : "";
+      const disp = wine?.disposition || "";
+      const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+      const basis = scale === 1 ? dotBasis : `calc(${dotBasis} * ${scale})`;
+      return html`<span
+        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+        style="flex-basis:${basis};max-width:${basis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
+        title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+        draggable=${wine ? "true" : "false"}
+        @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+        @dragstart=${wine ? (e: DragEvent) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : nothing}
+        @dragend=${(e: DragEvent) => this._onDragEnd(e)}
+        @dragover=${(e: DragEvent) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+        @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
+        @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+        @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
+        @touchend=${() => this._onTouchEnd()}
+        @touchmove=${() => this._onTouchMove()}
+      >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
     };
-    const renderFront = (group: ShelfSlotGroup | undefined) => {
-      if (!group) return nothing;
-      return html`
-        ${renderDots(group)}
-        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfFront")}</div>
-      `;
+
+    // Back dot i sits right after front dot i — "nested between" front i and
+    // front i+1 — with any surplus (whichever lane is longer) tacked on at
+    // the end so no bottle goes unrendered regardless of the front/back
+    // counts configured.
+    const renderInterleavedLane = (front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined) => {
+      const frontSize = front?.size || 0;
+      const backSize = back?.size || 0;
+      const items: TemplateResult[] = [];
+      for (let i = 0; i < Math.max(frontSize, backSize); i++) {
+        if (i < frontSize) items.push(renderDot(front!, i, 1));
+        if (i < backSize) items.push(renderDot(back!, i, 0.5));
+      }
+      return html`<div class="zone-shelf-lane">${items}</div>`;
     };
 
     return html`
@@ -1177,8 +1177,7 @@ export class CabinetGrid extends LitElement {
         <div class="zone-shelf-levels">
           ${levels.map(([, lanes], idx) => html`
             <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
-              ${renderBack(lanes.back)}
-              ${renderFront(lanes.front)}
+              ${renderInterleavedLane(lanes.front, lanes.back)}
             </div>
           `)}
         </div>
