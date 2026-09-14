@@ -1169,17 +1169,25 @@ export class CabinetGrid extends LitElement {
       >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
     };
 
-    // Back dot i sits right after front dot i — "nested between" front i and
-    // front i+1 — with any surplus (whichever lane is longer) tacked on at
-    // the end so no bottle goes unrendered regardless of the front/back
-    // counts configured.
+    // Whichever lane is longer leads the sequence (its dot comes first at
+    // each position), with the shorter one nested right after — any surplus
+    // of the longer lane tacked on at the end. On a swapped level (back=4,
+    // front=3), that means position 1 is a back dot, not front. Scale
+    // always follows the lane itself (front=1, back=0.5), regardless of
+    // which one leads.
     const renderInterleavedLane = (front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined) => {
       const frontSize = front?.size || 0;
       const backSize = back?.size || 0;
+      const frontLeads = frontSize >= backSize;
       const items: TemplateResult[] = [];
       for (let i = 0; i < Math.max(frontSize, backSize); i++) {
-        if (i < frontSize) items.push(renderDot(front!, i, 1));
-        if (i < backSize) items.push(renderDot(back!, i, 0.5));
+        if (frontLeads) {
+          if (i < frontSize) items.push(renderDot(front!, i, 1));
+          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+        } else {
+          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+          if (i < frontSize) items.push(renderDot(front!, i, 1));
+        }
       }
       return html`<div class="zone-shelf-lane">${items}</div>`;
     };
