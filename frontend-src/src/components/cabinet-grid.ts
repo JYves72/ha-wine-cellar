@@ -1104,7 +1104,11 @@ export class CabinetGrid extends LitElement {
     // the receding stagger of a photo (the user explicitly didn't want
     // that reproduced here).
     const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
-    const dotBasis = `${100 / maxCount}%`;
+    // Subtracts the lane's own gaps so maxCount dots at this width plus
+    // (maxCount-1) 2px gaps sum to exactly 100% — a flat 100%/maxCount
+    // ignored the gap entirely, overflowing the row by (maxCount-1)*2px
+    // and getting clipped by .grid-inner's overflow:hidden.
+    const dotBasis = `calc((100% - ${(maxCount - 1) * 2}px) / ${maxCount})`;
 
     const renderDots = (group: ShelfSlotGroup) => html`
       <div class="zone-shelf-lane ${group.lane}">
@@ -1179,7 +1183,9 @@ export class CabinetGrid extends LitElement {
     const levelsData = sr.stepped_levels || [];
     const groups = getSteppedSlotGroups(levelsData);
     const maxCount = Math.max(1, ...levelsData);
-    const dotBasis = `${100 / maxCount}%`;
+    // See the same calc() in _renderShelfZone: accounts for the lane's own
+    // gaps so the row doesn't overflow (and get clipped) by a few px.
+    const dotBasis = `calc((100% - ${(maxCount - 1) * 2}px) / ${maxCount})`;
 
     const renderDots = (group: SteppedSlotGroup) => html`
       <div class="zone-shelf-lane">
