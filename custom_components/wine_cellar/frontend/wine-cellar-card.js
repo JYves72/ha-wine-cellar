@@ -4375,6 +4375,8 @@ CabinetGrid.styles = [
         display: flex;
         gap: 2px;
         margin-bottom: 2px;
+        padding: 0 4px;
+        box-sizing: border-box;
         position: relative;
       }
 
