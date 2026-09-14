@@ -3973,21 +3973,28 @@ let CabinetGrid = class CabinetGrid extends i {
         // Level 0 is the bottom board (see models.ts) — reverse for display,
         // since flex-direction: column lays out children top-to-bottom.
         const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
-        // One dot size for the whole shelf, sized off whichever lane is
-        // longest anywhere in it — so a 3-bottle back row doesn't render
-        // bigger dots than a 4-bottle front row. The shorter lane just ends
-        // up centered with more gap, the way a real shelf looks, rather than
-        // the receding stagger of a photo (the user explicitly didn't want
-        // that reproduced here).
-        const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
-        // Subtracts the lane's own gaps, plus a fixed 8px so the row's total
+        // One dot size for the whole shelf, sized off whichever level packs the
+        // most "weight" into its single interleaved row — front dots count as
+        // 1, back dots (rendered at half scale) count as 0.5, since that's how
+        // much horizontal room each actually needs. Using the old two-separate-
+        // rows maxCount here (just the bigger of front/back alone) badly
+        // undersized this: a row now holds front+back dots combined, not
+        // whichever lane was longer, so every dot rendered at roughly double
+        // the width it does now, overflowing the frame by that same factor.
+        let dominantWeight = 1;
+        let dominantItems = 1;
+        for (const l of levelsData) {
+            const weight = l.front + l.back * 0.5;
+            if (weight > dominantWeight) {
+                dominantWeight = weight;
+                dominantItems = l.front + l.back;
+            }
+        }
+        // Subtracts that level's own gaps, plus a fixed 8px so the row's total
         // width comes out a little under 100% — centered by .zone-shelf-lane's
         // justify-content, that shortfall becomes a ~4px margin on each side
         // instead of the end dots sitting flush against the cabinet's frame.
-        // A flat 100%/maxCount ignored the gaps entirely and had no margin at
-        // all, overflowing the row by (maxCount-1)*2px (clipped by
-        // .grid-inner's overflow:hidden) with the end dots touching the frame.
-        const dotBasis = `calc((100% - ${(maxCount - 1) * 2 + 8}px) / ${maxCount})`;
+        const dotBasis = `calc((100% - ${(dominantItems - 1) * 2 + 8}px) / ${dominantWeight})`;
         // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
         // if it doesn't work out. Interleaves the back lane's dots between the
         // front lane's, at half size, in one row instead of two labeled ones —
@@ -4730,6 +4737,12 @@ CabinetGrid.styles = [
       .zone-shelf-lane {
         display: flex;
         justify-content: center;
+        /* Without this, flex's default align-items: stretch forces every
+           dot in the row to the tallest one's height regardless of its own
+           width — harmless when every dot in a lane is the same size, but
+           the interleaved half-size back dots (see _renderShelfZone) got
+           stretched into tall ovals instead of staying circular. */
+        align-items: center;
         gap: 2px;
         width: 100%;
       }
