@@ -758,7 +758,8 @@ var bottleFields$1 = {
 var storageRowType$1 = {
 	bulk: "Bulk Bin",
 	box: "Wine Box",
-	shelf: "Shelf (Front/Back)"
+	shelf: "Shelf (Front/Back)",
+	stepped: "Staggered Shelf"
 };
 var removalReason$1 = {
 	drank: "Drank",
@@ -927,6 +928,7 @@ var ui$1 = {
 		rackPanelBottlesCount: "{n}/{max} bottles",
 		boxHeader: "Box {n} ({size}-pack)",
 		shelfGroupHeader: "Board {n} · {lane}",
+		steppedGroupHeader: "Row {n}",
 		shelfFront: "Front",
 		shelfBack: "Back",
 		deepSuffix: "{n} deep",
@@ -1192,6 +1194,7 @@ var ui$1 = {
 		thisBox: "This box",
 		thisBin: "This bin",
 		thisShelf: "This shelf",
+		thisStepped: "This staggered zone",
 		posRowCol: "Row {row}, Col {col}"
 	},
 	wineDetail: {
@@ -1303,6 +1306,15 @@ var ui$1 = {
 		shelfNamePlaceholder: "Shelf {n}",
 		bulkCapacityLabel: "Bottles",
 		boxCountLabel: "Boxes",
+		secondaryStyleLabel: "Secondary storage",
+		secondaryNone: "None",
+		secondaryHint: "A second storage zone, of a different (or the same) style, stacked above or below the primary one.",
+		secondaryPositionLabel: "Secondary zone position",
+		secondaryAbove: "Above",
+		secondaryBelow: "Below",
+		secondaryGridHint: "Uses the same columns and depth as the main grid.",
+		steppedFirstRowLabel: "Bottom row bottles",
+		steppedRowCountLabel: "Number of rows",
 		rowsLabel: "Rows",
 		columnsLabel: "Columns",
 		depthLabel: "Depth",
@@ -1503,7 +1515,8 @@ var bottleFields = {
 var storageRowType = {
 	bulk: "Casier en vrac",
 	box: "Caisse à vin",
-	shelf: "Étagère (avant/arrière)"
+	shelf: "Tête-bêche (avant/arrière)",
+	stepped: "Quinconce"
 };
 var removalReason = {
 	drank: "Bue",
@@ -1672,6 +1685,7 @@ var ui = {
 		rackPanelBottlesCount: "{n}/{max} bouteilles",
 		boxHeader: "Caisse {n} ({size} bouteilles)",
 		shelfGroupHeader: "Planche {n} · {lane}",
+		steppedGroupHeader: "Rangée {n}",
 		shelfFront: "Avant",
 		shelfBack: "Arrière",
 		deepSuffix: "{n} en profondeur",
@@ -1901,7 +1915,7 @@ var ui = {
 		bulkBoxZone: "Zone casier/caisse",
 		noneUseGrid: "Aucune — utiliser ligne/colonne de la grille",
 		boxShort: "Caisse",
-		shelfShort: "Étagère",
+		shelfShort: "Tête-bêche",
 		fullTitle: "Plein — libérez un emplacement ou augmentez sa capacité",
 		rowLabel: "Ligne (à partir de 1)",
 		columnLabel: "Colonne (à partir de 1)",
@@ -1936,7 +1950,8 @@ var ui = {
 		addWineFailed: "Échec de l'ajout du vin.",
 		thisBox: "Cette caisse",
 		thisBin: "Ce casier",
-		thisShelf: "Cette étagère",
+		thisShelf: "Ce tête-bêche",
+		thisStepped: "Ce quinconce",
 		posRowCol: "Ligne {row}, Col {col}"
 	},
 	wineDetail: {
@@ -2028,8 +2043,8 @@ var ui = {
 		gridDimensions: "grille {rows} × {cols}",
 		gridDeepSuffix: " × {depth} en profondeur",
 		bottlesCountSuffix: " · {n} bouteille{plural}",
-		shelfCountSuffixOne: " · {n} étagère",
-		shelfCountSuffixMany: " · {n} étagères",
+		shelfCountSuffixOne: " · {n} tête-bêche",
+		shelfCountSuffixMany: " · {n} tête-bêche",
 		boxCountSuffixOne: " · {n} caisse",
 		boxCountSuffixMany: " · {n} caisses",
 		moveUpTitle: "Monter",
@@ -2040,14 +2055,23 @@ var ui = {
 		gridLayoutTitle: "Disposition de la grille",
 		styleLabel: "Style du rack",
 		styleGrid: "Grille classique",
-		shelfCountLabel: "Étagères",
+		shelfCountLabel: "Tête-bêche",
 		shelfFrontLabel: "Avant",
 		shelfBackLabel: "Arrière",
-		shelfLevelsLabel: "Rangées par étagère",
-		shelfAlternateHint: "Les quantités avant/arrière s'inversent à chaque rangée d'une étagère (la rangée du bas commence avec le plus grand nombre à l'avant).",
-		shelfNamePlaceholder: "Étagère {n}",
+		shelfLevelsLabel: "Rangées par tête-bêche",
+		shelfAlternateHint: "Les quantités avant/arrière s'inversent à chaque rangée d'un tête-bêche (la rangée du bas commence avec le plus grand nombre à l'avant).",
+		shelfNamePlaceholder: "Tête-bêche {n}",
 		bulkCapacityLabel: "Bouteilles",
 		boxCountLabel: "Caisses",
+		secondaryStyleLabel: "Rangement secondaire",
+		secondaryNone: "Aucun",
+		secondaryHint: "Un second rangement, d'un style différent (ou identique), qui vient s'ajouter au-dessus ou en dessous du rangement principal.",
+		secondaryPositionLabel: "Position du rangement secondaire",
+		secondaryAbove: "Au-dessus",
+		secondaryBelow: "En dessous",
+		secondaryGridHint: "Utilise les mêmes colonnes et profondeur que la grille principale.",
+		steppedFirstRowLabel: "Bouteilles en rangée du bas",
+		steppedRowCountLabel: "Nombre de rangées",
 		rowsLabel: "Lignes",
 		columnsLabel: "Colonnes",
 		depthLabel: "Profondeur",
@@ -2289,6 +2313,32 @@ function getStorageRowTypeLabels(language) {
     return tGroup("storageRowType", language);
 }
 const BOX_SIZES = [1, 3, 6, 12, 24];
+// A true quinconce alternates: the bottom row holds `firstRow` bottles: the
+// row above nests into its gaps and holds one fewer, the row above that
+// realigns with the bottom row's own positions and is back to `firstRow`,
+// and so on — odd rows (1st, 3rd, 5th...) at `firstRow`, even rows at
+// `firstRow - 1`. It does not taper off monotonically.
+function getSteppedLevels(firstRow, rows) {
+    const first = Math.max(0, firstRow);
+    const second = Math.max(0, first - 1);
+    const count = Math.max(1, rows);
+    return Array.from({ length: count }, (_, i) => (i % 2 === 0 ? first : second));
+}
+// Flattens a stepped zone's levels into (level, depth-range) groups, mirroring
+// getShelfSlotGroups above but with a single lane per level. The backend's
+// WineCellarStorage._storage_row_capacity sums the same levels in the same
+// order, so the two must stay in step if this ever changes.
+function getSteppedSlotGroups(levels) {
+    const groups = [];
+    let offset = 0;
+    for (let level = 0; level < (levels?.length || 0); level++) {
+        const size = levels[level];
+        if (size > 0)
+            groups.push({ level, start: offset, size });
+        offset += size;
+    }
+    return groups;
+}
 // Flattens a shelf's levels into (level, lane) groups with their depth-index
 // range, bottom-to-top, front-then-back within each level. This ordering is
 // the single source of truth for how a flat `wine.depth` index maps onto a
@@ -2572,6 +2622,9 @@ function zoneCapacity(sr) {
     }
     if (sr.type === "shelf") {
         return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0) || sr.capacity || 0;
+    }
+    if (sr.type === "stepped") {
+        return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0) || sr.capacity || 0;
     }
     return sr.capacity || 0;
 }
@@ -3096,36 +3149,48 @@ function findOutliers(placed, live, cabinets, wines, language) {
     }
     return out;
 }
-// Whether a container is a shelf zone at all — used to keep shelf slots out
-// of the generic front-to-back "buried" check below, since a shelf board
-// slides out on its own rails and doesn't have that kind of blocking.
-function isShelfZone(container, cabinets) {
+// Whether a container has physically fixed, individually reachable slots
+// (a shelf's boards, or a stepped compressor zone's single-depth rows) —
+// used to keep them out of the generic front-to-back "buried" check below,
+// since neither has anything a bottle could sit "behind" the way a bulk
+// bin's pile does.
+function isLeveledZone(container, cabinets) {
     if (container.kind !== "zone")
         return false;
     const cabinet = cabinets.find((c) => c.id === container.cabinetId);
-    return storageRowFor(cabinet, container.zone)?.type === "shelf";
+    const type = storageRowFor(cabinet, container.zone)?.type;
+    return type === "shelf" || type === "stepped";
 }
 // A shelf zone stacks several independent boards, each with its own
-// front/back lanes, all sharing one flat depth range (see
-// getShelfSlotGroups). Returns null for anything that isn't a shelf zone.
-function shelfLevelOf(container, cabinets, depth) {
+// front/back lanes; a stepped zone stacks several single-depth rows —
+// both share one flat depth range per zone (see getShelfSlotGroups /
+// getSteppedSlotGroups). Returns null for anything else.
+function levelOf(container, cabinets, depth) {
     if (container.kind !== "zone")
         return null;
     const cabinet = cabinets.find((c) => c.id === container.cabinetId);
     const sr = cabinet ? storageRowFor(cabinet, container.zone) : undefined;
-    if (!sr || sr.type !== "shelf")
+    if (!sr)
         return null;
-    const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
-    return group ? group.level : null;
+    if (sr.type === "shelf") {
+        const group = getShelfSlotGroups(sr.shelf_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+        return group ? group.level : null;
+    }
+    if (sr.type === "stepped") {
+        const group = getSteppedSlotGroups(sr.stepped_levels).find((g) => depth >= g.start && depth < g.start + g.size);
+        return group ? group.level : null;
+    }
+    return null;
 }
 // A bottle whose drinking window is closing, stuck behind or under bottles
 // meant to be kept. No move is proposed: freeing it means two bottles trading
 // places, and writing that as one-way moves would misdescribe the rack.
 //
-// Shelf zones are excluded here: the whole board slides out on rails, so its
-// front and back lanes are equally reachable — there's no "stuck behind"
-// relationship there. A shelf's actual accessibility concern is which
-// stacked board a bottle sits on, handled separately by findWrongLevel.
+// Shelf and stepped zones are excluded here: a shelf board slides out on
+// rails (front/back lanes are equally reachable) and a stepped zone is only
+// ever one bottle deep — neither has anything a bottle sits "behind". Their
+// actual accessibility concern is which stacked level a bottle sits on,
+// handled separately by findWrongLevel.
 function findBuried(placed, cabinets, language) {
     const byContainer = new Map();
     for (const e of placed) {
@@ -3140,7 +3205,7 @@ function findBuried(placed, cabinets, language) {
     for (const entries of byContainer.values()) {
         if (entries.length < 2)
             continue;
-        if (isShelfZone(entries[0].container, cabinets))
+        if (isLeveledZone(entries[0].container, cabinets))
             continue;
         for (const e of entries) {
             if (!isDrinkSoon(e.wine))
@@ -3166,11 +3231,12 @@ function findBuried(placed, cabinets, language) {
     }
     return out;
 }
-// A shelf-specific accessibility concern: when an étagère has 2+ stacked
-// boards, the lower ones are more work to reach than the higher ones (unlike
-// front vs back, which the sliding board makes equally reachable — see
-// findBuried above). Flags a bottle due soon sitting on a lower board while
-// a bottle marked to keep sits on a higher one in the same étagère.
+// A leveled-zone accessibility concern: when a shelf has 2+ stacked boards,
+// or a stepped compressor zone has 2+ stacked rows, the lower ones are more
+// work to reach than the higher ones (unlike front vs back on a shelf, which
+// the sliding board makes equally reachable — see findBuried above). Flags a
+// bottle due soon sitting on a lower level while a bottle marked to keep sits
+// on a higher one in the same zone.
 function findWrongLevel(placed, cabinets, language) {
     const byContainer = new Map();
     for (const e of placed) {
@@ -3184,20 +3250,25 @@ function findWrongLevel(placed, cabinets, language) {
     const out = [];
     for (const entries of byContainer.values()) {
         const first = entries[0];
-        if (!isShelfZone(first.container, cabinets))
+        if (!isLeveledZone(first.container, cabinets))
             continue;
         const cabinet = cabinets.find((c) => c.id === first.container.cabinetId);
         const sr = cabinet ? storageRowFor(cabinet, first.container.zone) : undefined;
-        if (!sr || (sr.shelf_levels || []).length < 2)
+        const levelCount = sr?.type === "shelf"
+            ? (sr.shelf_levels || []).length
+            : sr?.type === "stepped"
+                ? (sr.stepped_levels || []).length
+                : 0;
+        if (levelCount < 2)
             continue;
         for (const e of entries) {
             if (!isDrinkSoon(e.wine))
                 continue;
-            const myLevel = shelfLevelOf(e.container, cabinets, e.wine.depth || 0);
+            const myLevel = levelOf(e.container, cabinets, e.wine.depth || 0);
             if (myLevel === null)
                 continue;
             const aboveKeepers = entries.filter((o) => {
-                const oLevel = shelfLevelOf(o.container, cabinets, o.wine.depth || 0);
+                const oLevel = levelOf(o.container, cabinets, o.wine.depth || 0);
                 return oLevel !== null && oLevel > myLevel && isKeeper(o.wine);
             });
             if (!aboveKeepers.length)
@@ -3798,6 +3869,9 @@ let CabinetGrid = class CabinetGrid extends i {
         if (zoneType === "shelf") {
             return this._renderShelfZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr);
         }
+        if (zoneType === "stepped") {
+            return this._renderSteppedZone(zoneId, zoneKey, zoneName, wines, sr);
+        }
         // Default: bulk
         return this._renderBulkZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr);
     }
@@ -3899,16 +3973,116 @@ let CabinetGrid = class CabinetGrid extends i {
         // Level 0 is the bottom board (see models.ts) — reverse for display,
         // since flex-direction: column lays out children top-to-bottom.
         const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
-        // One dot size for the whole shelf, sized off whichever lane is
-        // longest anywhere in it — so a 3-bottle back row doesn't render
-        // bigger dots than a 4-bottle front row. The shorter lane just ends
-        // up centered with more gap, the way a real shelf looks, rather than
-        // the receding stagger of a photo (the user explicitly didn't want
-        // that reproduced here).
-        const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
-        const dotBasis = `${100 / maxCount}%`;
+        // One dot size for the whole shelf, sized off whichever level packs the
+        // most "weight" into its single interleaved row — front dots count as
+        // 1, back dots (rendered at half scale) count as 0.5, since that's how
+        // much horizontal room each actually needs. Using the old two-separate-
+        // rows maxCount here (just the bigger of front/back alone) badly
+        // undersized this: a row now holds front+back dots combined, not
+        // whichever lane was longer, so every dot rendered at roughly double
+        // the width it does now, overflowing the frame by that same factor.
+        let dominantWeight = 1;
+        let dominantItems = 1;
+        for (const l of levelsData) {
+            const weight = l.front + l.back * 0.5;
+            if (weight > dominantWeight) {
+                dominantWeight = weight;
+                dominantItems = l.front + l.back;
+            }
+        }
+        // Subtracts that level's own gaps, plus a fixed 8px so the row's total
+        // width comes out a little under 100% — centered by .zone-shelf-lane's
+        // justify-content, that shortfall becomes a ~4px margin on each side
+        // instead of the end dots sitting flush against the cabinet's frame.
+        const dotBasis = `calc((100% - ${(dominantItems - 1) * 2 + 8}px) / ${dominantWeight})`;
+        // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
+        // if it doesn't work out. Interleaves the back lane's dots between the
+        // front lane's, at half size, in one row instead of two labeled ones —
+        // meant to roughly halve each board's height. Nothing about
+        // shelf_levels/front/back/name config changes, only how this one
+        // zone renders.
+        const renderDot = (group, indexInGroup, scale) => {
+            const depth = group.start + indexInGroup;
+            const dotKey = `${zoneKey}-${depth}`;
+            const wine = wines.find((w) => (w.depth || 0) === depth);
+            const bg = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+            const ring = wine ? this._brightenColor(bg) : "";
+            const disp = wine?.disposition || "";
+            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+            const basis = scale === 1 ? dotBasis : `calc(${dotBasis} * ${scale})`;
+            return b `<span
+        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+        style="flex-basis:${basis};max-width:${basis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
+        title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+        draggable=${wine ? "true" : "false"}
+        @click=${(e) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+        @dragstart=${wine ? (e) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : A}
+        @dragend=${(e) => this._onDragEnd(e)}
+        @dragover=${(e) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+        @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
+        @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+        @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
+        @touchend=${() => this._onTouchEnd()}
+        @touchmove=${() => this._onTouchMove()}
+      >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
+        };
+        // Whichever lane is longer leads the sequence (its dot comes first at
+        // each position), with the shorter one nested right after — any surplus
+        // of the longer lane tacked on at the end. On a swapped level (back=4,
+        // front=3), that means position 1 is a back dot, not front. Scale
+        // always follows the lane itself (front=1, back=0.5), regardless of
+        // which one leads.
+        const renderInterleavedLane = (front, back) => {
+            const frontSize = front?.size || 0;
+            const backSize = back?.size || 0;
+            const frontLeads = frontSize >= backSize;
+            const items = [];
+            for (let i = 0; i < Math.max(frontSize, backSize); i++) {
+                if (frontLeads) {
+                    if (i < frontSize)
+                        items.push(renderDot(front, i, 1));
+                    if (i < backSize)
+                        items.push(renderDot(back, i, 0.5));
+                }
+                else {
+                    if (i < backSize)
+                        items.push(renderDot(back, i, 0.5));
+                    if (i < frontSize)
+                        items.push(renderDot(front, i, 1));
+                }
+            }
+            return b `<div class="zone-shelf-lane">${items}</div>`;
+        };
+        return b `
+      <div class="bottom-zone zone-shelf">
+        ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
+        <div class="zone-shelf-levels">
+          ${levels.map(([, lanes], idx) => b `
+            <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
+              ${renderInterleavedLane(lanes.front, lanes.back)}
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+    }
+    // Compressor-bump zone: the shallow, single-depth area above a fridge's
+    // compressor, where bottles lie one deep and each row above the bottom one
+    // nests into the gaps of the row below (see getSteppedLevels in models.ts).
+    // Reuses the shelf zone's dot styling — visually it's the same idea, one
+    // lane per level instead of two — but each level here is its own
+    // individually-addressable row, same as a shelf board, not a front/back
+    // pair, so there's no lane split or label.
+    _renderSteppedZone(zoneId, zoneKey, name, wines, sr) {
+        const levelsData = sr.stepped_levels || [];
+        const groups = getSteppedSlotGroups(levelsData);
+        const maxCount = Math.max(1, ...levelsData);
+        // See the same calc() in _renderShelfZone: accounts for the lane's own
+        // gaps, plus a fixed margin so the end dots don't sit flush against the
+        // cabinet's frame.
+        const dotBasis = `calc((100% - ${(maxCount - 1) * 2 + 8}px) / ${maxCount})`;
         const renderDots = (group) => b `
-      <div class="zone-shelf-lane ${group.lane}">
+      <div class="zone-shelf-lane">
         ${Array.from({ length: group.size }, (_, i) => {
             const depth = group.start + i;
             const dotKey = `${zoneKey}-${depth}`;
@@ -3935,33 +4109,16 @@ let CabinetGrid = class CabinetGrid extends i {
         })}
       </div>
     `;
-        // Back lane's label sits above its dots, front lane's below — so each
-        // board reads top-to-bottom as "Back / [dots] / [dots] / Front",
-        // making it clear both rows belong to the same physical board.
-        const renderBack = (group) => {
-            if (!group)
-                return A;
-            return b `
-        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfBack")}</div>
-        ${renderDots(group)}
-      `;
-        };
-        const renderFront = (group) => {
-            if (!group)
-                return A;
-            return b `
-        ${renderDots(group)}
-        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfFront")}</div>
-      `;
-        };
+        // Level 0 is the bottom row (see models.ts) — reverse for display, since
+        // flex-direction: column lays out children top-to-bottom.
+        const reversed = [...groups].sort((a, b) => b.level - a.level);
         return b `
       <div class="bottom-zone zone-shelf">
         ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         <div class="zone-shelf-levels">
-          ${levels.map(([, lanes], idx) => b `
-            <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
-              ${renderBack(lanes.back)}
-              ${renderFront(lanes.front)}
+          ${reversed.map((group, idx) => b `
+            <div class="zone-shelf-level ${idx === reversed.length - 1 ? "last" : ""}">
+              ${renderDots(group)}
             </div>
           `)}
         </div>
@@ -4235,6 +4392,8 @@ CabinetGrid.styles = [
         display: flex;
         gap: 2px;
         margin-bottom: 2px;
+        padding: 0 4px;
+        box-sizing: border-box;
         position: relative;
       }
 
@@ -4263,11 +4422,14 @@ CabinetGrid.styles = [
         min-width: 0;
         z-index: 1;
         container-type: inline-size;
+        box-sizing: border-box;
       }
 
       .cell.empty {
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
+        /* Same 2px width as .filled below — see the longer note on
+           .zone-shelf-dot's empty state for why this has to match. */
+        border: 2px dashed rgba(255, 255, 255, 0.15);
       }
 
       .cell.empty:hover {
@@ -4586,6 +4748,12 @@ CabinetGrid.styles = [
       .zone-shelf-lane {
         display: flex;
         justify-content: center;
+        /* Without this, flex's default align-items: stretch forces every
+           dot in the row to the tallest one's height regardless of its own
+           width — harmless when every dot in a lane is the same size, but
+           the interleaved half-size back dots (see _renderShelfZone) got
+           stretched into tall ovals instead of staying circular. */
+        align-items: center;
         gap: 2px;
         width: 100%;
       }
@@ -4612,7 +4780,13 @@ CabinetGrid.styles = [
         min-width: 0;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
+        /* Same border width as .filled below (2px) — only the dash pattern,
+           color and opacity change between empty/filled. A thinner empty
+           border would shrink the box itself under content-box sizing, and
+           even with box-sizing: border-box (below) a visibly thinner ring
+           still reads as a smaller circle next to a bold filled one. */
+        border: 2px dashed rgba(255, 255, 255, 0.15);
+        box-sizing: border-box;
         cursor: pointer;
         overflow: hidden;
         container-type: inline-size;
@@ -7670,7 +7844,7 @@ let AddWineDialog = class AddWineDialog extends i {
         // growing it beyond its configured capacity. Refuse instead, the way
         // drag-and-drop and paste already do.
         const { used, capacity, nextDepth, full } = this._zoneUsage(sr);
-        const label = sr.name || (sr.type === "box" ? this._t("ui.addWine.thisBox") : sr.type === "shelf" ? this._t("ui.addWine.thisShelf") : this._t("ui.addWine.thisBin"));
+        const label = sr.name || (sr.type === "box" ? this._t("ui.addWine.thisBox") : sr.type === "shelf" ? this._t("ui.addWine.thisShelf") : sr.type === "stepped" ? this._t("ui.addWine.thisStepped") : this._t("ui.addWine.thisBin"));
         if (full) {
             this._error = this._t("ui.addWine.zoneFull", { label, used, capacity });
             return;
@@ -8235,7 +8409,7 @@ let AddWineDialog = class AddWineDialog extends i {
                     title=${usage.full ? this._t("ui.addWine.fullTitle") : ""}
                     @click=${() => this._selectZone(sr)}
                   >
-                    ${sr.name || (sr.type === "box" ? this._t("ui.addWine.boxShort") : sr.type === "shelf" ? this._t("ui.addWine.shelfShort") : this._t("storageRowType.bulk"))}
+                    ${sr.name || (sr.type === "box" ? this._t("ui.addWine.boxShort") : sr.type === "shelf" ? this._t("ui.addWine.shelfShort") : sr.type === "stepped" ? this._t("storageRowType.stepped") : this._t("storageRowType.bulk"))}
                     <span style="opacity:0.75">${usage.used}/${usage.capacity}</span>
                   </button>
                 `;
@@ -8369,7 +8543,7 @@ let AddWineDialog = class AddWineDialog extends i {
             ? zoneCabinet?.storage_rows.find((sr) => `storage-${sr.row}` === this._wineData.zone)
             : undefined;
         const posLabel = zoneRow
-            ? zoneRow.name || (zoneRow.type === "box" ? this._t("ui.addWine.boxShort") : zoneRow.type === "shelf" ? this._t("ui.addWine.shelfShort") : this._t("storageRowType.bulk"))
+            ? zoneRow.name || (zoneRow.type === "box" ? this._t("ui.addWine.boxShort") : zoneRow.type === "shelf" ? this._t("ui.addWine.shelfShort") : zoneRow.type === "stepped" ? this._t("storageRowType.stepped") : this._t("storageRowType.bulk"))
             : this._wineData.row != null && this._wineData.col != null
                 ? this._t("ui.addWine.posRowCol", { row: (this._wineData.row ?? 0) + 1, col: (this._wineData.col ?? 0) + 1 })
                 : this._t("ui.addWine.notSpecified");
@@ -9296,14 +9470,28 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this.wines = [];
         this._mode = "list";
         this._editCabinet = {};
-        this._editStorageRows = [];
-        // A rack is exactly one of these four — chosen once, right under the
-        // name, rather than picked per row. "grid" has no storage rows at all;
-        // the other three are a single concept (a list of shelves, one bulk
-        // bin, or one set of boxes) with nothing to mix in. Inferred from the
-        // data when editing; an explicit choice when adding, since there is no
-        // data yet to infer from.
-        this._cabinetStyle = "grid";
+        // Primary and secondary each keep their own working list of storage rows
+        // — so e.g. two bulk bins, one above and one below, can be configured
+        // independently without one overwriting the other. A style's rows persist
+        // here even while a different style is active for that slot, purely so
+        // flipping back and forth while exploring doesn't lose work; only the
+        // active style's rows for each slot are ever rendered or saved (see
+        // _finalStorageRows).
+        this._primaryStorageRows = [];
+        this._secondaryStorageRows = [];
+        // The rack's main style, chosen right under the name. Inferred from the
+        // data when editing (see _startEdit); an explicit choice when adding.
+        this._primaryStyle = "grid";
+        // An optional second zone stacked above or below the primary one —
+        // "none" means no secondary zone is attached.
+        this._secondaryStyle = "none";
+        this._secondaryPosition = "below";
+        // Row count for a "grid" secondary specifically — a secondary grid block
+        // has no StorageRow entry of its own (plain grid rows are never stored),
+        // so unlike the other styles its row count needs its own field. It shares
+        // the cabinet's own cols/depth (see _finalCols/_finalDepth) since a rack
+        // never has more than one grid-shaped section.
+        this._secondaryGridRows = 1;
         this._deleteCabinet = null;
         this._loading = false;
         this._error = "";
@@ -9329,56 +9517,93 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
     _winesInCabinet(cabinetId) {
         return this.wines.filter((w) => w.cabinet_id === cabinetId).length;
     }
-    // The single shelf/bulk/box row(s) actually belonging to the active
-    // style — switching styles while exploring keeps the others' config
-    // around in _editStorageRows (harmless: only the active style's rows
-    // are ever rendered or saved) so flipping back doesn't lose work.
-    _shelfRows() {
-        return this._editStorageRows.filter((sr) => sr.type === "shelf");
+    // --- Per-slot row access ---
+    // Each slot (primary/secondary) keeps its own list of rows; a style only
+    // ever has rows of its own type in a slot's list (see the setters below),
+    // so filtering by type is enough to find "the" row for styles that use
+    // just one (bulk/box/stepped) or several (shelf).
+    _rowsFor(slot) {
+        return slot === "primary" ? this._primaryStorageRows : this._secondaryStorageRows;
     }
-    _bulkRow() {
-        return this._editStorageRows.find((sr) => sr.type === "bulk");
+    _setRowsFor(slot, rows) {
+        if (slot === "primary")
+            this._primaryStorageRows = rows;
+        else
+            this._secondaryStorageRows = rows;
     }
-    _boxRow() {
-        return this._editStorageRows.find((sr) => sr.type === "box");
+    _styleFor(slot) {
+        return slot === "primary" ? this._primaryStyle : this._secondaryStyle;
     }
-    // What actually gets saved, freshly computed from the active style —
-    // never a stale mix of whatever _editStorageRows happens to be holding
-    // from earlier style exploration. Shelf rows are always renumbered
-    // 0..N-1 in list order; the physical row a bottle sits behind never
-    // survives a shelf being removed anyway (see _displacedWines).
+    _shelfRows(slot) {
+        return this._rowsFor(slot).filter((sr) => sr.type === "shelf");
+    }
+    _bulkRow(slot) {
+        return this._rowsFor(slot).find((sr) => sr.type === "bulk");
+    }
+    _boxRow(slot) {
+        return this._rowsFor(slot).find((sr) => sr.type === "box");
+    }
+    _steppedRow(slot) {
+        return this._rowsFor(slot).find((sr) => sr.type === "stepped");
+    }
+    // How many rows a slot's active style actually uses.
+    _slotRowCount(slot) {
+        const style = this._styleFor(slot);
+        if (style === "none")
+            return 0;
+        if (style === "grid")
+            return slot === "primary" ? (this._editCabinet.rows || 1) : this._secondaryGridRows;
+        if (style === "shelf")
+            return Math.max(1, this._shelfRows(slot).length);
+        return 1; // bulk, box, stepped
+    }
+    // A slot's own rows, renumbered to a contiguous range starting at
+    // `offset` — the physical row a bottle sits behind never survives a rack
+    // being reshaped anyway (see _displacedWines), so the exact index only
+    // needs to be internally consistent at save time.
+    _slotFinalRows(slot, offset) {
+        const style = this._styleFor(slot);
+        if (style === "none" || style === "grid")
+            return [];
+        if (style === "shelf") {
+            return this._shelfRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
+        }
+        const row = style === "bulk" ? this._bulkRow(slot) : style === "box" ? this._boxRow(slot) : this._steppedRow(slot);
+        return row ? [{ ...row, row: offset }] : [];
+    }
+    // What actually gets saved, freshly computed from the active styles —
+    // never a stale mix of whatever _primaryStorageRows/_secondaryStorageRows
+    // happen to be holding from earlier style exploration. The secondary
+    // zone, when present, sits either before the primary's own rows (row 0
+    // upward, "above") or after them ("below") — see _secondaryPosition.
     _finalStorageRows() {
-        if (this._cabinetStyle === "shelf") {
-            return this._shelfRows().map((sr, i) => ({ ...sr, row: i }));
+        const hasSecondary = this._secondaryStyle !== "none";
+        if (hasSecondary && this._secondaryPosition === "above") {
+            const secondaryRows = this._slotFinalRows("secondary", 0);
+            const primaryRows = this._slotFinalRows("primary", this._slotRowCount("secondary"));
+            return [...secondaryRows, ...primaryRows];
         }
-        if (this._cabinetStyle === "bulk") {
-            const sr = this._bulkRow();
-            return sr ? [{ ...sr, row: 0 }] : [];
-        }
-        if (this._cabinetStyle === "box") {
-            const sr = this._boxRow();
-            return sr ? [{ ...sr, row: 0 }] : [];
-        }
-        return [];
+        const primaryRows = this._slotFinalRows("primary", 0);
+        const secondaryRows = hasSecondary ? this._slotFinalRows("secondary", this._slotRowCount("primary")) : [];
+        return [...primaryRows, ...secondaryRows];
     }
     _finalRows() {
-        if (this._cabinetStyle === "grid")
-            return this._editCabinet.rows || 1;
-        if (this._cabinetStyle === "shelf")
-            return Math.max(1, this._shelfRows().length);
-        return 1;
+        return this._slotRowCount("primary") + this._slotRowCount("secondary");
     }
     _finalCols() {
-        return this._cabinetStyle === "grid" ? this._editCabinet.cols || 8 : 1;
+        return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? this._editCabinet.cols || 8 : 1;
     }
     _finalDepth() {
-        return this._cabinetStyle === "grid" ? this._editCabinet.depth || 1 : 1;
+        return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? this._editCabinet.depth || 1 : 1;
     }
     static _capacityOf(sr) {
         if (sr.type === "box")
             return (sr.boxes || []).reduce((sum, b) => sum + b, 0);
         if (sr.type === "shelf") {
             return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0);
+        }
+        if (sr.type === "stepped") {
+            return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0);
         }
         return sr.capacity || 0;
     }
@@ -9428,42 +9653,109 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             has_bottom_zone: false,
             bottom_zone_name: "",
         };
-        this._editStorageRows = [];
-        this._cabinetStyle = "grid";
+        this._primaryStorageRows = [];
+        this._secondaryStorageRows = [];
+        this._primaryStyle = "grid";
+        this._secondaryStyle = "none";
+        this._secondaryPosition = "below";
+        this._secondaryGridRows = 1;
     }
+    // Re-derives (primary style, secondary style + position) from a saved
+    // cabinet's row layout. Plain grid rows have no storage_rows entry of
+    // their own, so they show up here as a gap between (or around) the typed
+    // rows; grouping the whole row range into contiguous same-type runs
+    // (treating each gap as its own "grid" run) recovers at most two runs for
+    // anything this dialog itself could have saved. Older cabinets that
+    // predate the secondary-zone feature are always a single run and fall
+    // straight into the "no secondary" branch below, same as before.
     _startEdit(cabinet) {
         this._mode = "edit";
         this._error = "";
         this._editCabinet = { ...cabinet };
-        // Initialize storage rows from cabinet data, ensuring boxes/levels exist
-        this._editStorageRows = (cabinet.storage_rows || []).map((sr) => {
-            if (sr.type === "box" && !sr.boxes) {
+        const totalRows = cabinet.rows || 0;
+        const storageRows = (cabinet.storage_rows || [])
+            .map((sr) => {
+            if (sr.type === "box" && !sr.boxes)
                 return { ...sr, boxes: [sr.capacity || 12] };
-            }
-            if (sr.type === "shelf" && !sr.shelf_levels) {
+            if (sr.type === "shelf" && !sr.shelf_levels)
                 return { ...sr, shelf_levels: [{ front: sr.capacity || 4, back: 0 }] };
-            }
+            if (sr.type === "stepped" && !sr.stepped_levels)
+                return { ...sr, stepped_levels: getSteppedLevels(sr.capacity || 5, 3) };
             return { ...sr };
-        });
-        const types = new Set(this._editStorageRows.map((sr) => sr.type));
-        if (types.size === 0) {
-            this._cabinetStyle = "grid";
+        })
+            .sort((a, b) => a.row - b.row);
+        const byRow = new Map(storageRows.map((sr) => [sr.row, sr]));
+        const clusters = [];
+        let cursor = 0;
+        while (cursor < totalRows) {
+            const start = cursor;
+            const sr = byRow.get(cursor);
+            if (!sr) {
+                while (cursor < totalRows && !byRow.has(cursor))
+                    cursor++;
+                clusters.push({ style: "grid", rows: [], start, size: cursor - start });
+            }
+            else {
+                const type = sr.type;
+                const rows = [];
+                while (cursor < totalRows && byRow.get(cursor)?.type === type) {
+                    rows.push(byRow.get(cursor));
+                    cursor++;
+                }
+                clusters.push({ style: type, rows, start, size: cursor - start });
+            }
         }
-        else if (types.has("shelf") && this._editStorageRows.length === (cabinet.rows || 0)) {
-            this._cabinetStyle = "shelf";
+        const applySlot = (slot, cluster) => {
+            if (!cluster) {
+                if (slot === "primary") {
+                    this._primaryStyle = "grid";
+                    this._primaryStorageRows = [];
+                }
+                else {
+                    this._secondaryStyle = "none";
+                    this._secondaryStorageRows = [];
+                }
+                return;
+            }
+            const rows = cluster.rows.map((sr, i) => ({ ...sr, row: i }));
+            if (slot === "primary") {
+                this._primaryStyle = cluster.style;
+                this._primaryStorageRows = rows;
+            }
+            else {
+                this._secondaryStyle = cluster.style;
+                this._secondaryStorageRows = rows;
+                this._secondaryGridRows = cluster.style === "grid" ? Math.max(1, cluster.size) : 1;
+            }
+        };
+        if (clusters.length <= 1) {
+            applySlot("primary", clusters[0]);
+            applySlot("secondary", undefined);
+            this._secondaryPosition = "below";
         }
-        else if (types.has("bulk") && this._editStorageRows.length === 1) {
-            this._cabinetStyle = "bulk";
-        }
-        else if (types.has("box") && this._editStorageRows.length === 1) {
-            this._cabinetStyle = "box";
+        else if (clusters.length === 2) {
+            // Clusters are built by scanning rows from 0 upward, so `first` is
+            // always the physically higher one. The bigger cluster (by row count)
+            // reads as "primary"; on a tie, the one on top does — purely a
+            // labeling choice for this dialog, since the rack itself renders and
+            // behaves identically either way.
+            const [first, second] = clusters;
+            const primaryIsFirst = first.size >= second.size;
+            applySlot("primary", primaryIsFirst ? first : second);
+            applySlot("secondary", primaryIsFirst ? second : first);
+            this._secondaryPosition = primaryIsFirst ? "below" : "above";
         }
         else {
-            // Doesn't cleanly match one of the four styles (e.g. an older mixed
-            // rack) — fall back to showing it as a classic grid rather than
-            // guessing; its storage rows stay in _editStorageRows either way and
-            // are only dropped if the user actually saves from this fallback.
-            this._cabinetStyle = "grid";
+            // 3+ runs: an arrangement this dialog can't represent as primary plus
+            // one secondary (e.g. an older, more intricate mixed rack). Fall back
+            // to showing it as a classic grid rather than guessing; nothing is
+            // deleted — its storage rows are only dropped if the user actually
+            // saves from this fallback.
+            this._primaryStyle = "grid";
+            this._primaryStorageRows = [];
+            this._secondaryStyle = "none";
+            this._secondaryStorageRows = [];
+            this._secondaryPosition = "below";
         }
     }
     static _buildAlternatingLevels(front, back, count) {
@@ -9471,73 +9763,74 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const b = Math.max(0, back);
         return Array.from({ length: Math.max(1, count) }, (_, i) => i % 2 === 0 ? { front: f, back: b } : { front: b, back: f });
     }
-    // Front/back are shared by every shelf in the rack; how many rows each
-    // shelf has is that shelf's own choice (a fridge shelf can be one board
-    // or two stacked ones) — read the shared pair from the first shelf,
-    // since _applySharedFrontBack keeps it in lockstep across all of them.
-    _sharedShelfFrontBack() {
-        const lvl0 = this._shelfRows()[0]?.shelf_levels?.[0];
+    // Front/back are shared by every shelf within one slot; how many rows
+    // each shelf has is that shelf's own choice (a fridge shelf can be one
+    // board or two stacked ones) — read the shared pair from the first
+    // shelf, since _applySharedFrontBack keeps it in lockstep across all of
+    // them.
+    _sharedShelfFrontBack(slot) {
+        const lvl0 = this._shelfRows(slot)[0]?.shelf_levels?.[0];
         return { front: lvl0?.front ?? 4, back: lvl0?.back ?? 0 };
     }
-    // Re-derives every shelf's levels from a new shared front/back, keeping
-    // each shelf's own level count exactly as it was.
-    _applySharedFrontBack(front, back) {
+    // Re-derives every shelf's levels in this slot from a new shared
+    // front/back, keeping each shelf's own level count exactly as it was.
+    _applySharedFrontBack(slot, front, back) {
         const f = Math.max(0, front);
         const b = Math.max(0, back);
-        this._editStorageRows = this._editStorageRows.map((sr) => {
+        this._setRowsFor(slot, this._rowsFor(slot).map((sr) => {
             if (sr.type !== "shelf")
                 return sr;
             const levels = RackSettingsDialog_1._buildAlternatingLevels(f, b, sr.shelf_levels?.length || 1);
             const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
             return { ...sr, shelf_levels: levels, capacity };
-        });
+        }));
     }
-    _setSharedFront(value) {
-        this._applySharedFrontBack(value, this._sharedShelfFrontBack().back);
+    _setSharedFront(slot, value) {
+        this._applySharedFrontBack(slot, value, this._sharedShelfFrontBack(slot).back);
     }
-    _setSharedBack(value) {
-        this._applySharedFrontBack(this._sharedShelfFrontBack().front, value);
+    _setSharedBack(slot, value) {
+        this._applySharedFrontBack(slot, this._sharedShelfFrontBack(slot).front, value);
     }
     // Changes just this one shelf's row count, using the shared front/back.
-    _setShelfLevelCountAt(index, count) {
+    _setShelfLevelCountAt(slot, index, count) {
         count = Math.max(1, Math.min(6, count));
-        const { front, back } = this._sharedShelfFrontBack();
-        const rows = this._shelfRows();
+        const { front, back } = this._sharedShelfFrontBack(slot);
+        const rows = this._shelfRows(slot);
         if (!rows[index])
             return;
         const levels = RackSettingsDialog_1._buildAlternatingLevels(front, back, count);
         const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
         rows[index] = { ...rows[index], shelf_levels: levels, capacity };
-        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "shelf"), ...rows]);
     }
     // Rebuilds the shelf list to the requested count, applying the shared
     // front/back to any new ones (starting at 1 row each — a second row is
     // an explicit per-shelf choice, not assumed) and keeping existing
     // shelves' own name and row count (by position) rather than resetting
     // them.
-    _setShelfCount(count) {
+    _setShelfCount(slot, count) {
         count = Math.max(1, Math.min(20, count));
-        const { front, back } = this._sharedShelfFrontBack();
-        const existing = this._shelfRows();
+        const { front, back } = this._sharedShelfFrontBack(slot);
+        const existing = this._shelfRows(slot);
         const rows = Array.from({ length: count }, (_, i) => {
             const prior = existing[i];
             const levels = RackSettingsDialog_1._buildAlternatingLevels(front, back, prior?.shelf_levels?.length || 1);
             const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
             return { row: i, name: prior?.name || "", type: "shelf", capacity, shelf_levels: levels };
         });
-        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "shelf"), ...rows]);
     }
-    _updateShelfName(index, name) {
-        const rows = this._shelfRows().map((sr, i) => (i === index ? { ...sr, name } : sr));
-        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+    _updateShelfName(slot, index, name) {
+        const rows = this._shelfRows(slot).map((sr, i) => (i === index ? { ...sr, name } : sr));
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "shelf"), ...rows]);
     }
-    _setBulkCapacity(capacity) {
+    _setBulkCapacity(slot, capacity) {
         capacity = Math.max(1, Math.min(500, capacity));
-        const row = { row: 0, name: this._bulkRow()?.name || "", type: "bulk", capacity };
-        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "bulk"), row];
+        const row = { row: 0, name: this._bulkRow(slot)?.name || "", type: "bulk", capacity };
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "bulk"), row]);
     }
-    _updateBoxCount(count) {
-        const existing = this._boxRow();
+    _updateBoxCount(slot, count) {
+        const existing = this._boxRow(slot);
         const boxes = [...(existing?.boxes || [12])];
         while (boxes.length < count)
             boxes.push(12);
@@ -9545,39 +9838,74 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             boxes.pop();
         const capacity = boxes.reduce((sum, s) => sum + s, 0);
         const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
-        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
     }
-    _updateBoxSize(boxIndex, size) {
-        const existing = this._boxRow();
+    _updateBoxSize(slot, boxIndex, size) {
+        const existing = this._boxRow(slot);
         const boxes = [...(existing?.boxes || [12])];
         boxes[boxIndex] = size;
         const capacity = boxes.reduce((sum, s) => sum + s, 0);
         const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
-        this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
     }
-    // Switching style lazily creates that style's default config the first
-    // time it's chosen; any other style's config already built this session
-    // is left alone in _editStorageRows so flipping back doesn't lose it —
-    // only the active style's rows are ever rendered or saved.
-    _setCabinetStyle(style) {
-        this._cabinetStyle = style;
-        if (style === "shelf" && this._shelfRows().length === 0) {
-            this._setShelfCount(1);
+    // Quinconce: driven by just two numbers — the bottom row's bottle count
+    // and how many rows stack above it — with the per-level breakdown always
+    // derived via getSteppedLevels rather than edited directly.
+    _setSteppedConfig(slot, firstRow, rowCount) {
+        firstRow = Math.max(1, Math.min(30, firstRow));
+        rowCount = Math.max(1, Math.min(10, rowCount));
+        const levels = getSteppedLevels(firstRow, rowCount);
+        const capacity = levels.reduce((sum, n) => sum + n, 0);
+        const row = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), row]);
+    }
+    _setSteppedFirstRow(slot, value) {
+        this._setSteppedConfig(slot, value, this._steppedRow(slot)?.stepped_levels?.length || 3);
+    }
+    _setSteppedRowCount(slot, value) {
+        this._setSteppedConfig(slot, this._steppedRow(slot)?.stepped_levels?.[0] || 5, value);
+    }
+    // Switching a slot's style lazily creates that style's default config the
+    // first time it's chosen; any other style's config already built this
+    // session for that slot is left alone (see _rowsFor) so flipping back
+    // doesn't lose it.
+    _lazyInitSlot(slot, style) {
+        if (style === "shelf" && this._shelfRows(slot).length === 0) {
+            this._setShelfCount(slot, 1);
         }
-        else if (style === "bulk" && !this._bulkRow()) {
-            this._setBulkCapacity(20);
+        else if (style === "bulk" && !this._bulkRow(slot)) {
+            this._setBulkCapacity(slot, 20);
         }
-        else if (style === "box" && !this._boxRow()) {
-            this._updateBoxCount(1);
+        else if (style === "box" && !this._boxRow(slot)) {
+            this._updateBoxCount(slot, 1);
         }
+        else if (style === "stepped" && !this._steppedRow(slot)) {
+            this._setSteppedConfig(slot, 5, 3);
+        }
+    }
+    _setPrimaryStyle(style) {
+        this._primaryStyle = style;
+        this._lazyInitSlot("primary", style);
+    }
+    _setSecondaryStyle(style) {
+        this._secondaryStyle = style;
+        if (style !== "none")
+            this._lazyInitSlot("secondary", style);
+    }
+    _setSecondaryPosition(position) {
+        this._secondaryPosition = position;
+    }
+    _setSecondaryGridRows(value) {
+        this._secondaryGridRows = Math.max(1, Math.min(10, value));
     }
     _startDelete(cabinet) {
         this._mode = "delete-confirm";
         this._error = "";
         this._deleteCabinet = cabinet;
     }
-    // Grid style only — no storage rows ever mix into a classic grid rack,
-    // so there is nothing to reconcile here beyond the row count itself.
+    // The primary grid's own row count — a secondary zone (grid or otherwise)
+    // has its own row count tracked separately (see _secondaryGridRows /
+    // _slotRowCount) and is never affected by these.
     _addRow() {
         const current = this._editCabinet.rows || 1;
         if (current >= 20)
@@ -9753,21 +10081,22 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         <div class="rack-list">
           ${sorted.map((cab, idx) => {
             const storageRows = cab.storage_rows || [];
-            const storageCount = storageRows.length;
-            const isPureStorage = storageCount > 0 && storageCount === (cab.rows || 0);
-            const storageType = isPureStorage ? storageRows[0]?.type : undefined;
+            const hasGridRows = (cab.rows || 0) > storageRows.length;
+            const typeCounts = new Map();
+            for (const sr of storageRows)
+                typeCounts.set(sr.type, (typeCounts.get(sr.type) || 0) + 1);
             return b `
                 <div class="rack-item">
                   <div class="rack-info">
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
-                      ${isPureStorage ? A : b `${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}`}
+                      ${hasGridRows ? b `${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}` : A}
                       ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
-                      ${storageType === "shelf"
-                ? this._t(storageCount === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: storageCount })
-                : storageType === "box"
-                    ? this._t(storageCount === 1 ? "ui.rack.boxCountSuffixOne" : "ui.rack.boxCountSuffixMany", { n: storageCount })
-                    : ""}
+                      ${[...typeCounts.entries()].map(([type, count]) => type === "shelf"
+                ? this._t(count === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: count })
+                : type === "box"
+                    ? this._t(count === 1 ? "ui.rack.boxCountSuffixOne" : "ui.rack.boxCountSuffixMany", { n: count })
+                    : "")}
                     </div>
                   </div>
                   <div class="rack-actions">
@@ -9806,11 +10135,30 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       </div>
     `;
     }
-    _renderStyleForm() {
-        const numRows = this._editCabinet.rows || 1;
+    _renderSlotForm(slot) {
+        const style = this._styleFor(slot);
         const numCols = this._editCabinet.cols || 8;
         const numDepth = this._editCabinet.depth || 1;
-        if (this._cabinetStyle === "grid") {
+        if (style === "grid") {
+            if (slot === "secondary") {
+                // A secondary grid block has no row count of its own control on the
+                // cabinet — cols/depth are shared with the cabinet's one grid
+                // section (see _finalCols/_finalDepth), so just its row count.
+                return b `
+          <div class="stepper-row">
+            <div class="stepper-wrap">
+              <div class="stepper-label">${this._t("ui.rack.rowsLabel")}</div>
+              <div class="stepper">
+                <button class="stepper-btn" @click=${() => this._setSecondaryGridRows(this._secondaryGridRows - 1)} ?disabled=${this._secondaryGridRows <= 1}>−</button>
+                <span class="stepper-value">${this._secondaryGridRows}</span>
+                <button class="stepper-btn" @click=${() => this._setSecondaryGridRows(this._secondaryGridRows + 1)} ?disabled=${this._secondaryGridRows >= 10}>+</button>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">${this._t("ui.rack.secondaryGridHint")}</p>
+        `;
+            }
+            const numRows = this._editCabinet.rows || 1;
             return b `
         <div class="grid-editor-title">${this._t("ui.rack.gridLayoutTitle")}</div>
         <div class="stepper-row">
@@ -9854,33 +10202,33 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         </div>
       `;
         }
-        if (this._cabinetStyle === "shelf") {
-            const shared = this._sharedShelfFrontBack();
-            const shelves = this._shelfRows();
+        if (style === "shelf") {
+            const shared = this._sharedShelfFrontBack(slot);
+            const shelves = this._shelfRows(slot);
             return b `
         <div class="stepper-row">
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfCountLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setShelfCount(shelves.length - 1)} ?disabled=${shelves.length <= 1}>−</button>
+              <button class="stepper-btn" @click=${() => this._setShelfCount(slot, shelves.length - 1)} ?disabled=${shelves.length <= 1}>−</button>
               <span class="stepper-value">${shelves.length}</span>
-              <button class="stepper-btn" @click=${() => this._setShelfCount(shelves.length + 1)} ?disabled=${shelves.length >= 20}>+</button>
+              <button class="stepper-btn" @click=${() => this._setShelfCount(slot, shelves.length + 1)} ?disabled=${shelves.length >= 20}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfFrontLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSharedFront(shared.front - 1)} ?disabled=${shared.front <= 0}>−</button>
+              <button class="stepper-btn" @click=${() => this._setSharedFront(slot, shared.front - 1)} ?disabled=${shared.front <= 0}>−</button>
               <span class="stepper-value">${shared.front}</span>
-              <button class="stepper-btn" @click=${() => this._setSharedFront(shared.front + 1)} ?disabled=${shared.front >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSharedFront(slot, shared.front + 1)} ?disabled=${shared.front >= 30}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfBackLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSharedBack(shared.back - 1)} ?disabled=${shared.back <= 0}>−</button>
+              <button class="stepper-btn" @click=${() => this._setSharedBack(slot, shared.back - 1)} ?disabled=${shared.back <= 0}>−</button>
               <span class="stepper-value">${shared.back}</span>
-              <button class="stepper-btn" @click=${() => this._setSharedBack(shared.back + 1)} ?disabled=${shared.back >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSharedBack(slot, shared.back + 1)} ?disabled=${shared.back >= 30}>+</button>
             </div>
           </div>
         </div>
@@ -9899,14 +10247,14 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                   class="row-name-input"
                   style="flex:1"
                   .value=${sr.name || ""}
-                  @input=${(e) => this._updateShelfName(i, e.target.value)}
+                  @input=${(e) => this._updateShelfName(slot, i, e.target.value)}
                   placeholder="${this._t('ui.rack.shelfNamePlaceholder', { n: i + 1 })}"
                 />
                 <span class="row-type-info" style="flex:0;font-size:0.7em">${this._t('ui.rack.shelfLevelsLabel')}</span>
                 <div class="row-cap-stepper">
-                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(i, levelCount - 1)} ?disabled=${levelCount <= 1}>−</button>
+                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(slot, i, levelCount - 1)} ?disabled=${levelCount <= 1}>−</button>
                   <span class="stepper-val-sm">${levelCount}</span>
-                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(i, levelCount + 1)} ?disabled=${levelCount >= 6}>+</button>
+                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(slot, i, levelCount + 1)} ?disabled=${levelCount >= 6}>+</button>
                 </div>
                 <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
               </div>
@@ -9915,32 +10263,61 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         </div>
       `;
         }
-        if (this._cabinetStyle === "bulk") {
-            const capacity = this._bulkRow()?.capacity || 20;
+        if (style === "bulk") {
+            const capacity = this._bulkRow(slot)?.capacity || 20;
             return b `
         <div class="stepper-row">
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.bulkCapacityLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setBulkCapacity(capacity - 1)} ?disabled=${capacity <= 1}>−</button>
+              <button class="stepper-btn" @click=${() => this._setBulkCapacity(slot, capacity - 1)} ?disabled=${capacity <= 1}>−</button>
               <span class="stepper-value">${capacity}</span>
-              <button class="stepper-btn" @click=${() => this._setBulkCapacity(capacity + 1)} ?disabled=${capacity >= 500}>+</button>
+              <button class="stepper-btn" @click=${() => this._setBulkCapacity(slot, capacity + 1)} ?disabled=${capacity >= 500}>+</button>
             </div>
           </div>
         </div>
       `;
         }
+        if (style === "stepped") {
+            const stepped = this._steppedRow(slot);
+            const levels = stepped?.stepped_levels || [];
+            const firstRow = levels[0] ?? 5;
+            const rowCount = levels.length || 3;
+            return b `
+        <div class="stepper-row">
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
+              <span class="stepper-value">${firstRow}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+              <span class="stepper-value">${rowCount}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
+          ${levels.join(" + ")} = ${stepped?.capacity || 0}
+        </p>
+      `;
+        }
         // "box"
-        const boxRow = this._boxRow();
+        const boxRow = this._boxRow(slot);
         const boxes = boxRow?.boxes || [12];
         return b `
       <div class="stepper-row">
         <div class="stepper-wrap">
           <div class="stepper-label">${this._t("ui.rack.boxCountLabel")}</div>
           <div class="stepper">
-            <button class="stepper-btn" @click=${() => this._updateBoxCount(boxes.length - 1)} ?disabled=${boxes.length <= 1}>−</button>
+            <button class="stepper-btn" @click=${() => this._updateBoxCount(slot, boxes.length - 1)} ?disabled=${boxes.length <= 1}>−</button>
             <span class="stepper-value">${boxes.length}</span>
-            <button class="stepper-btn" @click=${() => this._updateBoxCount(boxes.length + 1)} ?disabled=${boxes.length >= 10}>+</button>
+            <button class="stepper-btn" @click=${() => this._updateBoxCount(slot, boxes.length + 1)} ?disabled=${boxes.length >= 10}>+</button>
           </div>
         </div>
       </div>
@@ -9948,7 +10325,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         ${boxes.map((boxSize, bi) => b `
           <select
             class="row-cap-select"
-            @change=${(e) => this._updateBoxSize(bi, parseInt(e.target.value, 10))}
+            @change=${(e) => this._updateBoxSize(slot, bi, parseInt(e.target.value, 10))}
           >
             ${BOX_SIZES.map((s) => b `<option value=${s} ?selected=${boxSize === s}>${this._t('ui.rack.boxSizeOption', { s })}</option>`)}
           </select>
@@ -9961,6 +10338,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const isEdit = this._mode === "edit";
         // Which bottles this edit would displace, whichever way it shrinks.
         const displaced = isEdit ? this._displacedWines() : [];
+        const typeLabels = getStorageRowTypeLabels(this.hass?.language);
+        const styles = ["grid", "stepped", "shelf", "bulk", "box"];
+        const styleLabel = (s) => (s === "grid" ? this._t("ui.rack.styleGrid") : typeLabels[s]);
         return b `
       <div class="dialog-body">
         <div class="form-group">
@@ -9975,30 +10355,58 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
           />
         </div>
 
-        <!-- Rack style: exactly one of these four, chosen once -->
+        <!-- Primary style: exactly one of these five, chosen once -->
         <div class="form-group">
           <label>${this._t("ui.rack.styleLabel")}</label>
           <div class="style-toggle">
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "grid" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("grid")}
-            >${this._t("ui.rack.styleGrid")}</button>
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "shelf" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("shelf")}
-            >${getStorageRowTypeLabels(this.hass?.language).shelf}</button>
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "bulk" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("bulk")}
-            >${getStorageRowTypeLabels(this.hass?.language).bulk}</button>
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "box" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("box")}
-            >${getStorageRowTypeLabels(this.hass?.language).box}</button>
+            ${styles.map((s) => b `
+              <button
+                class="style-toggle-btn ${this._primaryStyle === s ? "active" : ""}"
+                @click=${() => this._setPrimaryStyle(s)}
+              >${styleLabel(s)}</button>
+            `)}
           </div>
         </div>
 
-        <div class="grid-editor">${this._renderStyleForm()}</div>
+        <div class="grid-editor">${this._renderSlotForm("primary")}</div>
+
+        <!-- Secondary zone: optional, stacked above or below the primary
+             style chosen above. -->
+        <div class="form-group">
+          <label>${this._t("ui.rack.secondaryStyleLabel")}</label>
+          <div class="style-toggle">
+            <button
+              class="style-toggle-btn ${this._secondaryStyle === "none" ? "active" : ""}"
+              @click=${() => this._setSecondaryStyle("none")}
+            >${this._t("ui.rack.secondaryNone")}</button>
+            ${styles.map((s) => b `
+              <button
+                class="style-toggle-btn ${this._secondaryStyle === s ? "active" : ""}"
+                @click=${() => this._setSecondaryStyle(s)}
+              >${styleLabel(s)}</button>
+            `)}
+          </div>
+          <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:4px 0 0">${this._t("ui.rack.secondaryHint")}</p>
+        </div>
+
+        ${this._secondaryStyle !== "none"
+            ? b `
+              <div class="form-group">
+                <label>${this._t("ui.rack.secondaryPositionLabel")}</label>
+                <div class="style-toggle">
+                  <button
+                    class="style-toggle-btn ${this._secondaryPosition === "above" ? "active" : ""}"
+                    @click=${() => this._setSecondaryPosition("above")}
+                  >${this._t("ui.rack.secondaryAbove")}</button>
+                  <button
+                    class="style-toggle-btn ${this._secondaryPosition === "below" ? "active" : ""}"
+                    @click=${() => this._setSecondaryPosition("below")}
+                  >${this._t("ui.rack.secondaryBelow")}</button>
+                </div>
+              </div>
+              <div class="grid-editor">${this._renderSlotForm("secondary")}</div>
+            `
+            : A}
 
         ${displaced.length > 0
             ? b `
@@ -10573,10 +10981,22 @@ __decorate([
 ], RackSettingsDialog.prototype, "_editCabinet", void 0);
 __decorate([
     r()
-], RackSettingsDialog.prototype, "_editStorageRows", void 0);
+], RackSettingsDialog.prototype, "_primaryStorageRows", void 0);
 __decorate([
     r()
-], RackSettingsDialog.prototype, "_cabinetStyle", void 0);
+], RackSettingsDialog.prototype, "_secondaryStorageRows", void 0);
+__decorate([
+    r()
+], RackSettingsDialog.prototype, "_primaryStyle", void 0);
+__decorate([
+    r()
+], RackSettingsDialog.prototype, "_secondaryStyle", void 0);
+__decorate([
+    r()
+], RackSettingsDialog.prototype, "_secondaryPosition", void 0);
+__decorate([
+    r()
+], RackSettingsDialog.prototype, "_secondaryGridRows", void 0);
 __decorate([
     r()
 ], RackSettingsDialog.prototype, "_deleteCabinet", void 0);
@@ -15171,8 +15591,11 @@ let WineCellarCard = class WineCellarCard extends i {
     // --- Rack panel (grid-slot cabinets: list + reorder) ---
     _onRackClick(e) {
         const cabinet = e.detail.cabinet;
-        // A cabinet is entirely one rack style — never a mix of grid rows and
-        // shelf storage rows — so this alone decides which panel applies.
+        // A "shelf" style cabinet is entirely shelves, no grid rows — so this
+        // alone decides which panel applies. (A grid cabinet may still have a
+        // non-shelf storage row of its own, e.g. an appended compressor-bump
+        // zone — its bottles aren't in either panel, but are always reachable
+        // directly on the rack drawing itself.)
         const hasShelfRows = (cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
         if (hasShelfRows) {
             this._openShelfPanel(cabinet);
@@ -17242,29 +17665,92 @@ let WineCellarCard = class WineCellarCard extends i {
                     })}
                         `)}
                       `
-                    : b `
+                    : this._zonePanelType === "stepped"
+                        ? b `
+                        <!-- Compressor-shelf mode: slots grouped by row, bottom to top -->
+                        ${getSteppedSlotGroups(this._zonePanelStorageRow?.stepped_levels).map((group) => b `
+                          <div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${group.level > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                            ${this._t("ui.card.steppedGroupHeader", { n: group.level + 1 })}
+                          </div>
+                          ${Array.from({ length: group.size }, (_, slotInGroup) => {
+                            const depthIdx = group.start + slotInGroup;
+                            const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
+                            const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+                            const disp = wine?.disposition || "";
+                            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                            const dragKey = `stepped-${depthIdx}`;
+                            const highlighted = wine?.id === this._highlightWineId;
+                            return b `
+                              <div
+                                id=${highlighted ? "highlight-slot" : A}
+                                class="depth-slot ${wine ? "filled" : "empty"} ${this._zonePanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
+                                draggable=${wine ? "true" : "false"}
+                                @click=${() => this._onZonePanelSlotClick(depthIdx, wine)}
+                                @dragstart=${wine ? (e) => this._onZonePanelDragStart(e, wine) : A}
+                                @dragend=${wine ? () => this._onZonePanelDragEnd() : A}
+                                @dragover=${(e) => this._onZonePanelDragOver(e, dragKey)}
+                                @dragleave=${() => (this._zonePanelDragOverKey = null)}
+                                @drop=${(e) => this._onZonePanelBoxReorder(e, depthIdx, wine)}
+                              >
+                                <span
+                                  class="depth-slot-delete"
+                                  title="${this._t("ui.card.deleteThisSlot")}"
+                                  @click=${(e) => { e.stopPropagation(); this._deleteZoneSlot(depthIdx); }}
+                                >✕</span>
+                                <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInGroup + 1 })}</div>
+                                ${wine
+                                ? b `
+                                      <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
+                                        <div class="depth-slot-avatar">
+                                          ${wine.image_url
+                                    ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                    : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                          ${this._dispositionBadge(dispClass, disp)}
+                                        </div>
+                                        <div class="depth-slot-info">
+                                          <div class="depth-slot-name">${wine.name}</div>
+                                          <div class="depth-slot-meta">
+                                            ${wine.vintage || "NV"}
+                                            ${wine.rating ? b ` · ★${wine.rating}` : A}
+                                            ${wine.price ? b ` · ${this._metadataCurrency} ${wine.price}` : A}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    `
+                                : b `
+                                      <div class="depth-slot-empty">
+                                        <span class="depth-slot-plus">+</span>
+                                        <span>${this._t("ui.common.empty")}</span>
+                                      </div>
+                                    `}
+                              </div>
+                            `;
+                        })}
+                        `)}
+                      `
+                        : b `
                         <!-- Box mode: slots grouped by box -->
                         ${(() => {
-                        const boxes = this._zonePanelStorageRow?.boxes || [this._zonePanelCapacity];
-                        let offset = 0;
-                        return boxes.map((boxSize, bi) => {
-                            const start = offset;
-                            offset += boxSize;
-                            return b `
+                            const boxes = this._zonePanelStorageRow?.boxes || [this._zonePanelCapacity];
+                            let offset = 0;
+                            return boxes.map((boxSize, bi) => {
+                                const start = offset;
+                                offset += boxSize;
+                                return b `
                               ${boxes.length > 1
-                                ? b `<div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${bi > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                                    ? b `<div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${bi > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
                                     ${this._t("ui.card.boxHeader", { n: bi + 1, size: boxSize })}
                                   </div>`
-                                : A}
+                                    : A}
                               ${Array.from({ length: boxSize }, (_, slotInBox) => {
-                                const depthIdx = start + slotInBox;
-                                const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
-                                const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
-                                const disp = wine?.disposition || "";
-                                const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
-                                const dragKey = `box-${depthIdx}`;
-                                const highlighted = wine?.id === this._highlightWineId;
-                                return b `
+                                    const depthIdx = start + slotInBox;
+                                    const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
+                                    const typeColor = wine ? WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red : "";
+                                    const disp = wine?.disposition || "";
+                                    const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                                    const dragKey = `box-${depthIdx}`;
+                                    const highlighted = wine?.id === this._highlightWineId;
+                                    return b `
                                   <div
                                     id=${highlighted ? "highlight-slot" : A}
                                     class="depth-slot ${wine ? "filled" : "empty"} ${this._zonePanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
@@ -17283,12 +17769,12 @@ let WineCellarCard = class WineCellarCard extends i {
                                     >✕</span>
                                     <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInBox + 1 })}</div>
                                     ${wine
-                                    ? b `
+                                        ? b `
                                           <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
                                             <div class="depth-slot-avatar">
                                               ${wine.image_url
-                                        ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
-                                        : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                            ? b `<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                            : b `<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
                                               ${this._dispositionBadge(dispClass, disp)}
                                             </div>
                                             <div class="depth-slot-info">
@@ -17301,7 +17787,7 @@ let WineCellarCard = class WineCellarCard extends i {
                                             </div>
                                           </div>
                                         `
-                                    : b `
+                                        : b `
                                           <div class="depth-slot-empty">
                                             <span class="depth-slot-plus">+</span>
                                             <span>${this._t("ui.common.empty")}</span>
@@ -17309,10 +17795,10 @@ let WineCellarCard = class WineCellarCard extends i {
                                         `}
                                   </div>
                                 `;
-                            })}
+                                })}
                             `;
-                        });
-                    })()}
+                            });
+                        })()}
                         <div class="depth-panel-add-box">
                           <select
                             .value=${String(this._zonePanelNewBoxSize)}

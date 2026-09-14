@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "./styles";
-import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation, getShelfSlotGroups, ShelfSlotGroup } from "./models";
+import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "./models";
 import { t } from "./i18n";
 import { matchesQuery } from "./utils/search";
 import { Finding, analyzeArrangement } from "./utils/arrange";
@@ -1337,8 +1337,11 @@ export class WineCellarCard extends LitElement {
   // --- Rack panel (grid-slot cabinets: list + reorder) ---
   private _onRackClick(e: CustomEvent) {
     const cabinet: Cabinet = e.detail.cabinet;
-    // A cabinet is entirely one rack style — never a mix of grid rows and
-    // shelf storage rows — so this alone decides which panel applies.
+    // A "shelf" style cabinet is entirely shelves, no grid rows — so this
+    // alone decides which panel applies. (A grid cabinet may still have a
+    // non-shelf storage row of its own, e.g. an appended compressor-bump
+    // zone — its bottles aren't in either panel, but are always reachable
+    // directly on the rack drawing itself.)
     const hasShelfRows = (cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
     if (hasShelfRows) {
       this._openShelfPanel(cabinet);
@@ -3408,6 +3411,69 @@ export class WineCellarCard extends LitElement {
                             const disp = wine?.disposition || "";
                             const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
                             const dragKey = `shelf-${depthIdx}`;
+                            const highlighted = wine?.id === this._highlightWineId;
+                            return html`
+                              <div
+                                id=${highlighted ? "highlight-slot" : nothing}
+                                class="depth-slot ${wine ? "filled" : "empty"} ${this._zonePanelDragOverKey === dragKey ? "drag-over" : ""} ${highlighted ? "highlight" : ""}"
+                                draggable=${wine ? "true" : "false"}
+                                @click=${() => this._onZonePanelSlotClick(depthIdx, wine)}
+                                @dragstart=${wine ? (e: DragEvent) => this._onZonePanelDragStart(e, wine) : nothing}
+                                @dragend=${wine ? () => this._onZonePanelDragEnd() : nothing}
+                                @dragover=${(e: DragEvent) => this._onZonePanelDragOver(e, dragKey)}
+                                @dragleave=${() => (this._zonePanelDragOverKey = null)}
+                                @drop=${(e: DragEvent) => this._onZonePanelBoxReorder(e, depthIdx, wine)}
+                              >
+                                <span
+                                  class="depth-slot-delete"
+                                  title="${this._t("ui.card.deleteThisSlot")}"
+                                  @click=${(e: Event) => { e.stopPropagation(); this._deleteZoneSlot(depthIdx); }}
+                                >✕</span>
+                                <div class="depth-slot-label">${this._t("ui.card.slot", { n: slotInGroup + 1 })}</div>
+                                ${wine
+                                  ? html`
+                                      <div class="depth-slot-wine" style="border-left: 4px solid ${typeColor}">
+                                        <div class="depth-slot-avatar">
+                                          ${wine.image_url
+                                            ? html`<img class="depth-slot-thumb" src="${wine.image_url}" alt="" />`
+                                            : html`<div class="depth-slot-dot" style="background: ${typeColor}"></div>`}
+                                          ${this._dispositionBadge(dispClass, disp)}
+                                        </div>
+                                        <div class="depth-slot-info">
+                                          <div class="depth-slot-name">${wine.name}</div>
+                                          <div class="depth-slot-meta">
+                                            ${wine.vintage || "NV"}
+                                            ${wine.rating ? html` · ★${wine.rating}` : nothing}
+                                            ${wine.price ? html` · ${this._metadataCurrency} ${wine.price}` : nothing}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    `
+                                  : html`
+                                      <div class="depth-slot-empty">
+                                        <span class="depth-slot-plus">+</span>
+                                        <span>${this._t("ui.common.empty")}</span>
+                                      </div>
+                                    `}
+                              </div>
+                            `;
+                          })}
+                        `)}
+                      `
+                    : this._zonePanelType === "stepped"
+                    ? html`
+                        <!-- Compressor-shelf mode: slots grouped by row, bottom to top -->
+                        ${getSteppedSlotGroups(this._zonePanelStorageRow?.stepped_levels).map((group: SteppedSlotGroup) => html`
+                          <div style="font-size:0.75em;font-weight:600;color:var(--wc-text-secondary);padding:8px 0 2px;${group.level > 0 ? "border-top:1px solid var(--wc-border);margin-top:4px;" : ""}">
+                            ${this._t("ui.card.steppedGroupHeader", { n: group.level + 1 })}
+                          </div>
+                          ${Array.from({ length: group.size }, (_, slotInGroup) => {
+                            const depthIdx = group.start + slotInGroup;
+                            const wine = this._zonePanelWines.find((w) => (w.depth || 0) === depthIdx);
+                            const typeColor = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+                            const disp = wine?.disposition || "";
+                            const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+                            const dragKey = `stepped-${depthIdx}`;
                             const highlighted = wine?.id === this._highlightWineId;
                             return html`
                               <div

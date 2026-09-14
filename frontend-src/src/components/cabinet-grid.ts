@@ -1,6 +1,6 @@
-import { LitElement, html, css, nothing } from "lit";
+import { LitElement, html, css, nothing, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup } from "../models";
+import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
@@ -83,6 +83,8 @@ export class CabinetGrid extends LitElement {
         display: flex;
         gap: 2px;
         margin-bottom: 2px;
+        padding: 0 4px;
+        box-sizing: border-box;
         position: relative;
       }
 
@@ -111,11 +113,14 @@ export class CabinetGrid extends LitElement {
         min-width: 0;
         z-index: 1;
         container-type: inline-size;
+        box-sizing: border-box;
       }
 
       .cell.empty {
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
+        /* Same 2px width as .filled below — see the longer note on
+           .zone-shelf-dot's empty state for why this has to match. */
+        border: 2px dashed rgba(255, 255, 255, 0.15);
       }
 
       .cell.empty:hover {
@@ -434,6 +439,12 @@ export class CabinetGrid extends LitElement {
       .zone-shelf-lane {
         display: flex;
         justify-content: center;
+        /* Without this, flex's default align-items: stretch forces every
+           dot in the row to the tallest one's height regardless of its own
+           width — harmless when every dot in a lane is the same size, but
+           the interleaved half-size back dots (see _renderShelfZone) got
+           stretched into tall ovals instead of staying circular. */
+        align-items: center;
         gap: 2px;
         width: 100%;
       }
@@ -460,7 +471,13 @@ export class CabinetGrid extends LitElement {
         min-width: 0;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px dashed rgba(255, 255, 255, 0.15);
+        /* Same border width as .filled below (2px) — only the dash pattern,
+           color and opacity change between empty/filled. A thinner empty
+           border would shrink the box itself under content-box sizing, and
+           even with box-sizing: border-box (below) a visibly thinner ring
+           still reads as a smaller circle next to a bold filled one. */
+        border: 2px dashed rgba(255, 255, 255, 0.15);
+        box-sizing: border-box;
         cursor: pointer;
         overflow: hidden;
         container-type: inline-size;
@@ -986,6 +1003,9 @@ export class CabinetGrid extends LitElement {
     if (zoneType === "shelf") {
       return this._renderShelfZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
     }
+    if (zoneType === "stepped") {
+      return this._renderSteppedZone(zoneId, zoneKey, zoneName, wines, sr!);
+    }
     // Default: bulk
     return this._renderBulkZone(zoneId, zoneKey, zoneName, capacity, wines, isDragOver, sr!);
   }
@@ -1094,17 +1114,116 @@ export class CabinetGrid extends LitElement {
     // since flex-direction: column lays out children top-to-bottom.
     const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
 
-    // One dot size for the whole shelf, sized off whichever lane is
-    // longest anywhere in it — so a 3-bottle back row doesn't render
-    // bigger dots than a 4-bottle front row. The shorter lane just ends
-    // up centered with more gap, the way a real shelf looks, rather than
-    // the receding stagger of a photo (the user explicitly didn't want
-    // that reproduced here).
-    const maxCount = Math.max(1, ...levelsData.map((l) => Math.max(l.front, l.back)));
-    const dotBasis = `${100 / maxCount}%`;
+    // One dot size for the whole shelf, sized off whichever level packs the
+    // most "weight" into its single interleaved row — front dots count as
+    // 1, back dots (rendered at half scale) count as 0.5, since that's how
+    // much horizontal room each actually needs. Using the old two-separate-
+    // rows maxCount here (just the bigger of front/back alone) badly
+    // undersized this: a row now holds front+back dots combined, not
+    // whichever lane was longer, so every dot rendered at roughly double
+    // the width it does now, overflowing the frame by that same factor.
+    let dominantWeight = 1;
+    let dominantItems = 1;
+    for (const l of levelsData) {
+      const weight = l.front + l.back * 0.5;
+      if (weight > dominantWeight) {
+        dominantWeight = weight;
+        dominantItems = l.front + l.back;
+      }
+    }
+    // Subtracts that level's own gaps, plus a fixed 8px so the row's total
+    // width comes out a little under 100% — centered by .zone-shelf-lane's
+    // justify-content, that shortfall becomes a ~4px margin on each side
+    // instead of the end dots sitting flush against the cabinet's frame.
+    const dotBasis = `calc((100% - ${(dominantItems - 1) * 2 + 8}px) / ${dominantWeight})`;
 
-    const renderDots = (group: ShelfSlotGroup) => html`
-      <div class="zone-shelf-lane ${group.lane}">
+    // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
+    // if it doesn't work out. Interleaves the back lane's dots between the
+    // front lane's, at half size, in one row instead of two labeled ones —
+    // meant to roughly halve each board's height. Nothing about
+    // shelf_levels/front/back/name config changes, only how this one
+    // zone renders.
+    const renderDot = (group: ShelfSlotGroup, indexInGroup: number, scale: number) => {
+      const depth = group.start + indexInGroup;
+      const dotKey = `${zoneKey}-${depth}`;
+      const wine = wines.find((w) => (w.depth || 0) === depth);
+      const bg = wine ? WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red : "";
+      const ring = wine ? this._brightenColor(bg) : "";
+      const disp = wine?.disposition || "";
+      const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
+      const basis = scale === 1 ? dotBasis : `calc(${dotBasis} * ${scale})`;
+      return html`<span
+        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+        style="flex-basis:${basis};max-width:${basis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
+        title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
+        draggable=${wine ? "true" : "false"}
+        @click=${(e: Event) => { e.stopPropagation(); this._onZoneClick(wine, zoneId, depth); }}
+        @dragstart=${wine ? (e: DragEvent) => { e.stopPropagation(); this._onDragStart(e, wine, undefined, undefined, zoneId); } : nothing}
+        @dragend=${(e: DragEvent) => this._onDragEnd(e)}
+        @dragover=${(e: DragEvent) => { e.stopPropagation(); this._onDragOver(e, dotKey); }}
+        @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
+        @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
+        @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
+        @touchend=${() => this._onTouchEnd()}
+        @touchmove=${() => this._onTouchMove()}
+      >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
+    };
+
+    // Whichever lane is longer leads the sequence (its dot comes first at
+    // each position), with the shorter one nested right after — any surplus
+    // of the longer lane tacked on at the end. On a swapped level (back=4,
+    // front=3), that means position 1 is a back dot, not front. Scale
+    // always follows the lane itself (front=1, back=0.5), regardless of
+    // which one leads.
+    const renderInterleavedLane = (front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined) => {
+      const frontSize = front?.size || 0;
+      const backSize = back?.size || 0;
+      const frontLeads = frontSize >= backSize;
+      const items: TemplateResult[] = [];
+      for (let i = 0; i < Math.max(frontSize, backSize); i++) {
+        if (frontLeads) {
+          if (i < frontSize) items.push(renderDot(front!, i, 1));
+          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+        } else {
+          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+          if (i < frontSize) items.push(renderDot(front!, i, 1));
+        }
+      }
+      return html`<div class="zone-shelf-lane">${items}</div>`;
+    };
+
+    return html`
+      <div class="bottom-zone zone-shelf">
+        ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
+        <div class="zone-shelf-levels">
+          ${levels.map(([, lanes], idx) => html`
+            <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
+              ${renderInterleavedLane(lanes.front, lanes.back)}
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
+  // Compressor-bump zone: the shallow, single-depth area above a fridge's
+  // compressor, where bottles lie one deep and each row above the bottom one
+  // nests into the gaps of the row below (see getSteppedLevels in models.ts).
+  // Reuses the shelf zone's dot styling — visually it's the same idea, one
+  // lane per level instead of two — but each level here is its own
+  // individually-addressable row, same as a shelf board, not a front/back
+  // pair, so there's no lane split or label.
+  private _renderSteppedZone(zoneId: string, zoneKey: string, name: string, wines: Wine[], sr: StorageRow) {
+    const levelsData = sr.stepped_levels || [];
+    const groups = getSteppedSlotGroups(levelsData);
+    const maxCount = Math.max(1, ...levelsData);
+    // See the same calc() in _renderShelfZone: accounts for the lane's own
+    // gaps, plus a fixed margin so the end dots don't sit flush against the
+    // cabinet's frame.
+    const dotBasis = `calc((100% - ${(maxCount - 1) * 2 + 8}px) / ${maxCount})`;
+
+    const renderDots = (group: SteppedSlotGroup) => html`
+      <div class="zone-shelf-lane">
         ${Array.from({ length: group.size }, (_, i) => {
           const depth = group.start + i;
           const dotKey = `${zoneKey}-${depth}`;
@@ -1132,32 +1251,17 @@ export class CabinetGrid extends LitElement {
       </div>
     `;
 
-    // Back lane's label sits above its dots, front lane's below — so each
-    // board reads top-to-bottom as "Back / [dots] / [dots] / Front",
-    // making it clear both rows belong to the same physical board.
-    const renderBack = (group: ShelfSlotGroup | undefined) => {
-      if (!group) return nothing;
-      return html`
-        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfBack")}</div>
-        ${renderDots(group)}
-      `;
-    };
-    const renderFront = (group: ShelfSlotGroup | undefined) => {
-      if (!group) return nothing;
-      return html`
-        ${renderDots(group)}
-        <div class="zone-shelf-lane-label">${this._t("ui.card.shelfFront")}</div>
-      `;
-    };
+    // Level 0 is the bottom row (see models.ts) — reverse for display, since
+    // flex-direction: column lays out children top-to-bottom.
+    const reversed = [...groups].sort((a, b) => b.level - a.level);
 
     return html`
       <div class="bottom-zone zone-shelf">
         ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         <div class="zone-shelf-levels">
-          ${levels.map(([, lanes], idx) => html`
-            <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
-              ${renderBack(lanes.back)}
-              ${renderFront(lanes.front)}
+          ${reversed.map((group, idx) => html`
+            <div class="zone-shelf-level ${idx === reversed.length - 1 ? "last" : ""}">
+              ${renderDots(group)}
             </div>
           `)}
         </div>

@@ -1,10 +1,13 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES } from "../models";
+import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES, getSteppedLevels } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 
 type Mode = "list" | "add" | "edit" | "delete-confirm";
+type RackStyle = "grid" | "shelf" | "bulk" | "box" | "stepped";
+type SecondarySlot = "primary" | "secondary";
+type SecondaryPosition = "above" | "below";
 
 @customElement("rack-settings-dialog")
 export class RackSettingsDialog extends LitElement {
@@ -15,14 +18,28 @@ export class RackSettingsDialog extends LitElement {
 
   @state() private _mode: Mode = "list";
   @state() private _editCabinet: Partial<Cabinet> = {};
-  @state() private _editStorageRows: StorageRow[] = [];
-  // A rack is exactly one of these four — chosen once, right under the
-  // name, rather than picked per row. "grid" has no storage rows at all;
-  // the other three are a single concept (a list of shelves, one bulk
-  // bin, or one set of boxes) with nothing to mix in. Inferred from the
-  // data when editing; an explicit choice when adding, since there is no
-  // data yet to infer from.
-  @state() private _cabinetStyle: "grid" | "shelf" | "bulk" | "box" = "grid";
+  // Primary and secondary each keep their own working list of storage rows
+  // — so e.g. two bulk bins, one above and one below, can be configured
+  // independently without one overwriting the other. A style's rows persist
+  // here even while a different style is active for that slot, purely so
+  // flipping back and forth while exploring doesn't lose work; only the
+  // active style's rows for each slot are ever rendered or saved (see
+  // _finalStorageRows).
+  @state() private _primaryStorageRows: StorageRow[] = [];
+  @state() private _secondaryStorageRows: StorageRow[] = [];
+  // The rack's main style, chosen right under the name. Inferred from the
+  // data when editing (see _startEdit); an explicit choice when adding.
+  @state() private _primaryStyle: RackStyle = "grid";
+  // An optional second zone stacked above or below the primary one —
+  // "none" means no secondary zone is attached.
+  @state() private _secondaryStyle: RackStyle | "none" = "none";
+  @state() private _secondaryPosition: SecondaryPosition = "below";
+  // Row count for a "grid" secondary specifically — a secondary grid block
+  // has no StorageRow entry of its own (plain grid rows are never stored),
+  // so unlike the other styles its row count needs its own field. It shares
+  // the cabinet's own cols/depth (see _finalCols/_finalDepth) since a rack
+  // never has more than one grid-shaped section.
+  @state() private _secondaryGridRows = 1;
   @state() private _deleteCabinet: Cabinet | null = null;
   @state() private _loading = false;
   @state() private _error = "";
@@ -512,60 +529,99 @@ export class RackSettingsDialog extends LitElement {
     return this.wines.filter((w) => w.cabinet_id === cabinetId).length;
   }
 
-  // The single shelf/bulk/box row(s) actually belonging to the active
-  // style — switching styles while exploring keeps the others' config
-  // around in _editStorageRows (harmless: only the active style's rows
-  // are ever rendered or saved) so flipping back doesn't lose work.
-  private _shelfRows(): StorageRow[] {
-    return this._editStorageRows.filter((sr) => sr.type === "shelf");
+  // --- Per-slot row access ---
+  // Each slot (primary/secondary) keeps its own list of rows; a style only
+  // ever has rows of its own type in a slot's list (see the setters below),
+  // so filtering by type is enough to find "the" row for styles that use
+  // just one (bulk/box/stepped) or several (shelf).
+  private _rowsFor(slot: SecondarySlot): StorageRow[] {
+    return slot === "primary" ? this._primaryStorageRows : this._secondaryStorageRows;
   }
 
-  private _bulkRow(): StorageRow | undefined {
-    return this._editStorageRows.find((sr) => sr.type === "bulk");
+  private _setRowsFor(slot: SecondarySlot, rows: StorageRow[]) {
+    if (slot === "primary") this._primaryStorageRows = rows;
+    else this._secondaryStorageRows = rows;
   }
 
-  private _boxRow(): StorageRow | undefined {
-    return this._editStorageRows.find((sr) => sr.type === "box");
+  private _styleFor(slot: SecondarySlot): RackStyle | "none" {
+    return slot === "primary" ? this._primaryStyle : this._secondaryStyle;
   }
 
-  // What actually gets saved, freshly computed from the active style —
-  // never a stale mix of whatever _editStorageRows happens to be holding
-  // from earlier style exploration. Shelf rows are always renumbered
-  // 0..N-1 in list order; the physical row a bottle sits behind never
-  // survives a shelf being removed anyway (see _displacedWines).
+  private _shelfRows(slot: SecondarySlot): StorageRow[] {
+    return this._rowsFor(slot).filter((sr) => sr.type === "shelf");
+  }
+
+  private _bulkRow(slot: SecondarySlot): StorageRow | undefined {
+    return this._rowsFor(slot).find((sr) => sr.type === "bulk");
+  }
+
+  private _boxRow(slot: SecondarySlot): StorageRow | undefined {
+    return this._rowsFor(slot).find((sr) => sr.type === "box");
+  }
+
+  private _steppedRow(slot: SecondarySlot): StorageRow | undefined {
+    return this._rowsFor(slot).find((sr) => sr.type === "stepped");
+  }
+
+  // How many rows a slot's active style actually uses.
+  private _slotRowCount(slot: SecondarySlot): number {
+    const style = this._styleFor(slot);
+    if (style === "none") return 0;
+    if (style === "grid") return slot === "primary" ? (this._editCabinet.rows || 1) : this._secondaryGridRows;
+    if (style === "shelf") return Math.max(1, this._shelfRows(slot).length);
+    return 1; // bulk, box, stepped
+  }
+
+  // A slot's own rows, renumbered to a contiguous range starting at
+  // `offset` — the physical row a bottle sits behind never survives a rack
+  // being reshaped anyway (see _displacedWines), so the exact index only
+  // needs to be internally consistent at save time.
+  private _slotFinalRows(slot: SecondarySlot, offset: number): StorageRow[] {
+    const style = this._styleFor(slot);
+    if (style === "none" || style === "grid") return [];
+    if (style === "shelf") {
+      return this._shelfRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
+    }
+    const row = style === "bulk" ? this._bulkRow(slot) : style === "box" ? this._boxRow(slot) : this._steppedRow(slot);
+    return row ? [{ ...row, row: offset }] : [];
+  }
+
+  // What actually gets saved, freshly computed from the active styles —
+  // never a stale mix of whatever _primaryStorageRows/_secondaryStorageRows
+  // happen to be holding from earlier style exploration. The secondary
+  // zone, when present, sits either before the primary's own rows (row 0
+  // upward, "above") or after them ("below") — see _secondaryPosition.
   private _finalStorageRows(): StorageRow[] {
-    if (this._cabinetStyle === "shelf") {
-      return this._shelfRows().map((sr, i) => ({ ...sr, row: i }));
+    const hasSecondary = this._secondaryStyle !== "none";
+    if (hasSecondary && this._secondaryPosition === "above") {
+      const secondaryRows = this._slotFinalRows("secondary", 0);
+      const primaryRows = this._slotFinalRows("primary", this._slotRowCount("secondary"));
+      return [...secondaryRows, ...primaryRows];
     }
-    if (this._cabinetStyle === "bulk") {
-      const sr = this._bulkRow();
-      return sr ? [{ ...sr, row: 0 }] : [];
-    }
-    if (this._cabinetStyle === "box") {
-      const sr = this._boxRow();
-      return sr ? [{ ...sr, row: 0 }] : [];
-    }
-    return [];
+    const primaryRows = this._slotFinalRows("primary", 0);
+    const secondaryRows = hasSecondary ? this._slotFinalRows("secondary", this._slotRowCount("primary")) : [];
+    return [...primaryRows, ...secondaryRows];
   }
 
   private _finalRows(): number {
-    if (this._cabinetStyle === "grid") return this._editCabinet.rows || 1;
-    if (this._cabinetStyle === "shelf") return Math.max(1, this._shelfRows().length);
-    return 1;
+    return this._slotRowCount("primary") + this._slotRowCount("secondary");
   }
 
   private _finalCols(): number {
-    return this._cabinetStyle === "grid" ? this._editCabinet.cols || 8 : 1;
+    return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? this._editCabinet.cols || 8 : 1;
   }
 
   private _finalDepth(): number {
-    return this._cabinetStyle === "grid" ? (this._editCabinet as any).depth || 1 : 1;
+    return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? (this._editCabinet as any).depth || 1 : 1;
   }
 
   private static _capacityOf(sr: StorageRow): number {
     if (sr.type === "box") return (sr.boxes || []).reduce((sum, b) => sum + b, 0);
     if (sr.type === "shelf") {
       return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0);
+    }
+    if (sr.type === "stepped") {
+      return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0);
     }
     return sr.capacity || 0;
   }
@@ -612,39 +668,101 @@ export class RackSettingsDialog extends LitElement {
       has_bottom_zone: false,
       bottom_zone_name: "",
     };
-    this._editStorageRows = [];
-    this._cabinetStyle = "grid";
+    this._primaryStorageRows = [];
+    this._secondaryStorageRows = [];
+    this._primaryStyle = "grid";
+    this._secondaryStyle = "none";
+    this._secondaryPosition = "below";
+    this._secondaryGridRows = 1;
   }
 
+  // Re-derives (primary style, secondary style + position) from a saved
+  // cabinet's row layout. Plain grid rows have no storage_rows entry of
+  // their own, so they show up here as a gap between (or around) the typed
+  // rows; grouping the whole row range into contiguous same-type runs
+  // (treating each gap as its own "grid" run) recovers at most two runs for
+  // anything this dialog itself could have saved. Older cabinets that
+  // predate the secondary-zone feature are always a single run and fall
+  // straight into the "no secondary" branch below, same as before.
   private _startEdit(cabinet: Cabinet) {
     this._mode = "edit";
     this._error = "";
     this._editCabinet = { ...cabinet };
-    // Initialize storage rows from cabinet data, ensuring boxes/levels exist
-    this._editStorageRows = (cabinet.storage_rows || []).map((sr) => {
-      if (sr.type === "box" && !sr.boxes) {
-        return { ...sr, boxes: [sr.capacity || 12] };
+
+    const totalRows = cabinet.rows || 0;
+    const storageRows = (cabinet.storage_rows || [])
+      .map((sr) => {
+        if (sr.type === "box" && !sr.boxes) return { ...sr, boxes: [sr.capacity || 12] };
+        if (sr.type === "shelf" && !sr.shelf_levels) return { ...sr, shelf_levels: [{ front: sr.capacity || 4, back: 0 }] };
+        if (sr.type === "stepped" && !sr.stepped_levels) return { ...sr, stepped_levels: getSteppedLevels(sr.capacity || 5, 3) };
+        return { ...sr };
+      })
+      .sort((a, b) => a.row - b.row);
+    const byRow = new Map(storageRows.map((sr) => [sr.row, sr]));
+
+    interface Cluster { style: RackStyle; rows: StorageRow[]; start: number; size: number }
+    const clusters: Cluster[] = [];
+    let cursor = 0;
+    while (cursor < totalRows) {
+      const start = cursor;
+      const sr = byRow.get(cursor);
+      if (!sr) {
+        while (cursor < totalRows && !byRow.has(cursor)) cursor++;
+        clusters.push({ style: "grid", rows: [], start, size: cursor - start });
+      } else {
+        const type = sr.type as RackStyle;
+        const rows: StorageRow[] = [];
+        while (cursor < totalRows && byRow.get(cursor)?.type === type) {
+          rows.push(byRow.get(cursor)!);
+          cursor++;
+        }
+        clusters.push({ style: type, rows, start, size: cursor - start });
       }
-      if (sr.type === "shelf" && !sr.shelf_levels) {
-        return { ...sr, shelf_levels: [{ front: sr.capacity || 4, back: 0 }] };
+    }
+
+    const applySlot = (slot: SecondarySlot, cluster: Cluster | undefined) => {
+      if (!cluster) {
+        if (slot === "primary") { this._primaryStyle = "grid"; this._primaryStorageRows = []; }
+        else { this._secondaryStyle = "none"; this._secondaryStorageRows = []; }
+        return;
       }
-      return { ...sr };
-    });
-    const types = new Set(this._editStorageRows.map((sr) => sr.type));
-    if (types.size === 0) {
-      this._cabinetStyle = "grid";
-    } else if (types.has("shelf") && this._editStorageRows.length === (cabinet.rows || 0)) {
-      this._cabinetStyle = "shelf";
-    } else if (types.has("bulk") && this._editStorageRows.length === 1) {
-      this._cabinetStyle = "bulk";
-    } else if (types.has("box") && this._editStorageRows.length === 1) {
-      this._cabinetStyle = "box";
+      const rows = cluster.rows.map((sr, i) => ({ ...sr, row: i }));
+      if (slot === "primary") {
+        this._primaryStyle = cluster.style;
+        this._primaryStorageRows = rows;
+      } else {
+        this._secondaryStyle = cluster.style;
+        this._secondaryStorageRows = rows;
+        this._secondaryGridRows = cluster.style === "grid" ? Math.max(1, cluster.size) : 1;
+      }
+    };
+
+    if (clusters.length <= 1) {
+      applySlot("primary", clusters[0]);
+      applySlot("secondary", undefined);
+      this._secondaryPosition = "below";
+    } else if (clusters.length === 2) {
+      // Clusters are built by scanning rows from 0 upward, so `first` is
+      // always the physically higher one. The bigger cluster (by row count)
+      // reads as "primary"; on a tie, the one on top does — purely a
+      // labeling choice for this dialog, since the rack itself renders and
+      // behaves identically either way.
+      const [first, second] = clusters;
+      const primaryIsFirst = first.size >= second.size;
+      applySlot("primary", primaryIsFirst ? first : second);
+      applySlot("secondary", primaryIsFirst ? second : first);
+      this._secondaryPosition = primaryIsFirst ? "below" : "above";
     } else {
-      // Doesn't cleanly match one of the four styles (e.g. an older mixed
-      // rack) — fall back to showing it as a classic grid rather than
-      // guessing; its storage rows stay in _editStorageRows either way and
-      // are only dropped if the user actually saves from this fallback.
-      this._cabinetStyle = "grid";
+      // 3+ runs: an arrangement this dialog can't represent as primary plus
+      // one secondary (e.g. an older, more intricate mixed rack). Fall back
+      // to showing it as a classic grid rather than guessing; nothing is
+      // deleted — its storage rows are only dropped if the user actually
+      // saves from this fallback.
+      this._primaryStyle = "grid";
+      this._primaryStorageRows = [];
+      this._secondaryStyle = "none";
+      this._secondaryStorageRows = [];
+      this._secondaryPosition = "below";
     }
   }
 
@@ -658,46 +776,47 @@ export class RackSettingsDialog extends LitElement {
     );
   }
 
-  // Front/back are shared by every shelf in the rack; how many rows each
-  // shelf has is that shelf's own choice (a fridge shelf can be one board
-  // or two stacked ones) — read the shared pair from the first shelf,
-  // since _applySharedFrontBack keeps it in lockstep across all of them.
-  private _sharedShelfFrontBack(): { front: number; back: number } {
-    const lvl0 = this._shelfRows()[0]?.shelf_levels?.[0];
+  // Front/back are shared by every shelf within one slot; how many rows
+  // each shelf has is that shelf's own choice (a fridge shelf can be one
+  // board or two stacked ones) — read the shared pair from the first
+  // shelf, since _applySharedFrontBack keeps it in lockstep across all of
+  // them.
+  private _sharedShelfFrontBack(slot: SecondarySlot): { front: number; back: number } {
+    const lvl0 = this._shelfRows(slot)[0]?.shelf_levels?.[0];
     return { front: lvl0?.front ?? 4, back: lvl0?.back ?? 0 };
   }
 
-  // Re-derives every shelf's levels from a new shared front/back, keeping
-  // each shelf's own level count exactly as it was.
-  private _applySharedFrontBack(front: number, back: number) {
+  // Re-derives every shelf's levels in this slot from a new shared
+  // front/back, keeping each shelf's own level count exactly as it was.
+  private _applySharedFrontBack(slot: SecondarySlot, front: number, back: number) {
     const f = Math.max(0, front);
     const b = Math.max(0, back);
-    this._editStorageRows = this._editStorageRows.map((sr) => {
+    this._setRowsFor(slot, this._rowsFor(slot).map((sr) => {
       if (sr.type !== "shelf") return sr;
       const levels = RackSettingsDialog._buildAlternatingLevels(f, b, sr.shelf_levels?.length || 1);
       const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
       return { ...sr, shelf_levels: levels, capacity };
-    });
+    }));
   }
 
-  private _setSharedFront(value: number) {
-    this._applySharedFrontBack(value, this._sharedShelfFrontBack().back);
+  private _setSharedFront(slot: SecondarySlot, value: number) {
+    this._applySharedFrontBack(slot, value, this._sharedShelfFrontBack(slot).back);
   }
 
-  private _setSharedBack(value: number) {
-    this._applySharedFrontBack(this._sharedShelfFrontBack().front, value);
+  private _setSharedBack(slot: SecondarySlot, value: number) {
+    this._applySharedFrontBack(slot, this._sharedShelfFrontBack(slot).front, value);
   }
 
   // Changes just this one shelf's row count, using the shared front/back.
-  private _setShelfLevelCountAt(index: number, count: number) {
+  private _setShelfLevelCountAt(slot: SecondarySlot, index: number, count: number) {
     count = Math.max(1, Math.min(6, count));
-    const { front, back } = this._sharedShelfFrontBack();
-    const rows = this._shelfRows();
+    const { front, back } = this._sharedShelfFrontBack(slot);
+    const rows = this._shelfRows(slot);
     if (!rows[index]) return;
     const levels = RackSettingsDialog._buildAlternatingLevels(front, back, count);
     const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
     rows[index] = { ...rows[index], shelf_levels: levels, capacity };
-    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "shelf"), ...rows]);
   }
 
   // Rebuilds the shelf list to the requested count, applying the shared
@@ -705,62 +824,101 @@ export class RackSettingsDialog extends LitElement {
   // an explicit per-shelf choice, not assumed) and keeping existing
   // shelves' own name and row count (by position) rather than resetting
   // them.
-  private _setShelfCount(count: number) {
+  private _setShelfCount(slot: SecondarySlot, count: number) {
     count = Math.max(1, Math.min(20, count));
-    const { front, back } = this._sharedShelfFrontBack();
-    const existing = this._shelfRows();
+    const { front, back } = this._sharedShelfFrontBack(slot);
+    const existing = this._shelfRows(slot);
     const rows: StorageRow[] = Array.from({ length: count }, (_, i) => {
       const prior = existing[i];
       const levels = RackSettingsDialog._buildAlternatingLevels(front, back, prior?.shelf_levels?.length || 1);
       const capacity = levels.reduce((sum, l) => sum + l.front + l.back, 0);
       return { row: i, name: prior?.name || "", type: "shelf", capacity, shelf_levels: levels };
     });
-    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "shelf"), ...rows]);
   }
 
-  private _updateShelfName(index: number, name: string) {
-    const rows = this._shelfRows().map((sr, i) => (i === index ? { ...sr, name } : sr));
-    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "shelf"), ...rows];
+  private _updateShelfName(slot: SecondarySlot, index: number, name: string) {
+    const rows = this._shelfRows(slot).map((sr, i) => (i === index ? { ...sr, name } : sr));
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "shelf"), ...rows]);
   }
 
-  private _setBulkCapacity(capacity: number) {
+  private _setBulkCapacity(slot: SecondarySlot, capacity: number) {
     capacity = Math.max(1, Math.min(500, capacity));
-    const row: StorageRow = { row: 0, name: this._bulkRow()?.name || "", type: "bulk", capacity };
-    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "bulk"), row];
+    const row: StorageRow = { row: 0, name: this._bulkRow(slot)?.name || "", type: "bulk", capacity };
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "bulk"), row]);
   }
 
-  private _updateBoxCount(count: number) {
-    const existing = this._boxRow();
+  private _updateBoxCount(slot: SecondarySlot, count: number) {
+    const existing = this._boxRow(slot);
     const boxes = [...(existing?.boxes || [12])];
     while (boxes.length < count) boxes.push(12);
     while (boxes.length > count) boxes.pop();
     const capacity = boxes.reduce((sum, s) => sum + s, 0);
     const row: StorageRow = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
-    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
   }
 
-  private _updateBoxSize(boxIndex: number, size: number) {
-    const existing = this._boxRow();
+  private _updateBoxSize(slot: SecondarySlot, boxIndex: number, size: number) {
+    const existing = this._boxRow(slot);
     const boxes = [...(existing?.boxes || [12])];
     boxes[boxIndex] = size;
     const capacity = boxes.reduce((sum, s) => sum + s, 0);
     const row: StorageRow = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
-    this._editStorageRows = [...this._editStorageRows.filter((sr) => sr.type !== "box"), row];
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
   }
 
-  // Switching style lazily creates that style's default config the first
-  // time it's chosen; any other style's config already built this session
-  // is left alone in _editStorageRows so flipping back doesn't lose it —
-  // only the active style's rows are ever rendered or saved.
-  private _setCabinetStyle(style: "grid" | "shelf" | "bulk" | "box") {
-    this._cabinetStyle = style;
-    if (style === "shelf" && this._shelfRows().length === 0) {
-      this._setShelfCount(1);
-    } else if (style === "bulk" && !this._bulkRow()) {
-      this._setBulkCapacity(20);
-    } else if (style === "box" && !this._boxRow()) {
-      this._updateBoxCount(1);
+  // Quinconce: driven by just two numbers — the bottom row's bottle count
+  // and how many rows stack above it — with the per-level breakdown always
+  // derived via getSteppedLevels rather than edited directly.
+  private _setSteppedConfig(slot: SecondarySlot, firstRow: number, rowCount: number) {
+    firstRow = Math.max(1, Math.min(30, firstRow));
+    rowCount = Math.max(1, Math.min(10, rowCount));
+    const levels = getSteppedLevels(firstRow, rowCount);
+    const capacity = levels.reduce((sum, n) => sum + n, 0);
+    const row: StorageRow = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), row]);
+  }
+
+  private _setSteppedFirstRow(slot: SecondarySlot, value: number) {
+    this._setSteppedConfig(slot, value, this._steppedRow(slot)?.stepped_levels?.length || 3);
+  }
+
+  private _setSteppedRowCount(slot: SecondarySlot, value: number) {
+    this._setSteppedConfig(slot, this._steppedRow(slot)?.stepped_levels?.[0] || 5, value);
+  }
+
+  // Switching a slot's style lazily creates that style's default config the
+  // first time it's chosen; any other style's config already built this
+  // session for that slot is left alone (see _rowsFor) so flipping back
+  // doesn't lose it.
+  private _lazyInitSlot(slot: SecondarySlot, style: RackStyle) {
+    if (style === "shelf" && this._shelfRows(slot).length === 0) {
+      this._setShelfCount(slot, 1);
+    } else if (style === "bulk" && !this._bulkRow(slot)) {
+      this._setBulkCapacity(slot, 20);
+    } else if (style === "box" && !this._boxRow(slot)) {
+      this._updateBoxCount(slot, 1);
+    } else if (style === "stepped" && !this._steppedRow(slot)) {
+      this._setSteppedConfig(slot, 5, 3);
     }
+  }
+
+  private _setPrimaryStyle(style: RackStyle) {
+    this._primaryStyle = style;
+    this._lazyInitSlot("primary", style);
+  }
+
+  private _setSecondaryStyle(style: RackStyle | "none") {
+    this._secondaryStyle = style;
+    if (style !== "none") this._lazyInitSlot("secondary", style);
+  }
+
+  private _setSecondaryPosition(position: SecondaryPosition) {
+    this._secondaryPosition = position;
+  }
+
+  private _setSecondaryGridRows(value: number) {
+    this._secondaryGridRows = Math.max(1, Math.min(10, value));
   }
 
   private _startDelete(cabinet: Cabinet) {
@@ -769,8 +927,9 @@ export class RackSettingsDialog extends LitElement {
     this._deleteCabinet = cabinet;
   }
 
-  // Grid style only — no storage rows ever mix into a classic grid rack,
-  // so there is nothing to reconcile here beyond the row count itself.
+  // The primary grid's own row count — a secondary zone (grid or otherwise)
+  // has its own row count tracked separately (see _secondaryGridRows /
+  // _slotRowCount) and is never affected by these.
   private _addRow() {
     const current = this._editCabinet.rows || 1;
     if (current >= 20) return;
@@ -948,21 +1107,23 @@ export class RackSettingsDialog extends LitElement {
           ${sorted.map(
             (cab, idx) => {
               const storageRows = cab.storage_rows || [];
-              const storageCount = storageRows.length;
-              const isPureStorage = storageCount > 0 && storageCount === (cab.rows || 0);
-              const storageType = isPureStorage ? storageRows[0]?.type : undefined;
+              const hasGridRows = (cab.rows || 0) > storageRows.length;
+              const typeCounts = new Map<string, number>();
+              for (const sr of storageRows) typeCounts.set(sr.type, (typeCounts.get(sr.type) || 0) + 1);
               return html`
                 <div class="rack-item">
                   <div class="rack-info">
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
-                      ${isPureStorage ? nothing : html`${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}`}
+                      ${hasGridRows ? html`${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}` : nothing}
                       ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
-                      ${storageType === "shelf"
-                        ? this._t(storageCount === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: storageCount })
-                        : storageType === "box"
-                        ? this._t(storageCount === 1 ? "ui.rack.boxCountSuffixOne" : "ui.rack.boxCountSuffixMany", { n: storageCount })
-                        : ""}
+                      ${[...typeCounts.entries()].map(([type, count]) =>
+                        type === "shelf"
+                          ? this._t(count === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: count })
+                          : type === "box"
+                          ? this._t(count === 1 ? "ui.rack.boxCountSuffixOne" : "ui.rack.boxCountSuffixMany", { n: count })
+                          : ""
+                      )}
                     </div>
                   </div>
                   <div class="rack-actions">
@@ -1003,12 +1164,31 @@ export class RackSettingsDialog extends LitElement {
     `;
   }
 
-  private _renderStyleForm() {
-    const numRows = this._editCabinet.rows || 1;
+  private _renderSlotForm(slot: SecondarySlot) {
+    const style = this._styleFor(slot);
     const numCols = this._editCabinet.cols || 8;
     const numDepth = (this._editCabinet as any).depth || 1;
 
-    if (this._cabinetStyle === "grid") {
+    if (style === "grid") {
+      if (slot === "secondary") {
+        // A secondary grid block has no row count of its own control on the
+        // cabinet — cols/depth are shared with the cabinet's one grid
+        // section (see _finalCols/_finalDepth), so just its row count.
+        return html`
+          <div class="stepper-row">
+            <div class="stepper-wrap">
+              <div class="stepper-label">${this._t("ui.rack.rowsLabel")}</div>
+              <div class="stepper">
+                <button class="stepper-btn" @click=${() => this._setSecondaryGridRows(this._secondaryGridRows - 1)} ?disabled=${this._secondaryGridRows <= 1}>−</button>
+                <span class="stepper-value">${this._secondaryGridRows}</span>
+                <button class="stepper-btn" @click=${() => this._setSecondaryGridRows(this._secondaryGridRows + 1)} ?disabled=${this._secondaryGridRows >= 10}>+</button>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">${this._t("ui.rack.secondaryGridHint")}</p>
+        `;
+      }
+      const numRows = this._editCabinet.rows || 1;
       return html`
         <div class="grid-editor-title">${this._t("ui.rack.gridLayoutTitle")}</div>
         <div class="stepper-row">
@@ -1053,33 +1233,33 @@ export class RackSettingsDialog extends LitElement {
       `;
     }
 
-    if (this._cabinetStyle === "shelf") {
-      const shared = this._sharedShelfFrontBack();
-      const shelves = this._shelfRows();
+    if (style === "shelf") {
+      const shared = this._sharedShelfFrontBack(slot);
+      const shelves = this._shelfRows(slot);
       return html`
         <div class="stepper-row">
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfCountLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setShelfCount(shelves.length - 1)} ?disabled=${shelves.length <= 1}>−</button>
+              <button class="stepper-btn" @click=${() => this._setShelfCount(slot, shelves.length - 1)} ?disabled=${shelves.length <= 1}>−</button>
               <span class="stepper-value">${shelves.length}</span>
-              <button class="stepper-btn" @click=${() => this._setShelfCount(shelves.length + 1)} ?disabled=${shelves.length >= 20}>+</button>
+              <button class="stepper-btn" @click=${() => this._setShelfCount(slot, shelves.length + 1)} ?disabled=${shelves.length >= 20}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfFrontLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSharedFront(shared.front - 1)} ?disabled=${shared.front <= 0}>−</button>
+              <button class="stepper-btn" @click=${() => this._setSharedFront(slot, shared.front - 1)} ?disabled=${shared.front <= 0}>−</button>
               <span class="stepper-value">${shared.front}</span>
-              <button class="stepper-btn" @click=${() => this._setSharedFront(shared.front + 1)} ?disabled=${shared.front >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSharedFront(slot, shared.front + 1)} ?disabled=${shared.front >= 30}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.shelfBackLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSharedBack(shared.back - 1)} ?disabled=${shared.back <= 0}>−</button>
+              <button class="stepper-btn" @click=${() => this._setSharedBack(slot, shared.back - 1)} ?disabled=${shared.back <= 0}>−</button>
               <span class="stepper-value">${shared.back}</span>
-              <button class="stepper-btn" @click=${() => this._setSharedBack(shared.back + 1)} ?disabled=${shared.back >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSharedBack(slot, shared.back + 1)} ?disabled=${shared.back >= 30}>+</button>
             </div>
           </div>
         </div>
@@ -1098,14 +1278,14 @@ export class RackSettingsDialog extends LitElement {
                   class="row-name-input"
                   style="flex:1"
                   .value=${sr.name || ""}
-                  @input=${(e: InputEvent) => this._updateShelfName(i, (e.target as HTMLInputElement).value)}
+                  @input=${(e: InputEvent) => this._updateShelfName(slot, i, (e.target as HTMLInputElement).value)}
                   placeholder="${this._t('ui.rack.shelfNamePlaceholder', { n: i + 1 })}"
                 />
                 <span class="row-type-info" style="flex:0;font-size:0.7em">${this._t('ui.rack.shelfLevelsLabel')}</span>
                 <div class="row-cap-stepper">
-                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(i, levelCount - 1)} ?disabled=${levelCount <= 1}>−</button>
+                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(slot, i, levelCount - 1)} ?disabled=${levelCount <= 1}>−</button>
                   <span class="stepper-val-sm">${levelCount}</span>
-                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(i, levelCount + 1)} ?disabled=${levelCount >= 6}>+</button>
+                  <button class="stepper-btn-sm" @click=${() => this._setShelfLevelCountAt(slot, i, levelCount + 1)} ?disabled=${levelCount >= 6}>+</button>
                 </div>
                 <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
               </div>
@@ -1115,33 +1295,63 @@ export class RackSettingsDialog extends LitElement {
       `;
     }
 
-    if (this._cabinetStyle === "bulk") {
-      const capacity = this._bulkRow()?.capacity || 20;
+    if (style === "bulk") {
+      const capacity = this._bulkRow(slot)?.capacity || 20;
       return html`
         <div class="stepper-row">
           <div class="stepper-wrap">
             <div class="stepper-label">${this._t("ui.rack.bulkCapacityLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setBulkCapacity(capacity - 1)} ?disabled=${capacity <= 1}>−</button>
+              <button class="stepper-btn" @click=${() => this._setBulkCapacity(slot, capacity - 1)} ?disabled=${capacity <= 1}>−</button>
               <span class="stepper-value">${capacity}</span>
-              <button class="stepper-btn" @click=${() => this._setBulkCapacity(capacity + 1)} ?disabled=${capacity >= 500}>+</button>
+              <button class="stepper-btn" @click=${() => this._setBulkCapacity(slot, capacity + 1)} ?disabled=${capacity >= 500}>+</button>
             </div>
           </div>
         </div>
       `;
     }
 
+    if (style === "stepped") {
+      const stepped = this._steppedRow(slot);
+      const levels = stepped?.stepped_levels || [];
+      const firstRow = levels[0] ?? 5;
+      const rowCount = levels.length || 3;
+      return html`
+        <div class="stepper-row">
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
+              <span class="stepper-value">${firstRow}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+            </div>
+          </div>
+          <div class="stepper-wrap">
+            <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+            <div class="stepper">
+              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+              <span class="stepper-value">${rowCount}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
+          ${levels.join(" + ")} = ${stepped?.capacity || 0}
+        </p>
+      `;
+    }
+
     // "box"
-    const boxRow = this._boxRow();
+    const boxRow = this._boxRow(slot);
     const boxes = boxRow?.boxes || [12];
     return html`
       <div class="stepper-row">
         <div class="stepper-wrap">
           <div class="stepper-label">${this._t("ui.rack.boxCountLabel")}</div>
           <div class="stepper">
-            <button class="stepper-btn" @click=${() => this._updateBoxCount(boxes.length - 1)} ?disabled=${boxes.length <= 1}>−</button>
+            <button class="stepper-btn" @click=${() => this._updateBoxCount(slot, boxes.length - 1)} ?disabled=${boxes.length <= 1}>−</button>
             <span class="stepper-value">${boxes.length}</span>
-            <button class="stepper-btn" @click=${() => this._updateBoxCount(boxes.length + 1)} ?disabled=${boxes.length >= 10}>+</button>
+            <button class="stepper-btn" @click=${() => this._updateBoxCount(slot, boxes.length + 1)} ?disabled=${boxes.length >= 10}>+</button>
           </div>
         </div>
       </div>
@@ -1149,7 +1359,7 @@ export class RackSettingsDialog extends LitElement {
         ${boxes.map((boxSize: number, bi: number) => html`
           <select
             class="row-cap-select"
-            @change=${(e: Event) => this._updateBoxSize(bi, parseInt((e.target as HTMLSelectElement).value, 10))}
+            @change=${(e: Event) => this._updateBoxSize(slot, bi, parseInt((e.target as HTMLSelectElement).value, 10))}
           >
             ${BOX_SIZES.map((s) => html`<option value=${s} ?selected=${boxSize === s}>${this._t('ui.rack.boxSizeOption', { s })}</option>`)}
           </select>
@@ -1164,6 +1374,9 @@ export class RackSettingsDialog extends LitElement {
 
     // Which bottles this edit would displace, whichever way it shrinks.
     const displaced = isEdit ? this._displacedWines() : [];
+    const typeLabels = getStorageRowTypeLabels(this.hass?.language);
+    const styles: RackStyle[] = ["grid", "stepped", "shelf", "bulk", "box"];
+    const styleLabel = (s: RackStyle) => (s === "grid" ? this._t("ui.rack.styleGrid") : typeLabels[s]);
 
     return html`
       <div class="dialog-body">
@@ -1180,30 +1393,58 @@ export class RackSettingsDialog extends LitElement {
           />
         </div>
 
-        <!-- Rack style: exactly one of these four, chosen once -->
+        <!-- Primary style: exactly one of these five, chosen once -->
         <div class="form-group">
           <label>${this._t("ui.rack.styleLabel")}</label>
           <div class="style-toggle">
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "grid" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("grid")}
-            >${this._t("ui.rack.styleGrid")}</button>
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "shelf" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("shelf")}
-            >${getStorageRowTypeLabels(this.hass?.language).shelf}</button>
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "bulk" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("bulk")}
-            >${getStorageRowTypeLabels(this.hass?.language).bulk}</button>
-            <button
-              class="style-toggle-btn ${this._cabinetStyle === "box" ? "active" : ""}"
-              @click=${() => this._setCabinetStyle("box")}
-            >${getStorageRowTypeLabels(this.hass?.language).box}</button>
+            ${styles.map((s) => html`
+              <button
+                class="style-toggle-btn ${this._primaryStyle === s ? "active" : ""}"
+                @click=${() => this._setPrimaryStyle(s)}
+              >${styleLabel(s)}</button>
+            `)}
           </div>
         </div>
 
-        <div class="grid-editor">${this._renderStyleForm()}</div>
+        <div class="grid-editor">${this._renderSlotForm("primary")}</div>
+
+        <!-- Secondary zone: optional, stacked above or below the primary
+             style chosen above. -->
+        <div class="form-group">
+          <label>${this._t("ui.rack.secondaryStyleLabel")}</label>
+          <div class="style-toggle">
+            <button
+              class="style-toggle-btn ${this._secondaryStyle === "none" ? "active" : ""}"
+              @click=${() => this._setSecondaryStyle("none")}
+            >${this._t("ui.rack.secondaryNone")}</button>
+            ${styles.map((s) => html`
+              <button
+                class="style-toggle-btn ${this._secondaryStyle === s ? "active" : ""}"
+                @click=${() => this._setSecondaryStyle(s)}
+              >${styleLabel(s)}</button>
+            `)}
+          </div>
+          <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:4px 0 0">${this._t("ui.rack.secondaryHint")}</p>
+        </div>
+
+        ${this._secondaryStyle !== "none"
+          ? html`
+              <div class="form-group">
+                <label>${this._t("ui.rack.secondaryPositionLabel")}</label>
+                <div class="style-toggle">
+                  <button
+                    class="style-toggle-btn ${this._secondaryPosition === "above" ? "active" : ""}"
+                    @click=${() => this._setSecondaryPosition("above")}
+                  >${this._t("ui.rack.secondaryAbove")}</button>
+                  <button
+                    class="style-toggle-btn ${this._secondaryPosition === "below" ? "active" : ""}"
+                    @click=${() => this._setSecondaryPosition("below")}
+                  >${this._t("ui.rack.secondaryBelow")}</button>
+                </div>
+              </div>
+              <div class="grid-editor">${this._renderSlotForm("secondary")}</div>
+            `
+          : nothing}
 
         ${displaced.length > 0
           ? html`

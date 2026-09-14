@@ -273,6 +273,13 @@ def _cabinet_shape_error(fields: dict[str, Any]) -> str | None:
                     for level in shelf_levels
                 ):
                     return "shelf levels must have whole-number front/back counts of 0 or more"
+            stepped_levels = entry.get("stepped_levels")
+            if stepped_levels is not None:
+                if not isinstance(stepped_levels, list) or any(
+                    isinstance(n, bool) or not isinstance(n, int) or n < 0
+                    for n in stepped_levels
+                ):
+                    return "stepped levels must be whole numbers of 0 or more"
     return None
 
 

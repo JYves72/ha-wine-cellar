@@ -63,12 +63,13 @@ export interface Wine {
   vivino_id: number | null;
 }
 
-export type StorageRowType = "bulk" | "box" | "shelf";
+export type StorageRowType = "bulk" | "box" | "shelf" | "stepped";
 
 export const STORAGE_ROW_TYPE_LABELS: Record<StorageRowType, string> = {
   bulk: "Bulk Bin",
   box: "Wine Box",
   shelf: "Shelf (Front/Back)",
+  stepped: "Compressor Shelf",
 };
 
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
@@ -91,6 +92,44 @@ export interface StorageRow {
   // than in the lane behind it (and a 2-board shelf often flips which lane
   // is bigger between the bottom and top board).
   shelf_levels?: { front: number; back: number }[];
+  // for type="stepped": one entry per physical row, bottom to top, single
+  // depth (no front/back lane — see getSteppedLevels). Models the shallow
+  // area above a fridge's compressor bump, where bottles lie one-deep and
+  // each row above the bottom one nests into the gaps of the row below.
+  stepped_levels?: number[];
+}
+
+// A true quinconce alternates: the bottom row holds `firstRow` bottles: the
+// row above nests into its gaps and holds one fewer, the row above that
+// realigns with the bottom row's own positions and is back to `firstRow`,
+// and so on — odd rows (1st, 3rd, 5th...) at `firstRow`, even rows at
+// `firstRow - 1`. It does not taper off monotonically.
+export function getSteppedLevels(firstRow: number, rows: number): number[] {
+  const first = Math.max(0, firstRow);
+  const second = Math.max(0, first - 1);
+  const count = Math.max(1, rows);
+  return Array.from({ length: count }, (_, i) => (i % 2 === 0 ? first : second));
+}
+
+export interface SteppedSlotGroup {
+  level: number;  // 0 = bottom row
+  start: number;  // first flat depth index in this level
+  size: number;
+}
+
+// Flattens a stepped zone's levels into (level, depth-range) groups, mirroring
+// getShelfSlotGroups above but with a single lane per level. The backend's
+// WineCellarStorage._storage_row_capacity sums the same levels in the same
+// order, so the two must stay in step if this ever changes.
+export function getSteppedSlotGroups(levels: number[] | undefined): SteppedSlotGroup[] {
+  const groups: SteppedSlotGroup[] = [];
+  let offset = 0;
+  for (let level = 0; level < (levels?.length || 0); level++) {
+    const size = levels![level];
+    if (size > 0) groups.push({ level, start: offset, size });
+    offset += size;
+  }
+  return groups;
 }
 
 export interface ShelfSlotGroup {

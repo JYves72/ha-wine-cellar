@@ -39,6 +39,9 @@ export function zoneCapacity(sr: StorageRow): number {
   if (sr.type === "shelf") {
     return (sr.shelf_levels || []).reduce((sum, lvl) => sum + lvl.front + lvl.back, 0) || sr.capacity || 0;
   }
+  if (sr.type === "stepped") {
+    return (sr.stepped_levels || []).reduce((sum, n) => sum + n, 0) || sr.capacity || 0;
+  }
   return sr.capacity || 0;
 }
 
