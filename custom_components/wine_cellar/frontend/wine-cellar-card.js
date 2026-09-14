@@ -2313,13 +2313,16 @@ function getStorageRowTypeLabels(language) {
     return tGroup("storageRowType", language);
 }
 const BOX_SIZES = [1, 3, 6, 12, 24];
-// The bottom row holds `firstRow` bottles; every row stacked above it nests
-// into the gaps left by the row below, holding one fewer — and stays at
-// that count for any further rows, rather than continuing to taper off.
+// A true quinconce alternates: the bottom row holds `firstRow` bottles: the
+// row above nests into its gaps and holds one fewer, the row above that
+// realigns with the bottom row's own positions and is back to `firstRow`,
+// and so on — odd rows (1st, 3rd, 5th...) at `firstRow`, even rows at
+// `firstRow - 1`. It does not taper off monotonically.
 function getSteppedLevels(firstRow, rows) {
     const first = Math.max(0, firstRow);
+    const second = Math.max(0, first - 1);
     const count = Math.max(1, rows);
-    return Array.from({ length: count }, (_, i) => (i === 0 ? first : Math.max(0, first - 1)));
+    return Array.from({ length: count }, (_, i) => (i % 2 === 0 ? first : second));
 }
 // Flattens a stepped zone's levels into (level, depth-range) groups, mirroring
 // getShelfSlotGroups above but with a single lane per level. The backend's
