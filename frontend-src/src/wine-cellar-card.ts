@@ -799,6 +799,13 @@ export class WineCellarCard extends LitElement {
       return;
     }
 
+    // Long-pressed a bottle (picked up via _movingWine) and tapped a
+    // different, occupied cell: swap instead of opening its detail.
+    if (this._movingWine && wine && wine.id !== this._movingWine.id) {
+      this._executeSwapWine({ cabinetId: cabinet.id, row, col, depth: 0 }, wine);
+      return;
+    }
+
     if (wine) {
       this._selectedWine = wine;
       this._detailMode = "cellar";
@@ -884,6 +891,15 @@ export class WineCellarCard extends LitElement {
     // If we're placing a buy list item, move it to cellar
     if (this._movingBuyListItem && !wine) {
       this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
+      return;
+    }
+
+    // Long-pressed a bottle and tapped a different, occupied slot in a
+    // slot-addressable zone (shelf/quinconce — hasExactDepth): swap instead
+    // of opening its detail. Bulk/box zone chips carry no depth, so this
+    // never fires for those — "occupied" there doesn't mean a fixed slot.
+    if (this._movingWine && wine && hasExactDepth && wine.id !== this._movingWine.id) {
+      this._executeSwapWine({ cabinetId: cabinet.id, zone: zone || "bottom", depth }, wine);
       return;
     }
 
@@ -1892,6 +1908,61 @@ export class WineCellarCard extends LitElement {
       await this._loadData();
     } catch (err) {
       console.error("Failed to move wine:", err);
+      if (swappedBack) {
+        try {
+          await swappedBack();
+        } catch (undoErr) {
+          console.error("Failed to undo half-completed swap:", undoErr);
+          this._showToast(this._t("toast.moveUndoFailed"));
+          await this._loadData();
+          return;
+        }
+      }
+      this._showToast(this._t("toast.moveFailed"));
+      await this._loadData();
+    }
+  }
+
+  // Tap-to-move equivalent of dragging onto an occupied slot (see
+  // _onExactSlotDrop for the drag-and-drop version) — Android has no real
+  // drag-and-drop, so long-press-then-tap is its stand-in, and tapping an
+  // occupied target should swap just as dropping onto one does instead of
+  // falling through to "open its detail". Used by both the classic grid
+  // (row/col) and slot-addressable zones (shelf/quinconce, zone+depth);
+  // bulk/box zones have no fixed per-slot occupancy for this to mean the
+  // same thing, so callers only reach here when there's an actual slot.
+  private async _executeSwapWine(
+    target: { cabinetId: string; row?: number | null; col?: number | null; zone?: string; depth?: number },
+    targetWine: Wine
+  ) {
+    const movingWine = this._movingWine;
+    if (!movingWine || movingWine.id === targetWine.id) return;
+
+    const targetPayload: Record<string, unknown> = { cabinet_id: target.cabinetId, zone: target.zone || "" };
+    if (target.row != null) targetPayload.row = target.row;
+    if (target.col != null) targetPayload.col = target.col;
+    if (target.depth != null) targetPayload.depth = target.depth;
+
+    const originPayload: Record<string, unknown> = { cabinet_id: movingWine.cabinet_id, zone: movingWine.zone || "" };
+    if (movingWine.row !== null) originPayload.row = movingWine.row;
+    if (movingWine.col !== null) originPayload.col = movingWine.col;
+    if (movingWine.zone || movingWine.row !== null) originPayload.depth = movingWine.depth ?? 0;
+
+    let swappedBack: (() => Promise<any>) | null = null;
+    try {
+      await this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: targetWine.id, ...originPayload });
+      // Half of a swap is not a state the rack can be in: the target bottle
+      // is now sitting where the moving one still is. If the second half
+      // fails, put it back before reporting the failure.
+      swappedBack = () => this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: targetWine.id, ...targetPayload });
+
+      await this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: movingWine.id, ...targetPayload });
+
+      this._showToast(this._t("toast.wineSwapped"));
+      this._movingWine = null;
+      await this._loadData();
+    } catch (err) {
+      console.error("Failed to swap wine:", err);
       if (swappedBack) {
         try {
           await swappedBack();

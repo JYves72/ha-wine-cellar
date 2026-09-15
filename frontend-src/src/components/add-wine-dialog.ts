@@ -23,6 +23,7 @@ import {
   placementIn,
   planSlots,
   sameContainer,
+  storageRowFor,
 } from "../utils/location";
 import { Suggestion, suggestDestinations } from "../utils/suggest";
 
@@ -945,8 +946,15 @@ export class AddWineDialog extends LitElement {
         // A bin is a pile: what you just put in sits on top, so the new
         // bottles take the first slots and the rest shift down. One call
         // renumbers the bin; listing only the new ids is enough, the backend
-        // appends the others in their existing order.
-        if (this._wineData.zone && addedIds.length) {
+        // appends the others in their existing order. Shelf/quinconce zones
+        // are the opposite — every slot is a fixed physical position (the
+        // depth each bottle was just given via slots[i], picked from the
+        // exact dot clicked) — reordering them would scramble every other
+        // bottle already sitting in that zone.
+        const cabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
+        const destRow = storageRowFor(cabinet, this._wineData.zone || "");
+        const isSlotZone = destRow?.type === "shelf" || destRow?.type === "stepped";
+        if (this._wineData.zone && addedIds.length && !isSlotZone) {
           await this.hass.callWS({
             type: "wine_cellar/reorder_zone",
             cabinet_id: this._wineData.cabinet_id,

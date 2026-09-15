@@ -1313,8 +1313,10 @@ var ui$1 = {
 		secondaryAbove: "Above",
 		secondaryBelow: "Below",
 		secondaryGridHint: "Uses the same columns and depth as the main grid.",
+		steppedCountLabel: "Quinconces",
 		steppedFirstRowLabel: "Bottom row bottles",
 		steppedRowCountLabel: "Number of rows",
+		steppedNamePlaceholder: "Quinconce {n}",
 		rowsLabel: "Rows",
 		columnsLabel: "Columns",
 		depthLabel: "Depth",
@@ -2070,8 +2072,10 @@ var ui = {
 		secondaryAbove: "Au-dessus",
 		secondaryBelow: "En dessous",
 		secondaryGridHint: "Utilise les mêmes colonnes et profondeur que la grille principale.",
+		steppedCountLabel: "Quinconces",
 		steppedFirstRowLabel: "Bouteilles en rangée du bas",
 		steppedRowCountLabel: "Nombre de rangées",
+		steppedNamePlaceholder: "Quinconce {n}",
 		rowsLabel: "Lignes",
 		columnsLabel: "Colonnes",
 		depthLabel: "Profondeur",
@@ -7915,8 +7919,15 @@ let AddWineDialog = class AddWineDialog extends i {
                 // A bin is a pile: what you just put in sits on top, so the new
                 // bottles take the first slots and the rest shift down. One call
                 // renumbers the bin; listing only the new ids is enough, the backend
-                // appends the others in their existing order.
-                if (this._wineData.zone && addedIds.length) {
+                // appends the others in their existing order. Shelf/quinconce zones
+                // are the opposite — every slot is a fixed physical position (the
+                // depth each bottle was just given via slots[i], picked from the
+                // exact dot clicked) — reordering them would scramble every other
+                // bottle already sitting in that zone.
+                const cabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
+                const destRow = storageRowFor(cabinet, this._wineData.zone || "");
+                const isSlotZone = destRow?.type === "shelf" || destRow?.type === "stepped";
+                if (this._wineData.zone && addedIds.length && !isSlotZone) {
                     await this.hass.callWS({
                         type: "wine_cellar/reorder_zone",
                         cabinet_id: this._wineData.cabinet_id,
@@ -9543,8 +9554,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
     _boxRow(slot) {
         return this._rowsFor(slot).find((sr) => sr.type === "box");
     }
-    _steppedRow(slot) {
-        return this._rowsFor(slot).find((sr) => sr.type === "stepped");
+    _steppedRows(slot) {
+        return this._rowsFor(slot).filter((sr) => sr.type === "stepped");
     }
     // How many rows a slot's active style actually uses.
     _slotRowCount(slot) {
@@ -9555,7 +9566,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             return slot === "primary" ? (this._editCabinet.rows || 1) : this._secondaryGridRows;
         if (style === "shelf")
             return Math.max(1, this._shelfRows(slot).length);
-        return 1; // bulk, box, stepped
+        if (style === "stepped")
+            return Math.max(1, this._steppedRows(slot).length);
+        return 1; // bulk, box
     }
     // A slot's own rows, renumbered to a contiguous range starting at
     // `offset` — the physical row a bottle sits behind never survives a rack
@@ -9568,7 +9581,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         if (style === "shelf") {
             return this._shelfRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
         }
-        const row = style === "bulk" ? this._bulkRow(slot) : style === "box" ? this._boxRow(slot) : this._steppedRow(slot);
+        if (style === "stepped") {
+            return this._steppedRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
+        }
+        const row = style === "bulk" ? this._bulkRow(slot) : this._boxRow(slot);
         return row ? [{ ...row, row: offset }] : [];
     }
     // What actually gets saved, freshly computed from the active styles —
@@ -9848,22 +9864,58 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
         this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
     }
-    // Quinconce: driven by just two numbers — the bottom row's bottle count
-    // and how many rows stack above it — with the per-level breakdown always
-    // derived via getSteppedLevels rather than edited directly.
-    _setSteppedConfig(slot, firstRow, rowCount) {
-        firstRow = Math.max(1, Math.min(30, firstRow));
+    // Quinconce, like a shelf, can be several independent units stacked in
+    // one rack — each its own physical zone with its own row count, but all
+    // sharing one bottom-row bottle count (a property of the rack's fixed
+    // width, not of any one unit). The per-level breakdown is always derived
+    // via getSteppedLevels rather than edited directly.
+    _sharedSteppedFirstRow(slot) {
+        return this._steppedRows(slot)[0]?.stepped_levels?.[0] ?? 5;
+    }
+    // Re-derives every quinconce unit's levels in this slot from a new shared
+    // first-row count, keeping each unit's own row count exactly as it was.
+    _applySharedSteppedFirstRow(slot, firstRow) {
+        const first = Math.max(1, Math.min(30, firstRow));
+        this._setRowsFor(slot, this._rowsFor(slot).map((sr) => {
+            if (sr.type !== "stepped")
+                return sr;
+            const levels = getSteppedLevels(first, sr.stepped_levels?.length || 1);
+            const capacity = levels.reduce((sum, n) => sum + n, 0);
+            return { ...sr, stepped_levels: levels, capacity };
+        }));
+    }
+    // Changes just this one quinconce unit's row count, using the shared
+    // first-row count.
+    _setSteppedRowCountAt(slot, index, rowCount) {
         rowCount = Math.max(1, Math.min(10, rowCount));
+        const firstRow = this._sharedSteppedFirstRow(slot);
+        const rows = this._steppedRows(slot);
+        if (!rows[index])
+            return;
         const levels = getSteppedLevels(firstRow, rowCount);
         const capacity = levels.reduce((sum, n) => sum + n, 0);
-        const row = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
-        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), row]);
+        rows[index] = { ...rows[index], stepped_levels: levels, capacity };
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
     }
-    _setSteppedFirstRow(slot, value) {
-        this._setSteppedConfig(slot, value, this._steppedRow(slot)?.stepped_levels?.length || 3);
+    // Rebuilds the quinconce list to the requested count, applying the shared
+    // first-row count to any new ones (starting at 3 rows each) and keeping
+    // existing units' own name and row count (by position) rather than
+    // resetting them.
+    _setSteppedCount(slot, count) {
+        count = Math.max(1, Math.min(20, count));
+        const firstRow = this._sharedSteppedFirstRow(slot);
+        const existing = this._steppedRows(slot);
+        const rows = Array.from({ length: count }, (_, i) => {
+            const prior = existing[i];
+            const levels = getSteppedLevels(firstRow, prior?.stepped_levels?.length || 3);
+            const capacity = levels.reduce((sum, n) => sum + n, 0);
+            return { row: i, name: prior?.name || "", type: "stepped", capacity, stepped_levels: levels };
+        });
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
     }
-    _setSteppedRowCount(slot, value) {
-        this._setSteppedConfig(slot, this._steppedRow(slot)?.stepped_levels?.[0] || 5, value);
+    _updateSteppedName(slot, index, name) {
+        const rows = this._steppedRows(slot).map((sr, i) => (i === index ? { ...sr, name } : sr));
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
     }
     // Switching a slot's style lazily creates that style's default config the
     // first time it's chosen; any other style's config already built this
@@ -9879,8 +9931,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         else if (style === "box" && !this._boxRow(slot)) {
             this._updateBoxCount(slot, 1);
         }
-        else if (style === "stepped" && !this._steppedRow(slot)) {
-            this._setSteppedConfig(slot, 5, 3);
+        else if (style === "stepped" && this._steppedRows(slot).length === 0) {
+            this._setSteppedCount(slot, 1);
         }
     }
     _setPrimaryStyle(style) {
@@ -10279,32 +10331,56 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       `;
         }
         if (style === "stepped") {
-            const stepped = this._steppedRow(slot);
-            const levels = stepped?.stepped_levels || [];
-            const firstRow = levels[0] ?? 5;
-            const rowCount = levels.length || 3;
+            const shared = this._sharedSteppedFirstRow(slot);
+            const steppedUnits = this._steppedRows(slot);
             return b `
         <div class="stepper-row">
           <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+            <div class="stepper-label">${this._t("ui.rack.steppedCountLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
-              <span class="stepper-value">${firstRow}</span>
-              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSteppedCount(slot, steppedUnits.length - 1)} ?disabled=${steppedUnits.length <= 1}>−</button>
+              <span class="stepper-value">${steppedUnits.length}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedCount(slot, steppedUnits.length + 1)} ?disabled=${steppedUnits.length >= 20}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
-              <span class="stepper-value">${rowCount}</span>
-              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+              <button class="stepper-btn" @click=${() => this._applySharedSteppedFirstRow(slot, shared - 1)} ?disabled=${shared <= 1}>−</button>
+              <span class="stepper-value">${shared}</span>
+              <button class="stepper-btn" @click=${() => this._applySharedSteppedFirstRow(slot, shared + 1)} ?disabled=${shared >= 30}>+</button>
             </div>
           </div>
         </div>
-        <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
-          ${levels.join(" + ")} = ${stepped?.capacity || 0}
-        </p>
+
+        <!-- Name + row count per quinconce unit — the bottom-row count is
+             shared above, but how many rows each one stacks is its own
+             choice. -->
+        <div class="row-list">
+          ${steppedUnits.map((sr, i) => {
+                const rowCount = sr.stepped_levels?.length || 1;
+                return b `
+              <div class="row-entry storage">
+                <span class="row-num">${i + 1}</span>
+                <input
+                  type="text"
+                  class="row-name-input"
+                  style="flex:1"
+                  .value=${sr.name || ""}
+                  @input=${(e) => this._updateSteppedName(slot, i, e.target.value)}
+                  placeholder="${this._t('ui.rack.steppedNamePlaceholder', { n: i + 1 })}"
+                />
+                <span class="row-type-info" style="flex:0;font-size:0.7em">${this._t('ui.rack.steppedRowCountLabel')}</span>
+                <div class="row-cap-stepper">
+                  <button class="stepper-btn-sm" @click=${() => this._setSteppedRowCountAt(slot, i, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+                  <span class="stepper-val-sm">${rowCount}</span>
+                  <button class="stepper-btn-sm" @click=${() => this._setSteppedRowCountAt(slot, i, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+                </div>
+                <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
+              </div>
+            `;
+            })}
+        </div>
       `;
         }
         // "box"
@@ -15089,6 +15165,12 @@ let WineCellarCard = class WineCellarCard extends i {
             this._openDepthPanel(cabinet, row, col, wines, cabinetDepth);
             return;
         }
+        // Long-pressed a bottle (picked up via _movingWine) and tapped a
+        // different, occupied cell: swap instead of opening its detail.
+        if (this._movingWine && wine && wine.id !== this._movingWine.id) {
+            this._executeSwapWine({ cabinetId: cabinet.id, row, col, depth: 0 }, wine);
+            return;
+        }
         if (wine) {
             this._selectedWine = wine;
             this._detailMode = "cellar";
@@ -15165,6 +15247,14 @@ let WineCellarCard = class WineCellarCard extends i {
         // If we're placing a buy list item, move it to cellar
         if (this._movingBuyListItem && !wine) {
             this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
+            return;
+        }
+        // Long-pressed a bottle and tapped a different, occupied slot in a
+        // slot-addressable zone (shelf/quinconce — hasExactDepth): swap instead
+        // of opening its detail. Bulk/box zone chips carry no depth, so this
+        // never fires for those — "occupied" there doesn't mean a fixed slot.
+        if (this._movingWine && wine && hasExactDepth && wine.id !== this._movingWine.id) {
+            this._executeSwapWine({ cabinetId: cabinet.id, zone: zone || "bottom", depth }, wine);
             return;
         }
         if (wine) {
@@ -16125,6 +16215,61 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         catch (err) {
             console.error("Failed to move wine:", err);
+            if (swappedBack) {
+                try {
+                    await swappedBack();
+                }
+                catch (undoErr) {
+                    console.error("Failed to undo half-completed swap:", undoErr);
+                    this._showToast(this._t("toast.moveUndoFailed"));
+                    await this._loadData();
+                    return;
+                }
+            }
+            this._showToast(this._t("toast.moveFailed"));
+            await this._loadData();
+        }
+    }
+    // Tap-to-move equivalent of dragging onto an occupied slot (see
+    // _onExactSlotDrop for the drag-and-drop version) — Android has no real
+    // drag-and-drop, so long-press-then-tap is its stand-in, and tapping an
+    // occupied target should swap just as dropping onto one does instead of
+    // falling through to "open its detail". Used by both the classic grid
+    // (row/col) and slot-addressable zones (shelf/quinconce, zone+depth);
+    // bulk/box zones have no fixed per-slot occupancy for this to mean the
+    // same thing, so callers only reach here when there's an actual slot.
+    async _executeSwapWine(target, targetWine) {
+        const movingWine = this._movingWine;
+        if (!movingWine || movingWine.id === targetWine.id)
+            return;
+        const targetPayload = { cabinet_id: target.cabinetId, zone: target.zone || "" };
+        if (target.row != null)
+            targetPayload.row = target.row;
+        if (target.col != null)
+            targetPayload.col = target.col;
+        if (target.depth != null)
+            targetPayload.depth = target.depth;
+        const originPayload = { cabinet_id: movingWine.cabinet_id, zone: movingWine.zone || "" };
+        if (movingWine.row !== null)
+            originPayload.row = movingWine.row;
+        if (movingWine.col !== null)
+            originPayload.col = movingWine.col;
+        if (movingWine.zone || movingWine.row !== null)
+            originPayload.depth = movingWine.depth ?? 0;
+        let swappedBack = null;
+        try {
+            await this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: targetWine.id, ...originPayload });
+            // Half of a swap is not a state the rack can be in: the target bottle
+            // is now sitting where the moving one still is. If the second half
+            // fails, put it back before reporting the failure.
+            swappedBack = () => this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: targetWine.id, ...targetPayload });
+            await this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: movingWine.id, ...targetPayload });
+            this._showToast(this._t("toast.wineSwapped"));
+            this._movingWine = null;
+            await this._loadData();
+        }
+        catch (err) {
+            console.error("Failed to swap wine:", err);
             if (swappedBack) {
                 try {
                     await swappedBack();
