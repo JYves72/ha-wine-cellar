@@ -327,7 +327,8 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
 
         currency = _get_metadata_currency(hass)
         result = await vivino.search_wine(
-            query, _get_metadata_language(hass), currency, wine.get("vintage")
+            query, _get_metadata_language(hass), currency, wine.get("vintage"),
+            wine_type=wine.get("type"),
         )
         if not result:
             return
@@ -396,7 +397,8 @@ async def _auto_enrich_buy_list_item(hass: HomeAssistant, item: dict[str, Any]) 
 
         currency = _get_metadata_currency(hass)
         result = await vivino.search_wine(
-            query, _get_metadata_language(hass), currency, item.get("vintage")
+            query, _get_metadata_language(hass), currency, item.get("vintage"),
+            wine_type=item.get("type"),
         )
         if not result:
             return
@@ -1174,14 +1176,14 @@ async def ws_refresh_wine(
     # straight to the no-match path and the AI offer below.
     lookup = None
     if wine.get("vivino_id") and not _is_whisky(wine):
-        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
+        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
 
     if not lookup and not _is_whisky(wine):
         if not query:
             connection.send_result(msg["id"], {"error": "No name/winery to search."})
             return
 
-        result = await vivino.search_wine(query, language, currency, wine.get("vintage"))
+        result = await vivino.search_wine(query, language, currency, wine.get("vintage"), wine_type=wine.get("type"))
         lookup = result[0] if result else None
         if lookup and not _vivino_match_is_trustworthy(wine, lookup):
             _LOGGER.debug(
@@ -1523,7 +1525,9 @@ async def ws_batch_refresh_vivino(
                 # fetch_extras=False: skip the extra description/food_pairings
                 # HTML request here — it would ~double request volume across a
                 # whole cellar's worth of wines. Individual refresh still does it.
-                result = await vivino.search_wine(query, language, currency, wine.get("vintage"), fetch_extras=False)
+                result = await vivino.search_wine(
+                    query, language, currency, wine.get("vintage"), fetch_extras=False, wine_type=wine.get("type"),
+                )
                 lookup = result[0] if result else None
                 if lookup and not _vivino_match_is_trustworthy(wine, lookup):
                     _LOGGER.debug(
@@ -1747,7 +1751,8 @@ async def ws_enrich_wine_vivino(
 
     try:
         result = await vivino.search_wine(
-            query, _get_metadata_language(hass), _get_metadata_currency(hass), wine.get("vintage")
+            query, _get_metadata_language(hass), _get_metadata_currency(hass), wine.get("vintage"),
+            wine_type=wine.get("type"),
         )
         if not result:
             connection.send_result(msg["id"], {"result": None})

@@ -180,6 +180,31 @@ def _explore_result_matches_query(query: str, result: dict[str, Any]) -> bool:
     return overlap >= 0.15
 
 
+def _prefer_matching_type(
+    results: list[dict[str, Any]], wine_type: str | None
+) -> list[dict[str, Any]]:
+    """Reorder results to put ones matching the wine's own type first.
+
+    The same producer can sell a Bronzinelle (say) as a red, a rosé and a
+    white under the identical name — nothing in the query text or in
+    _explore_result_matches_query's word-overlap check (which deliberately
+    excludes colour words like "rouge"/"rosé" as too generic to be a
+    reliable signal on their own) tells those three apart, so without this
+    Vivino's own ranking decides which one comes back, and a red can
+    silently pick up a rosé's rating, photo and tasting notes. Reorders
+    rather than filters, for the same reason _prefer_matching_vintage
+    does: a type Vivino doesn't have indexed under that exact name is
+    still a better fallback than nothing.
+    """
+    if not wine_type or not results:
+        return results
+    matching = [r for r in results if r.get("type") == wine_type]
+    if not matching or len(matching) == len(results):
+        return results
+    non_matching = [r for r in results if r.get("type") != wine_type]
+    return matching + non_matching
+
+
 def _prefer_matching_vintage(
     results: list[dict[str, Any]], vintage: int | None
 ) -> list[dict[str, Any]]:
@@ -451,6 +476,7 @@ class VivinoClient:
         currency: str = "USD",
         vintage: int | None = None,
         fetch_extras: bool = True,
+        wine_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search for wines by name/text query.
 
@@ -506,10 +532,12 @@ class VivinoClient:
             # of fetch_extras=False is to not double the request volume.
             results = await self._search_vivino_explore(query, language, currency)
 
+        results = _prefer_matching_type(results, wine_type)
         results = _prefer_matching_vintage(results, vintage)
         if results and _explore_result_matches_query(query, results[0]):
             if html_results and not results[0].get("description") and not results[0].get("food_pairings"):
-                ranked = _prefer_matching_vintage(html_results, vintage)
+                ranked = _prefer_matching_type(html_results, wine_type)
+                ranked = _prefer_matching_vintage(ranked, vintage)
                 if ranked:
                     top = ranked[0]
                     if top.get("description"):
@@ -527,6 +555,7 @@ class VivinoClient:
         )
         if html_results is None:
             html_results = await self._search_vivino_html(query, language)
+        html_results = _prefer_matching_type(html_results, wine_type)
         html_results = _prefer_matching_vintage(html_results, vintage)
         if html_results:
             return html_results
