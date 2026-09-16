@@ -30,9 +30,13 @@ UPC_DB_URL = "https://api.upcitemdb.com/prod/trial/lookup?upc={barcode}"
 VIVINO_MOBILE_API_URL = "https://api.vivino.com"
 
 # Small, stable reference tables — fetched/cached once per process instead
-# of per-wine.
+# of per-wine. Grape names are proper nouns (Grenache, Syrah...) that don't
+# meaningfully vary by language, but food names very much do ("Vegetarian"
+# vs "Végétarien") — keyed by (language, id) so a first fetch in one
+# language doesn't permanently poison every other language for the rest of
+# the process's life.
 _GRAPE_NAME_CACHE: dict[int, str] = {}
-_FOOD_NAME_CACHE: dict[int, str] = {}
+_FOOD_NAME_CACHE: dict[tuple[str, int], str] = {}
 
 # All Vivino wine type IDs (required filter for explore API)
 ALL_WINE_TYPE_IDS = [1, 2, 3, 4, 7]  # red, white, sparkling, rosé, dessert
@@ -309,11 +313,11 @@ class VivinoClient:
         }
 
         if vintage_id:
-            result.update(await self._get_vintage_details(vintage_id))
+            result.update(await self._get_vintage_details(vintage_id, language))
 
         return result
 
-    async def _get_vintage_details(self, vintage_id: int) -> dict[str, Any]:
+    async def _get_vintage_details(self, vintage_id: int, language: str = "en") -> dict[str, Any]:
         """Fetch vintage-specific extras: image, description, alcohol, grapes, food."""
         session = async_get_clientsession(self._hass)
         details: dict[str, Any] = {}
@@ -321,7 +325,7 @@ class VivinoClient:
             timeout = aiohttp.ClientTimeout(total=15)
             async with session.get(
                 f"{VIVINO_MOBILE_API_URL}/vintages/{vintage_id}",
-                headers={"Accept": "application/json"},
+                headers={"Accept": "application/json", "Accept-Language": _accept_language(language)},
                 timeout=timeout,
             ) as resp:
                 if resp.status != 200:
@@ -356,7 +360,7 @@ class VivinoClient:
 
         food_ids = wine_obj.get("foods") or []
         if food_ids:
-            food_names = await self._resolve_food_names(food_ids)
+            food_names = await self._resolve_food_names(food_ids, language)
             if food_names:
                 details["food_pairings"] = ", ".join(food_names)
 
@@ -420,25 +424,25 @@ class VivinoClient:
             _LOGGER.debug("Vivino grape lookup failed for id %s: %s", gid, err)
         return None
 
-    async def _resolve_food_names(self, food_ids: list[int]) -> list[str]:
+    async def _resolve_food_names(self, food_ids: list[int], language: str = "en") -> list[str]:
         """Resolve food ids to names via the small (~20-entry) foods table."""
-        if not _FOOD_NAME_CACHE:
+        if not any((language, fid) in _FOOD_NAME_CACHE for fid in food_ids):
             session = async_get_clientsession(self._hass)
             try:
                 timeout = aiohttp.ClientTimeout(total=10)
                 async with session.get(
                     f"{VIVINO_MOBILE_API_URL}/foods",
-                    headers={"Accept": "application/json"},
+                    headers={"Accept": "application/json", "Accept-Language": _accept_language(language)},
                     timeout=timeout,
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         for item in data:
                             if item.get("id") is not None and item.get("name"):
-                                _FOOD_NAME_CACHE[item["id"]] = item["name"]
+                                _FOOD_NAME_CACHE[(language, item["id"])] = item["name"]
             except Exception as err:
                 _LOGGER.debug("Vivino foods table fetch failed: %s", err)
-        return [_FOOD_NAME_CACHE[fid] for fid in food_ids if fid in _FOOD_NAME_CACHE]
+        return [_FOOD_NAME_CACHE[(language, fid)] for fid in food_ids if (language, fid) in _FOOD_NAME_CACHE]
 
     async def search_wine(
         self,

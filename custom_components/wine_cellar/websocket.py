@@ -39,6 +39,7 @@ from .const import (
     WINE_TYPES,
 )
 from . import photos
+from .disposition import compute_disposition
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,8 +108,6 @@ def _build_ai_updates(
 ) -> dict[str, Any]:
     """Build a wine `updates` dict from a Gemini analyze_single_wine result."""
     updates: dict[str, Any] = {}
-    if result.get("disposition"):
-        updates["disposition"] = result["disposition"]
     if result.get("drink_by"):
         updates["drink_by"] = result["drink_by"]
 
@@ -141,6 +140,23 @@ def _build_ai_updates(
 
     if result.get("drink_window"):
         updates["drink_window"] = result["drink_window"]
+
+    # disposition is never taken from the AI's own guess directly — it's
+    # always re-derived from whatever drink_by/drink_window end up on the
+    # wine after this update, the same pure rule the daily/startup recompute
+    # uses (see disposition.py). The model doesn't reliably apply that exact
+    # rule itself: it can hand back a window like "2026-2030" (which the
+    # app's own rule reads as Drink Now for a wine bought in 2026 — today is
+    # inside the window) alongside a "Hold" disposition that disagrees with
+    # its own window. Recomputing from the merged state closes that gap
+    # instead of trusting whichever of the two the model got right. Only
+    # included in `updates` when it actually changes, same as everything
+    # else here — `ai_updated_at` below means "something changed", and an
+    # unconditional recompute would make that always true even when nothing
+    # did.
+    recomputed = compute_disposition({**wine, **updates})
+    if recomputed != wine.get("disposition"):
+        updates["disposition"] = recomputed
 
     est_price = result.get("estimated_price")
     if est_price and isinstance(est_price, (int, float)) and est_price > 0:
