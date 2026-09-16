@@ -1470,9 +1470,6 @@ export class WineDetailDialog extends LitElement {
                   ${wine.country
                     ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                     : nothing}
-                  ${wine.grape_variety
-                    ? html`<div class="detail-item"><span class="detail-label">${varietyLabel(wine.type, true, this.hass?.language)}</span><span class="detail-value">${wine.grape_variety}</span></div>`
-                    : nothing}
                   ${wine.price
                     ? html`<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                     : nothing}
