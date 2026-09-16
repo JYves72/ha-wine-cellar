@@ -173,6 +173,7 @@ LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognitio
   "drink_by": "2028",
   "drink_window": "2025-2028",
   "description": "2-3 sentence tasting profile",
+  "food_pairings": "3-5 suggested food pairings, comma-separated",
   "estimated_price": null,
   "rating_ws": null,
   "rating_rp": null,
@@ -219,6 +220,7 @@ Wine analysis rules:
   - Dessert wines: 10-20+ years
   - NV wines: "Drink Now" with drink_window "{current_year}-{next_year}"
 - "description": Professional tasting-style description of this wine's character
+- "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this from standard sommelier pairing knowledge for the grape/style, even if you don't know the specific wine.
 - "estimated_price": estimated current US retail price as a number (e.g. 45.00). Use null only if truly unknown.
 - Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess.
   - rating_ws = Wine Spectator, rating_rp = Robert Parker, rating_jd = Jeb Dunnuck, rating_ag = Antonio Galloni
@@ -337,6 +339,7 @@ Return ONLY a JSON object with these fields:
   "drink_by": "",
   "drink_window": "",
   "description": "2-3 sentence tasting profile and character of this whisky",
+  "food_pairings": "2-4 suggested food/cigar pairings, comma-separated",
   "estimated_price": null,
   "rating_ws": null,
   "rating_rp": null,
@@ -352,6 +355,7 @@ Return ONLY a JSON object with these fields:
 Rules:
 - "disposition" is always "D" and "drink_by"/"drink_window" are always "": whisky does not develop in a sealed bottle
 - "description": professional tasting-style description (nose, palate, finish) of this expression. If you don't know this exact bottling, describe what to expect from the distillery's style, the age statement and the cask type.
+- "food_pairings": suggest 2-4 classic pairings for this whisky's style (e.g. dark chocolate, blue cheese, a specific cigar pairing), comma-separated. Always provide this from standard pairing knowledge for the style, even if you don't know the specific bottling.
 - "estimated_price": estimated current retail price in {currency} for this bottle as a number (e.g. 65.00). Return null only if you truly cannot estimate.
 - "alcohol": the ABV if printed or known for this expression (e.g. "43%"); best estimate otherwise (most whisky is 40-46%, cask strength releases higher) — only null if you genuinely cannot judge even a range
 - "serving_temp": always null — whisky is drunk neat, on the rocks or with a splash of water, not served within a temperature range
@@ -469,6 +473,7 @@ class BaseAIClient:
             "drink_by": str(result.get("drink_by") or "").strip(),
             "drink_window": str(result.get("drink_window") or "").strip(),
             "description": str(result.get("description") or "").strip(),
+            "food_pairings": str(result.get("food_pairings") or "").strip(),
             "estimated_price": est_price,
             "ai_ratings": ai_ratings if ai_ratings else None,
             "alcohol": str(result.get("alcohol") or "").strip(),
@@ -648,6 +653,7 @@ Return ONLY a JSON object with these fields:
   "drink_by": "optimal year to drink by, e.g. 2028",
   "drink_window": "e.g. 2025-2030",
   "description": "2-3 sentence tasting profile and character of this wine",
+  "food_pairings": "3-5 suggested food pairings, comma-separated",
   "estimated_price": null,
   "rating_ws": null,
   "rating_rp": null,
@@ -677,6 +683,7 @@ Rules:
   - If the wine is already past its typical aging window, mark as "Past Peak" or "Drink Now" (not "Hold")
   - When in doubt, err on the side of drinking sooner rather than later
 - "description": Write a professional tasting-style description of what this wine is known for. If you know the wine, describe its character. If not, describe what to expect based on grape, region, and vintage.
+- "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this, based on standard sommelier pairing knowledge for the grape/style even if you don't know the specific wine.
 - Rating fields: If you know published critic scores for this specific wine and vintage, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's track record, region quality, and vintage reputation. Only use null for obscure wines you truly cannot assess.
   - "rating_ws": Wine Spectator score (out of 100)
   - "rating_rp": Robert Parker / Wine Advocate score (out of 100)
@@ -731,6 +738,7 @@ Rules:
             "drink_by": str(result.get("drink_by") or "").strip(),
             "drink_window": str(result.get("drink_window") or "").strip(),
             "description": str(result.get("description") or "").strip(),
+            "food_pairings": str(result.get("food_pairings") or "").strip(),
             "estimated_price": est_price,
             "rating_ws": result.get("rating_ws"),
             "rating_rp": result.get("rating_rp"),

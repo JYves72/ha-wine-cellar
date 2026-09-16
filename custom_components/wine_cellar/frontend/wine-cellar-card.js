@@ -1213,6 +1213,9 @@ var ui$1 = {
 		aiScanBtn: "AI Scan",
 		scanLabelBtn: "Scan Label",
 		scanLabelTitle: "Take a fresh photo of the label to update this bottle's photo and details",
+		resetAiContentBtn: "Reset text",
+		resetAiContentTitle: "Clear the description and food pairings so the next Vivino/AI lookup regenerates them from scratch (fixes text stuck in the wrong language)",
+		resetAiContentConfirm: "Clear this wine's description and food pairings? The next Vivino refresh or AI analysis will regenerate them from scratch.",
 		copyBtn: "Copy",
 		moveBtn: "Move",
 		unassignBtn: "Unassign",
@@ -1974,6 +1977,9 @@ var ui = {
 		aiScanBtn: "Analyse IA",
 		scanLabelBtn: "Scanner l'étiquette",
 		scanLabelTitle: "Prendre une nouvelle photo de l'étiquette pour mettre à jour la photo et les détails de cette bouteille",
+		resetAiContentBtn: "Réinitialiser",
+		resetAiContentTitle: "Effacer la description et les accords mets-vins pour que la prochaine recherche Vivino/IA les régénère entièrement (corrige un texte resté dans la mauvaise langue)",
+		resetAiContentConfirm: "Effacer la description et les accords mets-vins de ce vin ? Le prochain rafraîchissement Vivino ou l'Analyse IA les régénérera entièrement.",
 		copyBtn: "Copier",
 		moveBtn: "Déplacer",
 		unassignBtn: "Désassigner",
@@ -5646,6 +5652,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._saving = false;
         this._refreshing = false;
         this._analyzing = false;
+        this._resettingAiContent = false;
         this._scanningLabel = false;
         this._showLabelCamera = false;
         this._showRemoveConfirm = false;
@@ -6077,6 +6084,36 @@ let WineDetailDialog = class WineDetailDialog extends i {
         }
         this._analyzing = false;
     }
+    // Clears description/food_pairings (and their language tags) so the next
+    // Vivino/AI lookup regenerates them from scratch, instead of them being
+    // kept forever because the field isn't "empty". An escape hatch for text
+    // stuck in the wrong language despite the automatic staleness checks.
+    async _resetAiContent() {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        if (!window.confirm(this._t("ui.wineDetail.resetAiContentConfirm")))
+            return;
+        this._resettingAiContent = true;
+        try {
+            const resp = await this.hass.callWS({
+                type: "wine_cellar/reset_ai_content",
+                wine_id: this.wine.id,
+            });
+            if (resp.error) {
+                alert(resp.error);
+            }
+            else if (resp.wine) {
+                if (!this._applyIfStillShowing(wineId, resp.wine))
+                    return;
+                this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+            }
+        }
+        catch (err) {
+            console.error("Reset AI content failed", err);
+        }
+        this._resettingAiContent = false;
+    }
     // Re-scan the label with a fresh photo: like _onPhotoReplaced but also
     // extracts name/winery/vintage/etc via Gemini, same as the add-wine flow's
     // label scan (jamespreid, imported for the detail dialog).
@@ -6447,6 +6484,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                         ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
                         title="${this._t('ui.wineDetail.scanLabelTitle')}">
                         ${this._scanningLabel ? "..." : `📷 ${this._t("ui.wineDetail.scanLabelBtn")}`}
+                      </button>
+                      <button class="btn btn-primary" style="background:#78909c"
+                        ?disabled=${this._resettingAiContent} @click=${this._resetAiContent}
+                        title="${this._t('ui.wineDetail.resetAiContentTitle')}">
+                        ${this._resettingAiContent ? "..." : `♻️ ${this._t("ui.wineDetail.resetAiContentBtn")}`}
                       </button>`
                 : A}
                   ${this.mode === "cellar"
@@ -7332,6 +7374,9 @@ __decorate([
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_analyzing", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_resettingAiContent", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_scanningLabel", void 0);

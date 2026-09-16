@@ -33,6 +33,7 @@ export class WineDetailDialog extends LitElement {
   @state() private _saving = false;
   @state() private _refreshing = false;
   @state() private _analyzing = false;
+  @state() private _resettingAiContent = false;
   @state() private _scanningLabel = false;
   @state() private _showLabelCamera = false;
   @state() private _showRemoveConfirm = false;
@@ -994,6 +995,32 @@ export class WineDetailDialog extends LitElement {
     this._analyzing = false;
   }
 
+  // Clears description/food_pairings (and their language tags) so the next
+  // Vivino/AI lookup regenerates them from scratch, instead of them being
+  // kept forever because the field isn't "empty". An escape hatch for text
+  // stuck in the wrong language despite the automatic staleness checks.
+  private async _resetAiContent() {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    if (!window.confirm(this._t("ui.wineDetail.resetAiContentConfirm"))) return;
+    this._resettingAiContent = true;
+    try {
+      const resp = await this.hass.callWS({
+        type: "wine_cellar/reset_ai_content",
+        wine_id: this.wine.id,
+      });
+      if (resp.error) {
+        alert(resp.error);
+      } else if (resp.wine) {
+        if (!this._applyIfStillShowing(wineId, resp.wine)) return;
+        this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+      }
+    } catch (err) {
+      console.error("Reset AI content failed", err);
+    }
+    this._resettingAiContent = false;
+  }
+
   // Re-scan the label with a fresh photo: like _onPhotoReplaced but also
   // extracts name/winery/vintage/etc via Gemini, same as the add-wine flow's
   // label scan (jamespreid, imported for the detail dialog).
@@ -1356,6 +1383,11 @@ export class WineDetailDialog extends LitElement {
                         ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
                         title="${this._t('ui.wineDetail.scanLabelTitle')}">
                         ${this._scanningLabel ? "..." : `📷 ${this._t("ui.wineDetail.scanLabelBtn")}`}
+                      </button>
+                      <button class="btn btn-primary" style="background:#78909c"
+                        ?disabled=${this._resettingAiContent} @click=${this._resetAiContent}
+                        title="${this._t('ui.wineDetail.resetAiContentTitle')}">
+                        ${this._resettingAiContent ? "..." : `♻️ ${this._t("ui.wineDetail.resetAiContentBtn")}`}
                       </button>`
                     : nothing}
                   ${this.mode === "cellar"
