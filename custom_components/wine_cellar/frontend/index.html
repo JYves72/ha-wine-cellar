@@ -230,6 +230,15 @@
               aw.description = aw.description || "Complex and elegant with refined tannins.";
             }
             return { wine: aw, analysis: {} };
+          case "wine_cellar/reset_ai_content":
+            const rst = mockWines.find(w => w.id === msg.wine_id);
+            if (rst) {
+              rst.description = "";
+              rst.description_language = "";
+              rst.food_pairings = "";
+              rst.food_pairings_language = "";
+            }
+            return { wine: rst };
           case "wine_cellar/get_capabilities":
             return { has_gemini: true, dismissed_arrangements: mockSettings.dismissed_arrangements || [] };
           case "wine_cellar/get_buy_list":

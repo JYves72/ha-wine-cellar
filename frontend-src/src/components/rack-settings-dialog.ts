@@ -559,8 +559,8 @@ export class RackSettingsDialog extends LitElement {
     return this._rowsFor(slot).find((sr) => sr.type === "box");
   }
 
-  private _steppedRow(slot: SecondarySlot): StorageRow | undefined {
-    return this._rowsFor(slot).find((sr) => sr.type === "stepped");
+  private _steppedRows(slot: SecondarySlot): StorageRow[] {
+    return this._rowsFor(slot).filter((sr) => sr.type === "stepped");
   }
 
   // How many rows a slot's active style actually uses.
@@ -569,7 +569,8 @@ export class RackSettingsDialog extends LitElement {
     if (style === "none") return 0;
     if (style === "grid") return slot === "primary" ? (this._editCabinet.rows || 1) : this._secondaryGridRows;
     if (style === "shelf") return Math.max(1, this._shelfRows(slot).length);
-    return 1; // bulk, box, stepped
+    if (style === "stepped") return Math.max(1, this._steppedRows(slot).length);
+    return 1; // bulk, box
   }
 
   // A slot's own rows, renumbered to a contiguous range starting at
@@ -582,7 +583,10 @@ export class RackSettingsDialog extends LitElement {
     if (style === "shelf") {
       return this._shelfRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
     }
-    const row = style === "bulk" ? this._bulkRow(slot) : style === "box" ? this._boxRow(slot) : this._steppedRow(slot);
+    if (style === "stepped") {
+      return this._steppedRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
+    }
+    const row = style === "bulk" ? this._bulkRow(slot) : this._boxRow(slot);
     return row ? [{ ...row, row: offset }] : [];
   }
 
@@ -867,24 +871,60 @@ export class RackSettingsDialog extends LitElement {
     this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
   }
 
-  // Quinconce: driven by just two numbers — the bottom row's bottle count
-  // and how many rows stack above it — with the per-level breakdown always
-  // derived via getSteppedLevels rather than edited directly.
-  private _setSteppedConfig(slot: SecondarySlot, firstRow: number, rowCount: number) {
-    firstRow = Math.max(1, Math.min(30, firstRow));
+  // Quinconce, like a shelf, can be several independent units stacked in
+  // one rack — each its own physical zone with its own row count, but all
+  // sharing one bottom-row bottle count (a property of the rack's fixed
+  // width, not of any one unit). The per-level breakdown is always derived
+  // via getSteppedLevels rather than edited directly.
+  private _sharedSteppedFirstRow(slot: SecondarySlot): number {
+    return this._steppedRows(slot)[0]?.stepped_levels?.[0] ?? 5;
+  }
+
+  // Re-derives every quinconce unit's levels in this slot from a new shared
+  // first-row count, keeping each unit's own row count exactly as it was.
+  private _applySharedSteppedFirstRow(slot: SecondarySlot, firstRow: number) {
+    const first = Math.max(1, Math.min(30, firstRow));
+    this._setRowsFor(slot, this._rowsFor(slot).map((sr) => {
+      if (sr.type !== "stepped") return sr;
+      const levels = getSteppedLevels(first, sr.stepped_levels?.length || 1);
+      const capacity = levels.reduce((sum, n) => sum + n, 0);
+      return { ...sr, stepped_levels: levels, capacity };
+    }));
+  }
+
+  // Changes just this one quinconce unit's row count, using the shared
+  // first-row count.
+  private _setSteppedRowCountAt(slot: SecondarySlot, index: number, rowCount: number) {
     rowCount = Math.max(1, Math.min(10, rowCount));
+    const firstRow = this._sharedSteppedFirstRow(slot);
+    const rows = this._steppedRows(slot);
+    if (!rows[index]) return;
     const levels = getSteppedLevels(firstRow, rowCount);
     const capacity = levels.reduce((sum, n) => sum + n, 0);
-    const row: StorageRow = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
-    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), row]);
+    rows[index] = { ...rows[index], stepped_levels: levels, capacity };
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
   }
 
-  private _setSteppedFirstRow(slot: SecondarySlot, value: number) {
-    this._setSteppedConfig(slot, value, this._steppedRow(slot)?.stepped_levels?.length || 3);
+  // Rebuilds the quinconce list to the requested count, applying the shared
+  // first-row count to any new ones (starting at 3 rows each) and keeping
+  // existing units' own name and row count (by position) rather than
+  // resetting them.
+  private _setSteppedCount(slot: SecondarySlot, count: number) {
+    count = Math.max(1, Math.min(20, count));
+    const firstRow = this._sharedSteppedFirstRow(slot);
+    const existing = this._steppedRows(slot);
+    const rows: StorageRow[] = Array.from({ length: count }, (_, i) => {
+      const prior = existing[i];
+      const levels = getSteppedLevels(firstRow, prior?.stepped_levels?.length || 3);
+      const capacity = levels.reduce((sum, n) => sum + n, 0);
+      return { row: i, name: prior?.name || "", type: "stepped", capacity, stepped_levels: levels };
+    });
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
   }
 
-  private _setSteppedRowCount(slot: SecondarySlot, value: number) {
-    this._setSteppedConfig(slot, this._steppedRow(slot)?.stepped_levels?.[0] || 5, value);
+  private _updateSteppedName(slot: SecondarySlot, index: number, name: string) {
+    const rows = this._steppedRows(slot).map((sr, i) => (i === index ? { ...sr, name } : sr));
+    this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
   }
 
   // Switching a slot's style lazily creates that style's default config the
@@ -898,8 +938,8 @@ export class RackSettingsDialog extends LitElement {
       this._setBulkCapacity(slot, 20);
     } else if (style === "box" && !this._boxRow(slot)) {
       this._updateBoxCount(slot, 1);
-    } else if (style === "stepped" && !this._steppedRow(slot)) {
-      this._setSteppedConfig(slot, 5, 3);
+    } else if (style === "stepped" && this._steppedRows(slot).length === 0) {
+      this._setSteppedCount(slot, 1);
     }
   }
 
@@ -1312,32 +1352,56 @@ export class RackSettingsDialog extends LitElement {
     }
 
     if (style === "stepped") {
-      const stepped = this._steppedRow(slot);
-      const levels = stepped?.stepped_levels || [];
-      const firstRow = levels[0] ?? 5;
-      const rowCount = levels.length || 3;
+      const shared = this._sharedSteppedFirstRow(slot);
+      const steppedUnits = this._steppedRows(slot);
       return html`
         <div class="stepper-row">
           <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+            <div class="stepper-label">${this._t("ui.rack.steppedCountLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
-              <span class="stepper-value">${firstRow}</span>
-              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSteppedCount(slot, steppedUnits.length - 1)} ?disabled=${steppedUnits.length <= 1}>−</button>
+              <span class="stepper-value">${steppedUnits.length}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedCount(slot, steppedUnits.length + 1)} ?disabled=${steppedUnits.length >= 20}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
-              <span class="stepper-value">${rowCount}</span>
-              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+              <button class="stepper-btn" @click=${() => this._applySharedSteppedFirstRow(slot, shared - 1)} ?disabled=${shared <= 1}>−</button>
+              <span class="stepper-value">${shared}</span>
+              <button class="stepper-btn" @click=${() => this._applySharedSteppedFirstRow(slot, shared + 1)} ?disabled=${shared >= 30}>+</button>
             </div>
           </div>
         </div>
-        <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
-          ${levels.join(" + ")} = ${stepped?.capacity || 0}
-        </p>
+
+        <!-- Name + row count per quinconce unit — the bottom-row count is
+             shared above, but how many rows each one stacks is its own
+             choice. -->
+        <div class="row-list">
+          ${steppedUnits.map((sr, i) => {
+            const rowCount = sr.stepped_levels?.length || 1;
+            return html`
+              <div class="row-entry storage">
+                <span class="row-num">${i + 1}</span>
+                <input
+                  type="text"
+                  class="row-name-input"
+                  style="flex:1"
+                  .value=${sr.name || ""}
+                  @input=${(e: InputEvent) => this._updateSteppedName(slot, i, (e.target as HTMLInputElement).value)}
+                  placeholder="${this._t('ui.rack.steppedNamePlaceholder', { n: i + 1 })}"
+                />
+                <span class="row-type-info" style="flex:0;font-size:0.7em">${this._t('ui.rack.steppedRowCountLabel')}</span>
+                <div class="row-cap-stepper">
+                  <button class="stepper-btn-sm" @click=${() => this._setSteppedRowCountAt(slot, i, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+                  <span class="stepper-val-sm">${rowCount}</span>
+                  <button class="stepper-btn-sm" @click=${() => this._setSteppedRowCountAt(slot, i, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+                </div>
+                <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
+              </div>
+            `;
+          })}
+        </div>
       `;
     }
 

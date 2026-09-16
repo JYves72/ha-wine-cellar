@@ -23,6 +23,7 @@ import {
   placementIn,
   planSlots,
   sameContainer,
+  storageRowFor,
 } from "../utils/location";
 import { Suggestion, suggestDestinations } from "../utils/suggest";
 
@@ -673,6 +674,7 @@ export class AddWineDialog extends LitElement {
           description: result.result.description || "",
           food_pairings: result.result.food_pairings || "",
           alcohol: result.result.alcohol || "",
+          serving_temp: result.result.serving_temp || "",
           vivino_updated_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_updated_at,
           vivino_checked_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_checked_at,
         };
@@ -753,6 +755,7 @@ export class AddWineDialog extends LitElement {
       description: item.description || "",
       food_pairings: item.food_pairings || "",
       alcohol: item.alcohol || "",
+      serving_temp: item.serving_temp || "",
       vivino_updated_at: new Date().toISOString(),
       vivino_checked_at: new Date().toISOString(),
     };
@@ -811,6 +814,8 @@ export class AddWineDialog extends LitElement {
           description: r.description || "",
           retail_price: r.estimated_price || null,
           ai_ratings: r.ai_ratings || null,
+          alcohol: r.alcohol || "",
+          serving_temp: r.serving_temp || "",
           notes: r.notes || "",
           barcode: r.barcode || this._wineData.barcode || "",
           image_url: thumbUrl,
@@ -945,8 +950,15 @@ export class AddWineDialog extends LitElement {
         // A bin is a pile: what you just put in sits on top, so the new
         // bottles take the first slots and the rest shift down. One call
         // renumbers the bin; listing only the new ids is enough, the backend
-        // appends the others in their existing order.
-        if (this._wineData.zone && addedIds.length) {
+        // appends the others in their existing order. Shelf/quinconce zones
+        // are the opposite — every slot is a fixed physical position (the
+        // depth each bottle was just given via slots[i], picked from the
+        // exact dot clicked) — reordering them would scramble every other
+        // bottle already sitting in that zone.
+        const cabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
+        const destRow = storageRowFor(cabinet, this._wineData.zone || "");
+        const isSlotZone = destRow?.type === "shelf" || destRow?.type === "stepped";
+        if (this._wineData.zone && addedIds.length && !isSlotZone) {
           await this.hass.callWS({
             type: "wine_cellar/reorder_zone",
             cabinet_id: this._wineData.cabinet_id,

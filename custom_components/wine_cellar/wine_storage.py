@@ -189,6 +189,7 @@ class WineCellarStorage:
             "description": wine_data.get("description", ""),
             "food_pairings": wine_data.get("food_pairings", ""),
             "alcohol": wine_data.get("alcohol", ""),
+            "serving_temp": wine_data.get("serving_temp", ""),
             "ratings_count": wine_data.get("ratings_count"),
             "cabinet_id": wine_data.get("cabinet_id", ""),
             "row": wine_data.get("row"),
@@ -209,6 +210,14 @@ class WineCellarStorage:
             "ai_checked_at": wine_data.get("ai_checked_at"),
             "vivino_id": wine_data.get("vivino_id"),
         }
+        # Never trust disposition as handed in (from a label-scan AI result,
+        # a buy-list item, wherever) — recompute it from this same wine's own
+        # drink_by/drink_window, the one pure rule everything else defers to
+        # (see disposition.py). The AI doesn't reliably apply that exact
+        # rule to its own guess, so trusting it directly can add a wine
+        # already showing the wrong badge on its very first save.
+        wine["disposition"] = compute_disposition(wine)
+        wine["disposition_source"] = DISPOSITION_SOURCE_AUTO
         self._data[CONF_WINES].append(wine)
         return wine
 
@@ -546,6 +555,7 @@ class WineCellarStorage:
             "description": wine_data.get("description", ""),
             "food_pairings": wine_data.get("food_pairings", ""),
             "alcohol": wine_data.get("alcohol", ""),
+            "serving_temp": wine_data.get("serving_temp", ""),
             "ratings_count": wine_data.get("ratings_count"),
             "ai_ratings": wine_data.get("ai_ratings"),
             "disposition": wine_data.get("disposition", ""),

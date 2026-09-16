@@ -15,6 +15,16 @@ export class CabinetGrid extends LitElement {
   // Candidates for a pending Vivino removal: every listed bottle gets an
   // orange ring so the user can see which ones may be the removed bottle.
   @property({ attribute: false }) removalHighlightIds: string[] = [];
+  // Set for as long as a long-press move is pending (Android's stand-in
+  // for drag-and-drop) — dims that one bottle so it's clear which one is
+  // "picked up" and waiting for a target tap, until the move completes or
+  // is cancelled. Deliberately its own reactive class, not the .drag-source
+  // that _onDragStart/_onDragEnd toggle: that one only tracks a real HTML5
+  // drag gesture, which touch-and-hold can trigger by accident without
+  // ever firing a matching dragend (see _onTouchEnd's own cleanup) — tying
+  // the "picked up" look to _movingWine's own lifecycle instead means it
+  // can't desync from either end of that.
+  @property({ attribute: false }) movingWineId: string | null = null;
   // "letter" (default): the classic D/H/P badge. "dot": a plain colored
   // circle with no letter (green/blue/purple) — a settings-level choice,
   // not per-bottle.
@@ -530,6 +540,17 @@ export class CabinetGrid extends LitElement {
         transform: scale(0.9);
       }
 
+      /* The one bottle picked up by a long-press, waiting for a target tap
+         (see movingWineId) — deliberately lighter than .drag-source and no
+         scale change, so it doesn't look like it's about to disappear: this
+         state can sit there indefinitely until the user taps a target or
+         cancels, unlike an actual drag in progress. */
+      .cell.move-source,
+      .zone-bottle.move-source,
+      .zone-shelf-dot.move-source {
+        opacity: 0.5;
+      }
+
       .cell.drag-over {
         box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.8);
         transform: scale(1.1);
@@ -850,18 +871,29 @@ export class CabinetGrid extends LitElement {
     }, 500);
   }
 
-  private _onTouchEnd() {
+  // draggable="true" plus a touch-and-hold can make some Android browsers
+  // start a real HTML5 drag on their own from this same touch sequence,
+  // even though nothing here calls dragstart deliberately — _onDragStart
+  // then adds .drag-source (dimmed + shrunk), but the matching dragend
+  // that would remove it is unreliable on touch and often never fires,
+  // leaving the bottle stuck looking "picked up" regardless of whether the
+  // long-press move that followed was completed or cancelled. Touch ending
+  // (released or cancelled by a scroll) is always a safe point to clear it
+  // too, on this same element.
+  private _onTouchEnd(e?: TouchEvent) {
     if (this._longPressTimer !== null) {
       clearTimeout(this._longPressTimer);
       this._longPressTimer = null;
     }
+    (e?.currentTarget as HTMLElement | null)?.classList.remove("drag-source");
   }
 
-  private _onTouchMove() {
+  private _onTouchMove(e?: TouchEvent) {
     if (this._longPressTimer !== null) {
       clearTimeout(this._longPressTimer);
       this._longPressTimer = null;
     }
+    (e?.currentTarget as HTMLElement | null)?.classList.remove("drag-source");
   }
 
   // --- Drag and drop ---
@@ -1025,7 +1057,7 @@ export class CabinetGrid extends LitElement {
           const bgColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
           return html`
             <div
-              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine.id === this.movingWineId ? "move-source" : ""}"
               style="background: ${bgColor};${this._dispositionRingStyle(dispClass, this._brightenColor(bgColor))}"
               data-wine-id="${wine.id}"
               draggable="true"
@@ -1039,8 +1071,8 @@ export class CabinetGrid extends LitElement {
               @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
               @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine); }}
               @touchstart=${(e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); }}
-              @touchend=${() => this._onTouchEnd()}
-              @touchmove=${() => this._onTouchMove()}
+              @touchend=${(e: TouchEvent) => this._onTouchEnd(e)}
+              @touchmove=${(e: TouchEvent) => this._onTouchMove(e)}
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
@@ -1116,7 +1148,8 @@ export class CabinetGrid extends LitElement {
 
     // One dot size for the whole shelf, sized off whichever level packs the
     // most "weight" into its single interleaved row — front dots count as
-    // 1, back dots (rendered at half scale) count as 0.5, since that's how
+    // 1, back dots (rendered at sqrt(0.5) width — half *area*, see
+    // BACK_DOT_SCALE below) count as that same fraction, since that's how
     // much horizontal room each actually needs. Using the old two-separate-
     // rows maxCount here (just the bigger of front/back alone) badly
     // undersized this: a row now holds front+back dots combined, not
@@ -1125,7 +1158,7 @@ export class CabinetGrid extends LitElement {
     let dominantWeight = 1;
     let dominantItems = 1;
     for (const l of levelsData) {
-      const weight = l.front + l.back * 0.5;
+      const weight = l.front + l.back * Math.SQRT1_2;
       if (weight > dominantWeight) {
         dominantWeight = weight;
         dominantItems = l.front + l.back;
@@ -1139,10 +1172,14 @@ export class CabinetGrid extends LitElement {
 
     // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
     // if it doesn't work out. Interleaves the back lane's dots between the
-    // front lane's, at half size, in one row instead of two labeled ones —
-    // meant to roughly halve each board's height. Nothing about
-    // shelf_levels/front/back/name config changes, only how this one
-    // zone renders.
+    // front lane's, at half *surface area*, in one row instead of two
+    // labeled ones — meant to roughly halve each board's height. Area
+    // scales with the square of the linear dimension, so halving the area
+    // means scaling width/height by sqrt(0.5), not by 0.5 itself (which
+    // would halve the diameter and leave only a quarter of the area).
+    // Nothing about shelf_levels/front/back/name config changes, only how
+    // this one zone renders.
+    const BACK_DOT_SCALE = Math.SQRT1_2;
     const renderDot = (group: ShelfSlotGroup, indexInGroup: number, scale: number) => {
       const depth = group.start + indexInGroup;
       const dotKey = `${zoneKey}-${depth}`;
@@ -1153,7 +1190,7 @@ export class CabinetGrid extends LitElement {
       const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
       const basis = scale === 1 ? dotBasis : `calc(${dotBasis} * ${scale})`;
       return html`<span
-        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine && wine.id === this.movingWineId ? "move-source" : ""}"
         style="flex-basis:${basis};max-width:${basis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
         title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
         draggable=${wine ? "true" : "false"}
@@ -1164,8 +1201,8 @@ export class CabinetGrid extends LitElement {
         @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
         @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
         @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
-        @touchend=${() => this._onTouchEnd()}
-        @touchmove=${() => this._onTouchMove()}
+        @touchend=${(e: TouchEvent) => this._onTouchEnd(e)}
+        @touchmove=${(e: TouchEvent) => this._onTouchMove(e)}
       >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
     };
 
@@ -1173,8 +1210,8 @@ export class CabinetGrid extends LitElement {
     // each position), with the shorter one nested right after — any surplus
     // of the longer lane tacked on at the end. On a swapped level (back=4,
     // front=3), that means position 1 is a back dot, not front. Scale
-    // always follows the lane itself (front=1, back=0.5), regardless of
-    // which one leads.
+    // always follows the lane itself (front=1, back=BACK_DOT_SCALE),
+    // regardless of which one leads.
     const renderInterleavedLane = (front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined) => {
       const frontSize = front?.size || 0;
       const backSize = back?.size || 0;
@@ -1183,9 +1220,9 @@ export class CabinetGrid extends LitElement {
       for (let i = 0; i < Math.max(frontSize, backSize); i++) {
         if (frontLeads) {
           if (i < frontSize) items.push(renderDot(front!, i, 1));
-          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+          if (i < backSize) items.push(renderDot(back!, i, BACK_DOT_SCALE));
         } else {
-          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+          if (i < backSize) items.push(renderDot(back!, i, BACK_DOT_SCALE));
           if (i < frontSize) items.push(renderDot(front!, i, 1));
         }
       }
@@ -1233,7 +1270,7 @@ export class CabinetGrid extends LitElement {
           const disp = wine?.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           return html`<span
-            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine && wine.id === this.movingWineId ? "move-source" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
             title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
             draggable=${wine ? "true" : "false"}
@@ -1244,8 +1281,8 @@ export class CabinetGrid extends LitElement {
             @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
             @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
             @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
-            @touchend=${() => this._onTouchEnd()}
-            @touchmove=${() => this._onTouchMove()}
+            @touchend=${(e: TouchEvent) => this._onTouchEnd(e)}
+            @touchmove=${(e: TouchEvent) => this._onTouchMove(e)}
           >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
@@ -1293,15 +1330,16 @@ export class CabinetGrid extends LitElement {
           const isRemovalCandidate =
             this.removalHighlightIds.length > 0 &&
             wines.some((w) => this.removalHighlightIds.includes(w.id));
+          const isMoving = !!this.movingWineId && wines.some((w) => w.id === this.movingWineId);
           return html`
             <div
-              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
+              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""} ${isMoving ? "move-source" : ""}"
               style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor};${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
-              @touchend=${frontWine ? () => this._onTouchEnd() : nothing}
-              @touchmove=${frontWine ? () => this._onTouchMove() : nothing}
+              @touchend=${frontWine ? (e: TouchEvent) => this._onTouchEnd(e) : nothing}
+              @touchmove=${frontWine ? (e: TouchEvent) => this._onTouchMove(e) : nothing}
               @dragstart=${frontWine ? (e: DragEvent) => this._onDragStart(e, frontWine, row, col) : nothing}
               @dragend=${frontWine ? (e: DragEvent) => this._onDragEnd(e) : nothing}
               @dragover=${(e: DragEvent) => this._onDragOver(e, cellKey)}
@@ -1374,8 +1412,8 @@ export class CabinetGrid extends LitElement {
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
-        @touchend=${frontWine ? () => this._onTouchEnd() : nothing}
-        @touchmove=${frontWine ? () => this._onTouchMove() : nothing}
+        @touchend=${frontWine ? (e: TouchEvent) => this._onTouchEnd(e) : nothing}
+        @touchmove=${frontWine ? (e: TouchEvent) => this._onTouchMove(e) : nothing}
         @dragstart=${frontWine ? (e: DragEvent) => this._onDragStart(e, frontWine, row, col) : nothing}
         @dragend=${frontWine ? (e: DragEvent) => this._onDragEnd(e) : nothing}
         @dragover=${(e: DragEvent) => this._onDragOver(e, cellKey)}

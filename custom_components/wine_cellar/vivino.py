@@ -30,9 +30,13 @@ UPC_DB_URL = "https://api.upcitemdb.com/prod/trial/lookup?upc={barcode}"
 VIVINO_MOBILE_API_URL = "https://api.vivino.com"
 
 # Small, stable reference tables — fetched/cached once per process instead
-# of per-wine.
+# of per-wine. Grape names are proper nouns (Grenache, Syrah...) that don't
+# meaningfully vary by language, but food names very much do ("Vegetarian"
+# vs "Végétarien") — keyed by (language, id) so a first fetch in one
+# language doesn't permanently poison every other language for the rest of
+# the process's life.
 _GRAPE_NAME_CACHE: dict[int, str] = {}
-_FOOD_NAME_CACHE: dict[int, str] = {}
+_FOOD_NAME_CACHE: dict[tuple[str, int], str] = {}
 
 # All Vivino wine type IDs (required filter for explore API)
 ALL_WINE_TYPE_IDS = [1, 2, 3, 4, 7]  # red, white, sparkling, rosé, dessert
@@ -57,18 +61,71 @@ CURRENCY_COUNTRY_CODE = {
 }
 
 # The mobile API's region.country is a bare ISO code ("fr"), not a display
-# name — common wine-producing countries only, good enough since this is a
-# "fill only if empty" field (an already-matched wine typically has it set
-# from its first match already).
-COUNTRY_CODE_NAMES = {
-    "fr": "France", "it": "Italy", "es": "Spain", "pt": "Portugal",
-    "de": "Germany", "at": "Austria", "ch": "Switzerland",
-    "us": "United States", "ca": "Canada", "mx": "Mexico",
-    "au": "Australia", "nz": "New Zealand",
-    "ar": "Argentina", "cl": "Chile", "uy": "Uruguay",
-    "za": "South Africa", "gr": "Greece", "hu": "Hungary", "ge": "Georgia",
-    "gb": "United Kingdom", "uk": "United Kingdom",
+# name — common wine-producing countries only, good enough since region/
+# country are always-overwrite fields on a manual refresh (see
+# ws_refresh_wine), so a stale name from before this map existed still
+# gets corrected. Keyed by the country code, then by the configured
+# metadata language — a name that comes back in the wrong language means
+# the exact same country ends up as two different filter entries in the
+# app (English from here, French from Gemini's already-localized output),
+# so this must track _language_prefix's language set.
+COUNTRY_CODE_NAMES: dict[str, dict[str, str]] = {
+    "fr": {"en": "France", "fr": "France"},
+    "it": {"en": "Italy", "fr": "Italie"},
+    "es": {"en": "Spain", "fr": "Espagne"},
+    "pt": {"en": "Portugal", "fr": "Portugal"},
+    "de": {"en": "Germany", "fr": "Allemagne"},
+    "at": {"en": "Austria", "fr": "Autriche"},
+    "ch": {"en": "Switzerland", "fr": "Suisse"},
+    "us": {"en": "United States", "fr": "États-Unis"},
+    "ca": {"en": "Canada", "fr": "Canada"},
+    "mx": {"en": "Mexico", "fr": "Mexique"},
+    "au": {"en": "Australia", "fr": "Australie"},
+    "nz": {"en": "New Zealand", "fr": "Nouvelle-Zélande"},
+    "ar": {"en": "Argentina", "fr": "Argentine"},
+    "cl": {"en": "Chile", "fr": "Chili"},
+    "uy": {"en": "Uruguay", "fr": "Uruguay"},
+    "za": {"en": "South Africa", "fr": "Afrique du Sud"},
+    "gr": {"en": "Greece", "fr": "Grèce"},
+    "hu": {"en": "Hungary", "fr": "Hongrie"},
+    "ge": {"en": "Georgia", "fr": "Géorgie"},
+    "gb": {"en": "United Kingdom", "fr": "Royaume-Uni"},
+    "uk": {"en": "United Kingdom", "fr": "Royaume-Uni"},
 }
+
+
+def _country_name(code: str, language: str) -> str:
+    names = COUNTRY_CODE_NAMES.get((code or "").lower())
+    if not names:
+        return ""
+    return names.get(language) or names["en"]
+
+
+# Reverse of COUNTRY_CODE_NAMES's English name, for sources that hand back a
+# plain country name instead of an ISO code — Open Food Facts does this, in
+# whatever language its own product data happens to be tagged in (usually
+# English), regardless of the language this integration is configured for.
+_EN_COUNTRY_NAME_TO_TRANSLATIONS = {
+    names["en"].lower(): names for names in COUNTRY_CODE_NAMES.values()
+}
+
+
+def _translate_country_name(name: str, language: str) -> str:
+    """Best-effort translation of a plain (usually English) country name.
+
+    Falls back to the name as given for anything not in the small
+    wine-producing-country table above — better than an error, and no
+    worse than what came in.
+    """
+    if not name or language == "en":
+        return name
+    # A multi-value field ("Italy,France") only ever needs its first entry
+    # translated — the rest is unusual enough for a wine that guessing
+    # further would do more harm than good.
+    first = name.split(",")[0].strip()
+    names = _EN_COUNTRY_NAME_TO_TRANSLATIONS.get(first.lower())
+    return names.get(language, name) if names else name
+
 
 HEADERS = {
     "User-Agent": (
@@ -123,6 +180,31 @@ def _explore_result_matches_query(query: str, result: dict[str, Any]) -> bool:
     return overlap >= 0.15
 
 
+def _prefer_matching_type(
+    results: list[dict[str, Any]], wine_type: str | None
+) -> list[dict[str, Any]]:
+    """Reorder results to put ones matching the wine's own type first.
+
+    The same producer can sell a Bronzinelle (say) as a red, a rosé and a
+    white under the identical name — nothing in the query text or in
+    _explore_result_matches_query's word-overlap check (which deliberately
+    excludes colour words like "rouge"/"rosé" as too generic to be a
+    reliable signal on their own) tells those three apart, so without this
+    Vivino's own ranking decides which one comes back, and a red can
+    silently pick up a rosé's rating, photo and tasting notes. Reorders
+    rather than filters, for the same reason _prefer_matching_vintage
+    does: a type Vivino doesn't have indexed under that exact name is
+    still a better fallback than nothing.
+    """
+    if not wine_type or not results:
+        return results
+    matching = [r for r in results if r.get("type") == wine_type]
+    if not matching or len(matching) == len(results):
+        return results
+    non_matching = [r for r in results if r.get("type") != wine_type]
+    return matching + non_matching
+
+
 def _prefer_matching_vintage(
     results: list[dict[str, Any]], vintage: int | None
 ) -> list[dict[str, Any]]:
@@ -170,7 +252,7 @@ class VivinoClient:
         """
         upc_result, off_result = await asyncio.gather(
             self._lookup_upc_itemdb(barcode),
-            self._search_open_food_facts(barcode),
+            self._search_open_food_facts(barcode, language),
             return_exceptions=True,
         )
         for result in (upc_result, off_result):
@@ -187,7 +269,7 @@ class VivinoClient:
     # ── Vivino Mobile API (by-id lookup) ──────────────────────────────
 
     async def get_wine_by_id(
-        self, vivino_id: int, vintage: int | None = None
+        self, vivino_id: int, vintage: int | None = None, language: str = "en"
     ) -> dict[str, Any] | None:
         """Look up a wine directly by its Vivino wine id.
 
@@ -201,7 +283,7 @@ class VivinoClient:
             timeout = aiohttp.ClientTimeout(total=15)
             async with session.get(
                 f"{VIVINO_MOBILE_API_URL}/wines/{vivino_id}",
-                headers={"Accept": "application/json"},
+                headers={"Accept": "application/json", "Accept-Language": _accept_language(language)},
                 timeout=timeout,
             ) as resp:
                 if resp.status != 200:
@@ -217,7 +299,7 @@ class VivinoClient:
         winery = (wine_data.get("winery") or {}).get("name", "")
         region_obj = wine_data.get("region") or {}
         region = region_obj.get("name", "")
-        country = COUNTRY_CODE_NAMES.get((region_obj.get("country") or "").lower(), "")
+        country = _country_name(region_obj.get("country") or "", language)
         wine_type = _map_wine_type(wine_data.get("type_id"))
         stats = wine_data.get("statistics") or {}
         rating = stats.get("ratings_average")
@@ -256,11 +338,11 @@ class VivinoClient:
         }
 
         if vintage_id:
-            result.update(await self._get_vintage_details(vintage_id))
+            result.update(await self._get_vintage_details(vintage_id, language))
 
         return result
 
-    async def _get_vintage_details(self, vintage_id: int) -> dict[str, Any]:
+    async def _get_vintage_details(self, vintage_id: int, language: str = "en") -> dict[str, Any]:
         """Fetch vintage-specific extras: image, description, alcohol, grapes, food."""
         session = async_get_clientsession(self._hass)
         details: dict[str, Any] = {}
@@ -268,7 +350,7 @@ class VivinoClient:
             timeout = aiohttp.ClientTimeout(total=15)
             async with session.get(
                 f"{VIVINO_MOBILE_API_URL}/vintages/{vintage_id}",
-                headers={"Accept": "application/json"},
+                headers={"Accept": "application/json", "Accept-Language": _accept_language(language)},
                 timeout=timeout,
             ) as resp:
                 if resp.status != 200:
@@ -303,7 +385,7 @@ class VivinoClient:
 
         food_ids = wine_obj.get("foods") or []
         if food_ids:
-            food_names = await self._resolve_food_names(food_ids)
+            food_names = await self._resolve_food_names(food_ids, language)
             if food_names:
                 details["food_pairings"] = ", ".join(food_names)
 
@@ -367,25 +449,25 @@ class VivinoClient:
             _LOGGER.debug("Vivino grape lookup failed for id %s: %s", gid, err)
         return None
 
-    async def _resolve_food_names(self, food_ids: list[int]) -> list[str]:
+    async def _resolve_food_names(self, food_ids: list[int], language: str = "en") -> list[str]:
         """Resolve food ids to names via the small (~20-entry) foods table."""
-        if not _FOOD_NAME_CACHE:
+        if not any((language, fid) in _FOOD_NAME_CACHE for fid in food_ids):
             session = async_get_clientsession(self._hass)
             try:
                 timeout = aiohttp.ClientTimeout(total=10)
                 async with session.get(
                     f"{VIVINO_MOBILE_API_URL}/foods",
-                    headers={"Accept": "application/json"},
+                    headers={"Accept": "application/json", "Accept-Language": _accept_language(language)},
                     timeout=timeout,
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         for item in data:
                             if item.get("id") is not None and item.get("name"):
-                                _FOOD_NAME_CACHE[item["id"]] = item["name"]
+                                _FOOD_NAME_CACHE[(language, item["id"])] = item["name"]
             except Exception as err:
                 _LOGGER.debug("Vivino foods table fetch failed: %s", err)
-        return [_FOOD_NAME_CACHE[fid] for fid in food_ids if fid in _FOOD_NAME_CACHE]
+        return [_FOOD_NAME_CACHE[(language, fid)] for fid in food_ids if (language, fid) in _FOOD_NAME_CACHE]
 
     async def search_wine(
         self,
@@ -394,6 +476,7 @@ class VivinoClient:
         currency: str = "USD",
         vintage: int | None = None,
         fetch_extras: bool = True,
+        wine_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search for wines by name/text query.
 
@@ -449,10 +532,12 @@ class VivinoClient:
             # of fetch_extras=False is to not double the request volume.
             results = await self._search_vivino_explore(query, language, currency)
 
+        results = _prefer_matching_type(results, wine_type)
         results = _prefer_matching_vintage(results, vintage)
         if results and _explore_result_matches_query(query, results[0]):
             if html_results and not results[0].get("description") and not results[0].get("food_pairings"):
-                ranked = _prefer_matching_vintage(html_results, vintage)
+                ranked = _prefer_matching_type(html_results, wine_type)
+                ranked = _prefer_matching_vintage(ranked, vintage)
                 if ranked:
                     top = ranked[0]
                     if top.get("description"):
@@ -470,6 +555,7 @@ class VivinoClient:
         )
         if html_results is None:
             html_results = await self._search_vivino_html(query, language)
+        html_results = _prefer_matching_type(html_results, wine_type)
         html_results = _prefer_matching_vintage(html_results, vintage)
         if html_results:
             return html_results
@@ -721,7 +807,7 @@ class VivinoClient:
 
     # ── Open Food Facts ──────────────────────────────────────────────
 
-    async def _search_open_food_facts(self, barcode: str) -> dict[str, Any] | None:
+    async def _search_open_food_facts(self, barcode: str, language: str = "en") -> dict[str, Any] | None:
         """Fall back to Open Food Facts for barcode lookup."""
         session = async_get_clientsession(self._hass)
 
@@ -747,7 +833,7 @@ class VivinoClient:
                     categories = product.get("categories", "").lower()
                     image = product.get("image_url", "")
                     origin = product.get("origins", "")
-                    country = product.get("countries", "")
+                    country = _translate_country_name(product.get("countries", ""), language)
 
                     wine_type = "red"
                     if _looks_like_whisky(categories) or _looks_like_whisky(name):

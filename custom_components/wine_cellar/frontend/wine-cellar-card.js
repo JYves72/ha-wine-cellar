@@ -1213,6 +1213,9 @@ var ui$1 = {
 		aiScanBtn: "AI Scan",
 		scanLabelBtn: "Scan Label",
 		scanLabelTitle: "Take a fresh photo of the label to update this bottle's photo and details",
+		resetAiContentBtn: "Reset text",
+		resetAiContentTitle: "Clear the description and food pairings so the next Vivino/AI lookup regenerates them from scratch (fixes text stuck in the wrong language)",
+		resetAiContentConfirm: "Clear this wine's description and food pairings? The next Vivino refresh or AI analysis will regenerate them from scratch.",
 		copyBtn: "Copy",
 		moveBtn: "Move",
 		unassignBtn: "Unassign",
@@ -1230,6 +1233,8 @@ var ui$1 = {
 		grapeVarietyLabel: "Grape Variety",
 		alcoholLabel: "Alcohol",
 		alcoholPlaceholder: "e.g. 13.5%",
+		servingTempLabel: "Serving temp.",
+		servingTempPlaceholder: "e.g. 16-18°C",
 		purchaseDateLabel: "Purchase Date",
 		drinkFromLabel: "Drink From",
 		drinkFromPlaceholder: "e.g. 2025",
@@ -1313,8 +1318,10 @@ var ui$1 = {
 		secondaryAbove: "Above",
 		secondaryBelow: "Below",
 		secondaryGridHint: "Uses the same columns and depth as the main grid.",
+		steppedCountLabel: "Quinconces",
 		steppedFirstRowLabel: "Bottom row bottles",
 		steppedRowCountLabel: "Number of rows",
+		steppedNamePlaceholder: "Quinconce {n}",
 		rowsLabel: "Rows",
 		columnsLabel: "Columns",
 		depthLabel: "Depth",
@@ -1970,6 +1977,9 @@ var ui = {
 		aiScanBtn: "Analyse IA",
 		scanLabelBtn: "Scanner l'étiquette",
 		scanLabelTitle: "Prendre une nouvelle photo de l'étiquette pour mettre à jour la photo et les détails de cette bouteille",
+		resetAiContentBtn: "Réinitialiser",
+		resetAiContentTitle: "Effacer la description et les accords mets-vins pour que la prochaine recherche Vivino/IA les régénère entièrement (corrige un texte resté dans la mauvaise langue)",
+		resetAiContentConfirm: "Effacer la description et les accords mets-vins de ce vin ? Le prochain rafraîchissement Vivino ou l'Analyse IA les régénérera entièrement.",
 		copyBtn: "Copier",
 		moveBtn: "Déplacer",
 		unassignBtn: "Désassigner",
@@ -1987,6 +1997,8 @@ var ui = {
 		grapeVarietyLabel: "Cépage",
 		alcoholLabel: "Alcool",
 		alcoholPlaceholder: "ex. 13,5 %",
+		servingTempLabel: "Température idéale",
+		servingTempPlaceholder: "ex. 16-18°C",
 		purchaseDateLabel: "Date d'achat",
 		drinkFromLabel: "À boire à partir de",
 		drinkFromPlaceholder: "ex. 2025",
@@ -2070,8 +2082,10 @@ var ui = {
 		secondaryAbove: "Au-dessus",
 		secondaryBelow: "En dessous",
 		secondaryGridHint: "Utilise les mêmes colonnes et profondeur que la grille principale.",
+		steppedCountLabel: "Quinconces",
 		steppedFirstRowLabel: "Bouteilles en rangée du bas",
 		steppedRowCountLabel: "Nombre de rangées",
+		steppedNamePlaceholder: "Quinconce {n}",
 		rowsLabel: "Lignes",
 		columnsLabel: "Colonnes",
 		depthLabel: "Profondeur",
@@ -2771,9 +2785,23 @@ function planSlots(target, cabinets, wines, count) {
             row: null,
             col: null,
         };
+        const sr = storageRowFor(cabinet, target.zone);
         // An unlimited container would never stop filling; cap it at the request.
-        if (c.kind === "zone" && !storageRowFor(cabinet, target.zone))
+        if (c.kind === "zone" && !sr)
             return out;
+        // A slot-addressable zone (shelf/quinconce) has a fixed physical
+        // position per depth — the caller picking a specific empty dot must
+        // land there, not wherever "first free in the zone" happens to be
+        // (which is what fill() below always does, and is exactly right for a
+        // bulk/box pile, where there's no such thing as "the dot you clicked").
+        if (sr && (sr.type === "shelf" || sr.type === "stepped") && target.depth != null) {
+            const capacity = zoneCapacity(sr);
+            const taken = new Set(winesInContainer(c, known()).map((w) => w.depth || 0));
+            if (target.depth < capacity && !taken.has(target.depth)) {
+                out.push({ row: null, col: null, zone: c.zone, depth: target.depth });
+                placed.push({ cabinet_id: c.cabinetId, zone: c.zone, row: null, col: null, depth: target.depth });
+            }
+        }
         fill(c);
         return out;
     }
@@ -3601,6 +3629,16 @@ let CabinetGrid = class CabinetGrid extends i {
         // Candidates for a pending Vivino removal: every listed bottle gets an
         // orange ring so the user can see which ones may be the removed bottle.
         this.removalHighlightIds = [];
+        // Set for as long as a long-press move is pending (Android's stand-in
+        // for drag-and-drop) — dims that one bottle so it's clear which one is
+        // "picked up" and waiting for a target tap, until the move completes or
+        // is cancelled. Deliberately its own reactive class, not the .drag-source
+        // that _onDragStart/_onDragEnd toggle: that one only tracks a real HTML5
+        // drag gesture, which touch-and-hold can trigger by accident without
+        // ever firing a matching dragend (see _onTouchEnd's own cleanup) — tying
+        // the "picked up" look to _movingWine's own lifecycle instead means it
+        // can't desync from either end of that.
+        this.movingWineId = null;
         // "letter" (default): the classic D/H/P badge. "dot": a plain colored
         // circle with no letter (green/blue/purple) — a settings-level choice,
         // not per-bottle.
@@ -3722,17 +3760,28 @@ let CabinetGrid = class CabinetGrid extends i {
             }));
         }, 500);
     }
-    _onTouchEnd() {
+    // draggable="true" plus a touch-and-hold can make some Android browsers
+    // start a real HTML5 drag on their own from this same touch sequence,
+    // even though nothing here calls dragstart deliberately — _onDragStart
+    // then adds .drag-source (dimmed + shrunk), but the matching dragend
+    // that would remove it is unreliable on touch and often never fires,
+    // leaving the bottle stuck looking "picked up" regardless of whether the
+    // long-press move that followed was completed or cancelled. Touch ending
+    // (released or cancelled by a scroll) is always a safe point to clear it
+    // too, on this same element.
+    _onTouchEnd(e) {
         if (this._longPressTimer !== null) {
             clearTimeout(this._longPressTimer);
             this._longPressTimer = null;
         }
+        e?.currentTarget?.classList.remove("drag-source");
     }
-    _onTouchMove() {
+    _onTouchMove(e) {
         if (this._longPressTimer !== null) {
             clearTimeout(this._longPressTimer);
             this._longPressTimer = null;
         }
+        e?.currentTarget?.classList.remove("drag-source");
     }
     // --- Drag and drop ---
     _onDragStart(e, wine, row, col, zone) {
@@ -3890,7 +3939,7 @@ let CabinetGrid = class CabinetGrid extends i {
             const bgColor = WINE_TYPE_COLORS[wine.type] || WINE_TYPE_COLORS.red;
             return b `
             <div
-              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine.id === this.movingWineId ? "move-source" : ""}"
               style="background: ${bgColor};${this._dispositionRingStyle(dispClass, this._brightenColor(bgColor))}"
               data-wine-id="${wine.id}"
               draggable="true"
@@ -3904,8 +3953,8 @@ let CabinetGrid = class CabinetGrid extends i {
               @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
               @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine); }}
               @touchstart=${(e) => { e.stopPropagation(); this._onTouchStart(wine); }}
-              @touchend=${() => this._onTouchEnd()}
-              @touchmove=${() => this._onTouchMove()}
+              @touchend=${(e) => this._onTouchEnd(e)}
+              @touchmove=${(e) => this._onTouchMove(e)}
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
@@ -3975,7 +4024,8 @@ let CabinetGrid = class CabinetGrid extends i {
         const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
         // One dot size for the whole shelf, sized off whichever level packs the
         // most "weight" into its single interleaved row — front dots count as
-        // 1, back dots (rendered at half scale) count as 0.5, since that's how
+        // 1, back dots (rendered at sqrt(0.5) width — half *area*, see
+        // BACK_DOT_SCALE below) count as that same fraction, since that's how
         // much horizontal room each actually needs. Using the old two-separate-
         // rows maxCount here (just the bigger of front/back alone) badly
         // undersized this: a row now holds front+back dots combined, not
@@ -3984,7 +4034,7 @@ let CabinetGrid = class CabinetGrid extends i {
         let dominantWeight = 1;
         let dominantItems = 1;
         for (const l of levelsData) {
-            const weight = l.front + l.back * 0.5;
+            const weight = l.front + l.back * Math.SQRT1_2;
             if (weight > dominantWeight) {
                 dominantWeight = weight;
                 dominantItems = l.front + l.back;
@@ -3997,10 +4047,14 @@ let CabinetGrid = class CabinetGrid extends i {
         const dotBasis = `calc((100% - ${(dominantItems - 1) * 2 + 8}px) / ${dominantWeight})`;
         // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
         // if it doesn't work out. Interleaves the back lane's dots between the
-        // front lane's, at half size, in one row instead of two labeled ones —
-        // meant to roughly halve each board's height. Nothing about
-        // shelf_levels/front/back/name config changes, only how this one
-        // zone renders.
+        // front lane's, at half *surface area*, in one row instead of two
+        // labeled ones — meant to roughly halve each board's height. Area
+        // scales with the square of the linear dimension, so halving the area
+        // means scaling width/height by sqrt(0.5), not by 0.5 itself (which
+        // would halve the diameter and leave only a quarter of the area).
+        // Nothing about shelf_levels/front/back/name config changes, only how
+        // this one zone renders.
+        const BACK_DOT_SCALE = Math.SQRT1_2;
         const renderDot = (group, indexInGroup, scale) => {
             const depth = group.start + indexInGroup;
             const dotKey = `${zoneKey}-${depth}`;
@@ -4011,7 +4065,7 @@ let CabinetGrid = class CabinetGrid extends i {
             const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
             const basis = scale === 1 ? dotBasis : `calc(${dotBasis} * ${scale})`;
             return b `<span
-        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine && wine.id === this.movingWineId ? "move-source" : ""}"
         style="flex-basis:${basis};max-width:${basis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
         title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
         draggable=${wine ? "true" : "false"}
@@ -4022,16 +4076,16 @@ let CabinetGrid = class CabinetGrid extends i {
         @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
         @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
         @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
-        @touchend=${() => this._onTouchEnd()}
-        @touchmove=${() => this._onTouchMove()}
+        @touchend=${(e) => this._onTouchEnd(e)}
+        @touchmove=${(e) => this._onTouchMove(e)}
       >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
         };
         // Whichever lane is longer leads the sequence (its dot comes first at
         // each position), with the shorter one nested right after — any surplus
         // of the longer lane tacked on at the end. On a swapped level (back=4,
         // front=3), that means position 1 is a back dot, not front. Scale
-        // always follows the lane itself (front=1, back=0.5), regardless of
-        // which one leads.
+        // always follows the lane itself (front=1, back=BACK_DOT_SCALE),
+        // regardless of which one leads.
         const renderInterleavedLane = (front, back) => {
             const frontSize = front?.size || 0;
             const backSize = back?.size || 0;
@@ -4042,11 +4096,11 @@ let CabinetGrid = class CabinetGrid extends i {
                     if (i < frontSize)
                         items.push(renderDot(front, i, 1));
                     if (i < backSize)
-                        items.push(renderDot(back, i, 0.5));
+                        items.push(renderDot(back, i, BACK_DOT_SCALE));
                 }
                 else {
                     if (i < backSize)
-                        items.push(renderDot(back, i, 0.5));
+                        items.push(renderDot(back, i, BACK_DOT_SCALE));
                     if (i < frontSize)
                         items.push(renderDot(front, i, 1));
                 }
@@ -4092,7 +4146,7 @@ let CabinetGrid = class CabinetGrid extends i {
             const disp = wine?.disposition || "";
             const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
             return b `<span
-            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine && wine.id === this.movingWineId ? "move-source" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
             title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
             draggable=${wine ? "true" : "false"}
@@ -4103,8 +4157,8 @@ let CabinetGrid = class CabinetGrid extends i {
             @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
             @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
             @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
-            @touchend=${() => this._onTouchEnd()}
-            @touchmove=${() => this._onTouchMove()}
+            @touchend=${(e) => this._onTouchEnd(e)}
+            @touchmove=${(e) => this._onTouchMove(e)}
           >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
@@ -4147,15 +4201,16 @@ let CabinetGrid = class CabinetGrid extends i {
             const isHighlighted = !!this.highlightWineId && wines.some((w) => w.id === this.highlightWineId);
             const isRemovalCandidate = this.removalHighlightIds.length > 0 &&
                 wines.some((w) => this.removalHighlightIds.includes(w.id));
+            const isMoving = !!this.movingWineId && wines.some((w) => w.id === this.movingWineId);
             return b `
             <div
-              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
+              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""} ${isMoving ? "move-source" : ""}"
               style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor};${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : A}
-              @touchend=${frontWine ? () => this._onTouchEnd() : A}
-              @touchmove=${frontWine ? () => this._onTouchMove() : A}
+              @touchend=${frontWine ? (e) => this._onTouchEnd(e) : A}
+              @touchmove=${frontWine ? (e) => this._onTouchMove(e) : A}
               @dragstart=${frontWine ? (e) => this._onDragStart(e, frontWine, row, col) : A}
               @dragend=${frontWine ? (e) => this._onDragEnd(e) : A}
               @dragover=${(e) => this._onDragOver(e, cellKey)}
@@ -4225,8 +4280,8 @@ let CabinetGrid = class CabinetGrid extends i {
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : A}
-        @touchend=${frontWine ? () => this._onTouchEnd() : A}
-        @touchmove=${frontWine ? () => this._onTouchMove() : A}
+        @touchend=${frontWine ? (e) => this._onTouchEnd(e) : A}
+        @touchmove=${frontWine ? (e) => this._onTouchMove(e) : A}
         @dragstart=${frontWine ? (e) => this._onDragStart(e, frontWine, row, col) : A}
         @dragend=${frontWine ? (e) => this._onDragEnd(e) : A}
         @dragover=${(e) => this._onDragOver(e, cellKey)}
@@ -4839,6 +4894,17 @@ CabinetGrid.styles = [
         transform: scale(0.9);
       }
 
+      /* The one bottle picked up by a long-press, waiting for a target tap
+         (see movingWineId) — deliberately lighter than .drag-source and no
+         scale change, so it doesn't look like it's about to disappear: this
+         state can sit there indefinitely until the user taps a target or
+         cancels, unlike an actual drag in progress. */
+      .cell.move-source,
+      .zone-bottle.move-source,
+      .zone-shelf-dot.move-source {
+        opacity: 0.5;
+      }
+
       .cell.drag-over {
         box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.8);
         transform: scale(1.1);
@@ -5033,6 +5099,9 @@ __decorate([
 __decorate([
     n({ attribute: false })
 ], CabinetGrid.prototype, "removalHighlightIds", void 0);
+__decorate([
+    n({ attribute: false })
+], CabinetGrid.prototype, "movingWineId", void 0);
 __decorate([
     n({ type: String })
 ], CabinetGrid.prototype, "dispositionDisplay", void 0);
@@ -5583,6 +5652,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._saving = false;
         this._refreshing = false;
         this._analyzing = false;
+        this._resettingAiContent = false;
         this._scanningLabel = false;
         this._showLabelCamera = false;
         this._showRemoveConfirm = false;
@@ -5636,6 +5706,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             drink_window: this.wine.drink_window || "",
             notes: this.wine.notes || "",
             alcohol: this.wine.alcohol || "",
+            serving_temp: this.wine.serving_temp || "",
         };
         const windowStart = (this.wine.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
         this._editDrinkFrom = windowStart ? windowStart[0] : "";
@@ -6013,6 +6084,36 @@ let WineDetailDialog = class WineDetailDialog extends i {
         }
         this._analyzing = false;
     }
+    // Clears description/food_pairings (and their language tags) so the next
+    // Vivino/AI lookup regenerates them from scratch, instead of them being
+    // kept forever because the field isn't "empty". An escape hatch for text
+    // stuck in the wrong language despite the automatic staleness checks.
+    async _resetAiContent() {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        if (!window.confirm(this._t("ui.wineDetail.resetAiContentConfirm")))
+            return;
+        this._resettingAiContent = true;
+        try {
+            const resp = await this.hass.callWS({
+                type: "wine_cellar/reset_ai_content",
+                wine_id: this.wine.id,
+            });
+            if (resp.error) {
+                alert(resp.error);
+            }
+            else if (resp.wine) {
+                if (!this._applyIfStillShowing(wineId, resp.wine))
+                    return;
+                this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+            }
+        }
+        catch (err) {
+            console.error("Reset AI content failed", err);
+        }
+        this._resettingAiContent = false;
+    }
     // Re-scan the label with a fresh photo: like _onPhotoReplaced but also
     // extracts name/winery/vintage/etc via Gemini, same as the add-wine flow's
     // label scan (jamespreid, imported for the detail dialog).
@@ -6095,6 +6196,19 @@ let WineDetailDialog = class WineDetailDialog extends i {
         if (current.trim())
             result.push(current.trim());
         return result;
+    }
+    // Purchase date is stored as a plain "YYYY-MM-DD" string (from a native
+    // date input); displayed in the viewer's own locale order instead of
+    // always showing the raw ISO order. The literal "T00:00:00" makes the
+    // Date parse as local midnight rather than UTC midnight, so a negative
+    // UTC-offset timezone doesn't roll it back a day.
+    _formatDate(iso) {
+        if (!iso)
+            return "";
+        const d = new Date(`${iso}T00:00:00`);
+        if (isNaN(d.getTime()))
+            return iso;
+        return d.toLocaleDateString(this.hass?.language, { day: "2-digit", month: "2-digit", year: "numeric" });
     }
     _hasTastingNotes() {
         const n = this._tastingNotes;
@@ -6192,6 +6306,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
             <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
             <input type="text" .value=${d.alcohol} placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
               @input=${(e) => this._updateEditField("alcohol", e.target.value)} />
+          </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.servingTempLabel")}</label>
+            <input type="text" .value=${d.serving_temp} placeholder="${this._t('ui.wineDetail.servingTempPlaceholder')}"
+              @input=${(e) => this._updateEditField("serving_temp", e.target.value)} />
           </div>
         </div>
 
@@ -6365,6 +6484,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                         ?disabled=${this._scanningLabel} @click=${() => (this._showLabelCamera = true)}
                         title="${this._t('ui.wineDetail.scanLabelTitle')}">
                         ${this._scanningLabel ? "..." : `📷 ${this._t("ui.wineDetail.scanLabelBtn")}`}
+                      </button>
+                      <button class="btn btn-primary" style="background:#78909c"
+                        ?disabled=${this._resettingAiContent} @click=${this._resetAiContent}
+                        title="${this._t('ui.wineDetail.resetAiContentTitle')}">
+                        ${this._resettingAiContent ? "..." : `♻️ ${this._t("ui.wineDetail.resetAiContentBtn")}`}
                       </button>`
                 : A}
                   ${this.mode === "cellar"
@@ -6427,8 +6551,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="wine-description">${wine.description}</div>`
                 : A}
 
-                <!-- Info chips (grape, food, alcohol, etc.) -->
-                ${wine.food_pairings || wine.alcohol || wine.grape_variety
+                <!-- Info chips (grape, food, alcohol, serving temp, etc.) -->
+                ${wine.food_pairings || wine.alcohol || wine.serving_temp || wine.grape_variety
                 ? b `
                       <div class="info-chips">
                         ${wine.grape_variety
@@ -6436,6 +6560,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     : A}
                         ${wine.alcohol
                     ? b `<span class="info-chip"><span class="info-chip-icon">%</span> ${wine.alcohol}</span>`
+                    : A}
+                        ${wine.serving_temp
+                    ? b `<span class="info-chip"><span class="info-chip-icon">🌡️</span> ${wine.serving_temp}</span>`
                     : A}
                         ${wine.food_pairings
                     ? this._splitPairings(wine.food_pairings).map((food) => b `<span class="info-chip">${food}</span>`)
@@ -6471,9 +6598,6 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   ${wine.country
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.countryLabel")}</span><span class="detail-value">${wine.country}</span></div>`
                 : A}
-                  ${wine.grape_variety
-                ? b `<div class="detail-item"><span class="detail-label">${varietyLabel(wine.type, true, this.hass?.language)}</span><span class="detail-value">${wine.grape_variety}</span></div>`
-                : A}
                   ${wine.price
                 ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                 : A}
@@ -6481,9 +6605,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
                 : A}
                   ${wine.purchase_date && this.mode === "cellar"
-                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${wine.purchase_date}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${this._formatDate(wine.purchase_date)}</span></div>`
                 : A}
-                  ${wine.drink_by
+                  ${wine.drink_by && !wine.disposition
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.drinkByLabel")}</span><span class="detail-value">${wine.drink_by}</span></div>`
                 : A}
                   ${wine.barcode && this.mode === "cellar"
@@ -7252,6 +7376,9 @@ __decorate([
 ], WineDetailDialog.prototype, "_analyzing", void 0);
 __decorate([
     r()
+], WineDetailDialog.prototype, "_resettingAiContent", void 0);
+__decorate([
+    r()
 ], WineDetailDialog.prototype, "_scanningLabel", void 0);
 __decorate([
     r()
@@ -7657,6 +7784,7 @@ let AddWineDialog = class AddWineDialog extends i {
                     description: result.result.description || "",
                     food_pairings: result.result.food_pairings || "",
                     alcohol: result.result.alcohol || "",
+                    serving_temp: result.result.serving_temp || "",
                     vivino_updated_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_updated_at,
                     vivino_checked_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_checked_at,
                 };
@@ -7735,6 +7863,7 @@ let AddWineDialog = class AddWineDialog extends i {
             description: item.description || "",
             food_pairings: item.food_pairings || "",
             alcohol: item.alcohol || "",
+            serving_temp: item.serving_temp || "",
             vivino_updated_at: new Date().toISOString(),
             vivino_checked_at: new Date().toISOString(),
         };
@@ -7790,6 +7919,8 @@ let AddWineDialog = class AddWineDialog extends i {
                     description: r.description || "",
                     retail_price: r.estimated_price || null,
                     ai_ratings: r.ai_ratings || null,
+                    alcohol: r.alcohol || "",
+                    serving_temp: r.serving_temp || "",
                     notes: r.notes || "",
                     barcode: r.barcode || this._wineData.barcode || "",
                     image_url: thumbUrl,
@@ -7915,8 +8046,15 @@ let AddWineDialog = class AddWineDialog extends i {
                 // A bin is a pile: what you just put in sits on top, so the new
                 // bottles take the first slots and the rest shift down. One call
                 // renumbers the bin; listing only the new ids is enough, the backend
-                // appends the others in their existing order.
-                if (this._wineData.zone && addedIds.length) {
+                // appends the others in their existing order. Shelf/quinconce zones
+                // are the opposite — every slot is a fixed physical position (the
+                // depth each bottle was just given via slots[i], picked from the
+                // exact dot clicked) — reordering them would scramble every other
+                // bottle already sitting in that zone.
+                const cabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
+                const destRow = storageRowFor(cabinet, this._wineData.zone || "");
+                const isSlotZone = destRow?.type === "shelf" || destRow?.type === "stepped";
+                if (this._wineData.zone && addedIds.length && !isSlotZone) {
                     await this.hass.callWS({
                         type: "wine_cellar/reorder_zone",
                         cabinet_id: this._wineData.cabinet_id,
@@ -9543,8 +9681,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
     _boxRow(slot) {
         return this._rowsFor(slot).find((sr) => sr.type === "box");
     }
-    _steppedRow(slot) {
-        return this._rowsFor(slot).find((sr) => sr.type === "stepped");
+    _steppedRows(slot) {
+        return this._rowsFor(slot).filter((sr) => sr.type === "stepped");
     }
     // How many rows a slot's active style actually uses.
     _slotRowCount(slot) {
@@ -9555,7 +9693,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             return slot === "primary" ? (this._editCabinet.rows || 1) : this._secondaryGridRows;
         if (style === "shelf")
             return Math.max(1, this._shelfRows(slot).length);
-        return 1; // bulk, box, stepped
+        if (style === "stepped")
+            return Math.max(1, this._steppedRows(slot).length);
+        return 1; // bulk, box
     }
     // A slot's own rows, renumbered to a contiguous range starting at
     // `offset` — the physical row a bottle sits behind never survives a rack
@@ -9568,7 +9708,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         if (style === "shelf") {
             return this._shelfRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
         }
-        const row = style === "bulk" ? this._bulkRow(slot) : style === "box" ? this._boxRow(slot) : this._steppedRow(slot);
+        if (style === "stepped") {
+            return this._steppedRows(slot).map((sr, i) => ({ ...sr, row: offset + i }));
+        }
+        const row = style === "bulk" ? this._bulkRow(slot) : this._boxRow(slot);
         return row ? [{ ...row, row: offset }] : [];
     }
     // What actually gets saved, freshly computed from the active styles —
@@ -9848,22 +9991,58 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const row = { row: 0, name: existing?.name || "", type: "box", capacity, boxes };
         this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "box"), row]);
     }
-    // Quinconce: driven by just two numbers — the bottom row's bottle count
-    // and how many rows stack above it — with the per-level breakdown always
-    // derived via getSteppedLevels rather than edited directly.
-    _setSteppedConfig(slot, firstRow, rowCount) {
-        firstRow = Math.max(1, Math.min(30, firstRow));
+    // Quinconce, like a shelf, can be several independent units stacked in
+    // one rack — each its own physical zone with its own row count, but all
+    // sharing one bottom-row bottle count (a property of the rack's fixed
+    // width, not of any one unit). The per-level breakdown is always derived
+    // via getSteppedLevels rather than edited directly.
+    _sharedSteppedFirstRow(slot) {
+        return this._steppedRows(slot)[0]?.stepped_levels?.[0] ?? 5;
+    }
+    // Re-derives every quinconce unit's levels in this slot from a new shared
+    // first-row count, keeping each unit's own row count exactly as it was.
+    _applySharedSteppedFirstRow(slot, firstRow) {
+        const first = Math.max(1, Math.min(30, firstRow));
+        this._setRowsFor(slot, this._rowsFor(slot).map((sr) => {
+            if (sr.type !== "stepped")
+                return sr;
+            const levels = getSteppedLevels(first, sr.stepped_levels?.length || 1);
+            const capacity = levels.reduce((sum, n) => sum + n, 0);
+            return { ...sr, stepped_levels: levels, capacity };
+        }));
+    }
+    // Changes just this one quinconce unit's row count, using the shared
+    // first-row count.
+    _setSteppedRowCountAt(slot, index, rowCount) {
         rowCount = Math.max(1, Math.min(10, rowCount));
+        const firstRow = this._sharedSteppedFirstRow(slot);
+        const rows = this._steppedRows(slot);
+        if (!rows[index])
+            return;
         const levels = getSteppedLevels(firstRow, rowCount);
         const capacity = levels.reduce((sum, n) => sum + n, 0);
-        const row = { row: 0, name: "", type: "stepped", capacity, stepped_levels: levels };
-        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), row]);
+        rows[index] = { ...rows[index], stepped_levels: levels, capacity };
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
     }
-    _setSteppedFirstRow(slot, value) {
-        this._setSteppedConfig(slot, value, this._steppedRow(slot)?.stepped_levels?.length || 3);
+    // Rebuilds the quinconce list to the requested count, applying the shared
+    // first-row count to any new ones (starting at 3 rows each) and keeping
+    // existing units' own name and row count (by position) rather than
+    // resetting them.
+    _setSteppedCount(slot, count) {
+        count = Math.max(1, Math.min(20, count));
+        const firstRow = this._sharedSteppedFirstRow(slot);
+        const existing = this._steppedRows(slot);
+        const rows = Array.from({ length: count }, (_, i) => {
+            const prior = existing[i];
+            const levels = getSteppedLevels(firstRow, prior?.stepped_levels?.length || 3);
+            const capacity = levels.reduce((sum, n) => sum + n, 0);
+            return { row: i, name: prior?.name || "", type: "stepped", capacity, stepped_levels: levels };
+        });
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
     }
-    _setSteppedRowCount(slot, value) {
-        this._setSteppedConfig(slot, this._steppedRow(slot)?.stepped_levels?.[0] || 5, value);
+    _updateSteppedName(slot, index, name) {
+        const rows = this._steppedRows(slot).map((sr, i) => (i === index ? { ...sr, name } : sr));
+        this._setRowsFor(slot, [...this._rowsFor(slot).filter((sr) => sr.type !== "stepped"), ...rows]);
     }
     // Switching a slot's style lazily creates that style's default config the
     // first time it's chosen; any other style's config already built this
@@ -9879,8 +10058,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         else if (style === "box" && !this._boxRow(slot)) {
             this._updateBoxCount(slot, 1);
         }
-        else if (style === "stepped" && !this._steppedRow(slot)) {
-            this._setSteppedConfig(slot, 5, 3);
+        else if (style === "stepped" && this._steppedRows(slot).length === 0) {
+            this._setSteppedCount(slot, 1);
         }
     }
     _setPrimaryStyle(style) {
@@ -10279,32 +10458,56 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
       `;
         }
         if (style === "stepped") {
-            const stepped = this._steppedRow(slot);
-            const levels = stepped?.stepped_levels || [];
-            const firstRow = levels[0] ?? 5;
-            const rowCount = levels.length || 3;
+            const shared = this._sharedSteppedFirstRow(slot);
+            const steppedUnits = this._steppedRows(slot);
             return b `
         <div class="stepper-row">
           <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
+            <div class="stepper-label">${this._t("ui.rack.steppedCountLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow - 1)} ?disabled=${firstRow <= 1}>−</button>
-              <span class="stepper-value">${firstRow}</span>
-              <button class="stepper-btn" @click=${() => this._setSteppedFirstRow(slot, firstRow + 1)} ?disabled=${firstRow >= 30}>+</button>
+              <button class="stepper-btn" @click=${() => this._setSteppedCount(slot, steppedUnits.length - 1)} ?disabled=${steppedUnits.length <= 1}>−</button>
+              <span class="stepper-value">${steppedUnits.length}</span>
+              <button class="stepper-btn" @click=${() => this._setSteppedCount(slot, steppedUnits.length + 1)} ?disabled=${steppedUnits.length >= 20}>+</button>
             </div>
           </div>
           <div class="stepper-wrap">
-            <div class="stepper-label">${this._t("ui.rack.steppedRowCountLabel")}</div>
+            <div class="stepper-label">${this._t("ui.rack.steppedFirstRowLabel")}</div>
             <div class="stepper">
-              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
-              <span class="stepper-value">${rowCount}</span>
-              <button class="stepper-btn" @click=${() => this._setSteppedRowCount(slot, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+              <button class="stepper-btn" @click=${() => this._applySharedSteppedFirstRow(slot, shared - 1)} ?disabled=${shared <= 1}>−</button>
+              <span class="stepper-value">${shared}</span>
+              <button class="stepper-btn" @click=${() => this._applySharedSteppedFirstRow(slot, shared + 1)} ?disabled=${shared >= 30}>+</button>
             </div>
           </div>
         </div>
-        <p style="font-size:0.75em;color:var(--wc-text-secondary);margin:0">
-          ${levels.join(" + ")} = ${stepped?.capacity || 0}
-        </p>
+
+        <!-- Name + row count per quinconce unit — the bottom-row count is
+             shared above, but how many rows each one stacks is its own
+             choice. -->
+        <div class="row-list">
+          ${steppedUnits.map((sr, i) => {
+                const rowCount = sr.stepped_levels?.length || 1;
+                return b `
+              <div class="row-entry storage">
+                <span class="row-num">${i + 1}</span>
+                <input
+                  type="text"
+                  class="row-name-input"
+                  style="flex:1"
+                  .value=${sr.name || ""}
+                  @input=${(e) => this._updateSteppedName(slot, i, e.target.value)}
+                  placeholder="${this._t('ui.rack.steppedNamePlaceholder', { n: i + 1 })}"
+                />
+                <span class="row-type-info" style="flex:0;font-size:0.7em">${this._t('ui.rack.steppedRowCountLabel')}</span>
+                <div class="row-cap-stepper">
+                  <button class="stepper-btn-sm" @click=${() => this._setSteppedRowCountAt(slot, i, rowCount - 1)} ?disabled=${rowCount <= 1}>−</button>
+                  <span class="stepper-val-sm">${rowCount}</span>
+                  <button class="stepper-btn-sm" @click=${() => this._setSteppedRowCountAt(slot, i, rowCount + 1)} ?disabled=${rowCount >= 10}>+</button>
+                </div>
+                <span class="row-type-info" style="flex:0">= ${sr.capacity}</span>
+              </div>
+            `;
+            })}
+        </div>
       `;
         }
         // "box"
@@ -15089,6 +15292,12 @@ let WineCellarCard = class WineCellarCard extends i {
             this._openDepthPanel(cabinet, row, col, wines, cabinetDepth);
             return;
         }
+        // Long-pressed a bottle (picked up via _movingWine) and tapped a
+        // different, occupied cell: swap instead of opening its detail.
+        if (this._movingWine && wine && wine.id !== this._movingWine.id) {
+            this._executeSwapWine({ cabinetId: cabinet.id, row, col, depth: 0 }, wine);
+            return;
+        }
         if (wine) {
             this._selectedWine = wine;
             this._detailMode = "cellar";
@@ -15165,6 +15374,14 @@ let WineCellarCard = class WineCellarCard extends i {
         // If we're placing a buy list item, move it to cellar
         if (this._movingBuyListItem && !wine) {
             this._executeMoveTocellar(cabinet.id, null, null, zone || "bottom", hasExactDepth ? depth : 0, hasExactDepth);
+            return;
+        }
+        // Long-pressed a bottle and tapped a different, occupied slot in a
+        // slot-addressable zone (shelf/quinconce — hasExactDepth): swap instead
+        // of opening its detail. Bulk/box zone chips carry no depth, so this
+        // never fires for those — "occupied" there doesn't mean a fixed slot.
+        if (this._movingWine && wine && hasExactDepth && wine.id !== this._movingWine.id) {
+            this._executeSwapWine({ cabinetId: cabinet.id, zone: zone || "bottom", depth }, wine);
             return;
         }
         if (wine) {
@@ -16140,6 +16357,61 @@ let WineCellarCard = class WineCellarCard extends i {
             await this._loadData();
         }
     }
+    // Tap-to-move equivalent of dragging onto an occupied slot (see
+    // _onExactSlotDrop for the drag-and-drop version) — Android has no real
+    // drag-and-drop, so long-press-then-tap is its stand-in, and tapping an
+    // occupied target should swap just as dropping onto one does instead of
+    // falling through to "open its detail". Used by both the classic grid
+    // (row/col) and slot-addressable zones (shelf/quinconce, zone+depth);
+    // bulk/box zones have no fixed per-slot occupancy for this to mean the
+    // same thing, so callers only reach here when there's an actual slot.
+    async _executeSwapWine(target, targetWine) {
+        const movingWine = this._movingWine;
+        if (!movingWine || movingWine.id === targetWine.id)
+            return;
+        const targetPayload = { cabinet_id: target.cabinetId, zone: target.zone || "" };
+        if (target.row != null)
+            targetPayload.row = target.row;
+        if (target.col != null)
+            targetPayload.col = target.col;
+        if (target.depth != null)
+            targetPayload.depth = target.depth;
+        const originPayload = { cabinet_id: movingWine.cabinet_id, zone: movingWine.zone || "" };
+        if (movingWine.row !== null)
+            originPayload.row = movingWine.row;
+        if (movingWine.col !== null)
+            originPayload.col = movingWine.col;
+        if (movingWine.zone || movingWine.row !== null)
+            originPayload.depth = movingWine.depth ?? 0;
+        let swappedBack = null;
+        try {
+            await this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: targetWine.id, ...originPayload });
+            // Half of a swap is not a state the rack can be in: the target bottle
+            // is now sitting where the moving one still is. If the second half
+            // fails, put it back before reporting the failure.
+            swappedBack = () => this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: targetWine.id, ...targetPayload });
+            await this.hass.callWS({ type: "wine_cellar/move_wine", wine_id: movingWine.id, ...targetPayload });
+            this._showToast(this._t("toast.wineSwapped"));
+            this._movingWine = null;
+            await this._loadData();
+        }
+        catch (err) {
+            console.error("Failed to swap wine:", err);
+            if (swappedBack) {
+                try {
+                    await swappedBack();
+                }
+                catch (undoErr) {
+                    console.error("Failed to undo half-completed swap:", undoErr);
+                    this._showToast(this._t("toast.moveUndoFailed"));
+                    await this._loadData();
+                    return;
+                }
+            }
+            this._showToast(this._t("toast.moveFailed"));
+            await this._loadData();
+        }
+    }
     _copyWine(wine) {
         this._copiedWine = wine;
         this._showToast(this._t("toast.wineCopied", { name: wine.name }));
@@ -16944,6 +17216,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
                           .removalHighlightIds=${this._removalHighlightIds}
+                          .movingWineId=${this._movingWine?.id || null}
                           .dispositionDisplay=${this._dispositionDisplay}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
@@ -16965,6 +17238,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
                             .removalHighlightIds=${this._removalHighlightIds}
+                            .movingWineId=${this._movingWine?.id || null}
                             .dispositionDisplay=${this._dispositionDisplay}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}

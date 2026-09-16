@@ -34,6 +34,9 @@ export interface Wine {
   description_language?: string;
   food_pairings: string;
   alcohol: string;
+  // Ideal serving temperature range (e.g. "16-18°C"), AI-filled only —
+  // Vivino has no equivalent data.
+  serving_temp: string;
   cabinet_id: string;
   row: number | null;
   col: number | null;
@@ -202,6 +205,7 @@ export interface BarcodeLookupResult {
   description?: string;
   food_pairings?: string;
   alcohol?: string;
+  serving_temp?: string;
   vivino_id?: number | null;
 }
 

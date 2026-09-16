@@ -39,6 +39,7 @@ from .const import (
     WINE_TYPES,
 )
 from . import photos
+from .disposition import compute_disposition
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,8 +108,6 @@ def _build_ai_updates(
 ) -> dict[str, Any]:
     """Build a wine `updates` dict from a Gemini analyze_single_wine result."""
     updates: dict[str, Any] = {}
-    if result.get("disposition"):
-        updates["disposition"] = result["disposition"]
     if result.get("drink_by"):
         updates["drink_by"] = result["drink_by"]
 
@@ -131,6 +130,18 @@ def _build_ai_updates(
         updates["description"] = result["description"]
         updates["description_language"] = language
 
+    # Same staleness check for food_pairings, which the AI now also
+    # generates (see gemini.py) — needed because Vivino's own food_pairings
+    # text is community/taxonomy text that isn't reliably translated
+    # either, and ws_refresh_wine tags it "en" for that same reason (see
+    # there). Without this, a Vivino refresh's English pairings would
+    # never get replaced by a proper AI translation.
+    cur_food = wine.get("food_pairings", "")
+    stale_food_language = bool(cur_food) and wine.get("food_pairings_language") != language
+    if result.get("food_pairings") and (not cur_food or stale_food_language):
+        updates["food_pairings"] = result["food_pairings"]
+        updates["food_pairings_language"] = language
+
     ai_ratings: dict[str, int] = {}
     for key in ("rating_ws", "rating_rp", "rating_jd", "rating_ag"):
         val = result.get(key)
@@ -142,6 +153,23 @@ def _build_ai_updates(
     if result.get("drink_window"):
         updates["drink_window"] = result["drink_window"]
 
+    # disposition is never taken from the AI's own guess directly — it's
+    # always re-derived from whatever drink_by/drink_window end up on the
+    # wine after this update, the same pure rule the daily/startup recompute
+    # uses (see disposition.py). The model doesn't reliably apply that exact
+    # rule itself: it can hand back a window like "2026-2030" (which the
+    # app's own rule reads as Drink Now for a wine bought in 2026 — today is
+    # inside the window) alongside a "Hold" disposition that disagrees with
+    # its own window. Recomputing from the merged state closes that gap
+    # instead of trusting whichever of the two the model got right. Only
+    # included in `updates` when it actually changes, same as everything
+    # else here — `ai_updated_at` below means "something changed", and an
+    # unconditional recompute would make that always true even when nothing
+    # did.
+    recomputed = compute_disposition({**wine, **updates})
+    if recomputed != wine.get("disposition"):
+        updates["disposition"] = recomputed
+
     est_price = result.get("estimated_price")
     if est_price and isinstance(est_price, (int, float)) and est_price > 0:
         # A price already captured in a different currency is stale, not
@@ -151,10 +179,19 @@ def _build_ai_updates(
             updates["retail_price"] = round(float(est_price), 2)
             updates["retail_price_currency"] = currency
 
-    # Fill in fields the AI could read off the label photo (or knows from
-    # the producer) — only when the wine doesn't already have them, same
-    # "fill empty fields only" rule Vivino's own enrichment follows.
-    for key in ("region", "country", "grape_variety", "alcohol"):
+    # "region"/"country" are always overwritten by a manual re-analysis —
+    # same precedent as Vivino's own manual refresh for these exact two
+    # fields (ws_refresh_wine): a re-run is the user asking for fresh data
+    # there, most often specifically because the stored value is wrong
+    # (wrong language, too broad/narrow a place name — see gemini.py's
+    # region rules). The rest only fill a gap, never override what's
+    # already there — that's still the right default for grape_variety/
+    # alcohol/serving_temp, which don't have that class of problem.
+    for key in ("region", "country"):
+        val = result.get(key)
+        if val:
+            updates[key] = val
+    for key in ("grape_variety", "alcohol", "serving_temp"):
         val = result.get(key)
         if val and not wine.get(key):
             updates[key] = val
@@ -214,13 +251,51 @@ def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]
     so compare winery+name against what was actually searched for and
     refuse the match if it shares no distinctive words, rather than
     silently writing another wine's price/rating/description onto this one.
+
+    Also refuses a match whose wine type disagrees with the subject's own
+    known type — a producer can sell a red, rosé and white under the exact
+    same name (e.g. "Bronzinelle"), so name/winery overlap alone isn't
+    enough to tell them apart. Better to report no match at all than to
+    confidently apply the wrong variant's photo/description/rating.
     """
+    subject_type = subject.get("type")
+    lookup_type = lookup.get("type")
+    if subject_type and lookup_type and subject_type != lookup_type:
+        return False
     subject_words = _significant_words(f"{subject.get('winery', '')} {subject.get('name', '')}")
     lookup_words = _significant_words(f"{lookup.get('winery', '')} {lookup.get('name', '')}")
     if not subject_words or not lookup_words:
         return True
     overlap = len(subject_words & lookup_words) / len(subject_words | lookup_words)
     return overlap >= 0.15
+
+
+def _apply_vivino_text_fields(
+    updates: dict[str, Any], wine: dict[str, Any], lookup: dict[str, Any], language: str
+) -> None:
+    """Merge Vivino's description/food_pairings into `updates`, in place.
+
+    Both are free text that Vivino does not actually translate per
+    Accept-Language despite the header sent with every request (confirmed:
+    forcing the header does not change the language of either field) — so
+    on a refresh in a non-English cellar, blindly taking Vivino's fresh
+    value would silently overwrite text the AI already correctly
+    translated. When the configured language is English (presumably
+    Vivino's own source language) the fresh value always wins, same as
+    before; otherwise it only fills a gap. Either way the result is tagged
+    "en" so a later AI analysis still detects the mismatch and translates
+    it, instead of wrongly assuming it already matches.
+    """
+    for key, lang_key in (
+        ("description", "description_language"),
+        ("food_pairings", "food_pairings_language"),
+    ):
+        val = lookup.get(key)
+        if not val:
+            continue
+        if language == "en" or not wine.get(key):
+            updates[key] = val
+            updates[lang_key] = "en"
 
 
 # Racks are described by plain numbers that the storage layer writes wherever
@@ -302,7 +377,8 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
 
         currency = _get_metadata_currency(hass)
         result = await vivino.search_wine(
-            query, _get_metadata_language(hass), currency, wine.get("vintage")
+            query, _get_metadata_language(hass), currency, wine.get("vintage"),
+            wine_type=wine.get("type"),
         )
         if not result:
             return
@@ -371,7 +447,8 @@ async def _auto_enrich_buy_list_item(hass: HomeAssistant, item: dict[str, Any]) 
 
         currency = _get_metadata_currency(hass)
         result = await vivino.search_wine(
-            query, _get_metadata_language(hass), currency, item.get("vintage")
+            query, _get_metadata_language(hass), currency, item.get("vintage"),
+            wine_type=item.get("type"),
         )
         if not result:
             return
@@ -436,6 +513,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_analyze_wines)
     websocket_api.async_register_command(hass, ws_refresh_wine)
     websocket_api.async_register_command(hass, ws_analyze_single_wine)
+    websocket_api.async_register_command(hass, ws_reset_ai_content)
     websocket_api.async_register_command(hass, ws_batch_analyze_wines)
     websocket_api.async_register_command(hass, ws_batch_refresh_vivino)
     websocket_api.async_register_command(hass, ws_extract_wine_list)
@@ -1149,14 +1227,25 @@ async def ws_refresh_wine(
     # straight to the no-match path and the AI offer below.
     lookup = None
     if wine.get("vivino_id") and not _is_whisky(wine):
-        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
+        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+        if lookup and not _vivino_match_is_trustworthy(wine, lookup):
+            # The stored vivino_id itself points at the wrong variant (e.g.
+            # it was matched to the rosé of a name a producer also sells as
+            # red/white) — a by-id lookup has no query to re-check against,
+            # so this is caught here instead of before it's ever stored.
+            # Don't keep it; fall through to a fresh text search below.
+            _LOGGER.debug(
+                "Vivino by-id lookup for '%s' has the wrong type (%s), re-searching",
+                query, lookup.get("type"),
+            )
+            lookup = None
 
     if not lookup and not _is_whisky(wine):
         if not query:
             connection.send_result(msg["id"], {"error": "No name/winery to search."})
             return
 
-        result = await vivino.search_wine(query, language, currency, wine.get("vintage"))
+        result = await vivino.search_wine(query, language, currency, wine.get("vintage"), wine_type=wine.get("type"))
         lookup = result[0] if result else None
         if lookup and not _vivino_match_is_trustworthy(wine, lookup):
             _LOGGER.debug(
@@ -1191,15 +1280,11 @@ async def ws_refresh_wine(
     updates: dict[str, Any] = {}
     ai_price_used = False
     # Always update enrichment fields from Vivino
-    for key in ("rating", "ratings_count", "description",
-                "food_pairings", "alcohol", "grape_variety"):
+    for key in ("rating", "ratings_count", "alcohol", "grape_variety"):
         val = lookup.get(key)
         if val:
             updates[key] = val
-            if key == "description":
-                # So a later AI analysis run knows this description is
-                # already in the current language and doesn't redo it.
-                updates["description_language"] = language
+    _apply_vivino_text_fields(updates, wine, lookup, language)
 
     # Photo: never silently overwrite a photo the user already has. If the
     # wine has no photo yet, apply Vivino's automatically. Otherwise surface
@@ -1349,6 +1434,46 @@ async def ws_analyze_single_wine(
 
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): "wine_cellar/reset_ai_content",
+        vol.Required("wine_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_reset_ai_content(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Clear a wine's description/food_pairings so the next AI or Vivino
+    lookup regenerates them from scratch, instead of being silently kept
+    because the field isn't "empty" and its language tag (wrongly or not)
+    already claims to match. A manual escape hatch for text that's stuck
+    in the wrong language despite the staleness checks in _build_ai_updates
+    and _apply_vivino_text_fields — safer than trying to guess every case
+    those checks should also cover.
+    """
+    storage = hass.data[DOMAIN]["storage"]
+    wine = storage.get_wine(msg["wine_id"])
+    if not wine:
+        connection.send_result(msg["id"], {"error": "Wine not found."})
+        return
+
+    updates = {
+        "description": "",
+        "description_language": "",
+        "food_pairings": "",
+        "food_pairings_language": "",
+    }
+    updated_wine = storage.update_wine(msg["wine_id"], updates)
+    if updated_wine:
+        _propagate_to_duplicates(storage, updated_wine, updates)
+    await storage.async_save()
+    hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(msg["id"], {"wine": updated_wine})
+
+
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): "wine_cellar/batch_analyze_wines",
         vol.Optional("wine_ids"): [str],
     }
@@ -1489,7 +1614,16 @@ async def ws_batch_refresh_vivino(
             # fallback below, if the user opted into it for this run.
             lookup = None
             if wine.get("vivino_id") and not _is_whisky(wine):
-                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
+                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+                if lookup and not _vivino_match_is_trustworthy(wine, lookup):
+                    # Same guard as the single-wine refresh: a stored
+                    # vivino_id can point at the wrong same-name variant
+                    # (e.g. rosé instead of red) — discard it and re-search.
+                    _LOGGER.debug(
+                        "Batch Vivino: by-id lookup for '%s' has the wrong type (%s), re-searching",
+                        query, lookup.get("type"),
+                    )
+                    lookup = None
 
             if not lookup and not _is_whisky(wine):
                 if not query:
@@ -1498,7 +1632,9 @@ async def ws_batch_refresh_vivino(
                 # fetch_extras=False: skip the extra description/food_pairings
                 # HTML request here — it would ~double request volume across a
                 # whole cellar's worth of wines. Individual refresh still does it.
-                result = await vivino.search_wine(query, language, currency, wine.get("vintage"), fetch_extras=False)
+                result = await vivino.search_wine(
+                    query, language, currency, wine.get("vintage"), fetch_extras=False, wine_type=wine.get("type"),
+                )
                 lookup = result[0] if result else None
                 if lookup and not _vivino_match_is_trustworthy(wine, lookup):
                     _LOGGER.debug(
@@ -1551,13 +1687,11 @@ async def ws_batch_refresh_vivino(
             ai_price_used = False
 
             # Always update enrichment fields from Vivino
-            for key in ("rating", "ratings_count", "description",
-                        "food_pairings", "alcohol", "grape_variety"):
+            for key in ("rating", "ratings_count", "alcohol", "grape_variety"):
                 val = lookup.get(key)
                 if val:
                     updates[key] = val
-                    if key == "description":
-                        updates["description_language"] = language
+            _apply_vivino_text_fields(updates, wine, lookup, language)
 
             # Photo: only overwrite an existing photo when the user opted in
             # via photo_mode="replace"; otherwise leave the user's photo alone.
@@ -1722,7 +1856,8 @@ async def ws_enrich_wine_vivino(
 
     try:
         result = await vivino.search_wine(
-            query, _get_metadata_language(hass), _get_metadata_currency(hass), wine.get("vintage")
+            query, _get_metadata_language(hass), _get_metadata_currency(hass), wine.get("vintage"),
+            wine_type=wine.get("type"),
         )
         if not result:
             connection.send_result(msg["id"], {"result": None})
