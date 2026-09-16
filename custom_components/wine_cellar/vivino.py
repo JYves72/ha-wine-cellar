@@ -57,18 +57,44 @@ CURRENCY_COUNTRY_CODE = {
 }
 
 # The mobile API's region.country is a bare ISO code ("fr"), not a display
-# name — common wine-producing countries only, good enough since this is a
-# "fill only if empty" field (an already-matched wine typically has it set
-# from its first match already).
-COUNTRY_CODE_NAMES = {
-    "fr": "France", "it": "Italy", "es": "Spain", "pt": "Portugal",
-    "de": "Germany", "at": "Austria", "ch": "Switzerland",
-    "us": "United States", "ca": "Canada", "mx": "Mexico",
-    "au": "Australia", "nz": "New Zealand",
-    "ar": "Argentina", "cl": "Chile", "uy": "Uruguay",
-    "za": "South Africa", "gr": "Greece", "hu": "Hungary", "ge": "Georgia",
-    "gb": "United Kingdom", "uk": "United Kingdom",
+# name — common wine-producing countries only, good enough since region/
+# country are always-overwrite fields on a manual refresh (see
+# ws_refresh_wine), so a stale name from before this map existed still
+# gets corrected. Keyed by the country code, then by the configured
+# metadata language — a name that comes back in the wrong language means
+# the exact same country ends up as two different filter entries in the
+# app (English from here, French from Gemini's already-localized output),
+# so this must track _language_prefix's language set.
+COUNTRY_CODE_NAMES: dict[str, dict[str, str]] = {
+    "fr": {"en": "France", "fr": "France"},
+    "it": {"en": "Italy", "fr": "Italie"},
+    "es": {"en": "Spain", "fr": "Espagne"},
+    "pt": {"en": "Portugal", "fr": "Portugal"},
+    "de": {"en": "Germany", "fr": "Allemagne"},
+    "at": {"en": "Austria", "fr": "Autriche"},
+    "ch": {"en": "Switzerland", "fr": "Suisse"},
+    "us": {"en": "United States", "fr": "États-Unis"},
+    "ca": {"en": "Canada", "fr": "Canada"},
+    "mx": {"en": "Mexico", "fr": "Mexique"},
+    "au": {"en": "Australia", "fr": "Australie"},
+    "nz": {"en": "New Zealand", "fr": "Nouvelle-Zélande"},
+    "ar": {"en": "Argentina", "fr": "Argentine"},
+    "cl": {"en": "Chile", "fr": "Chili"},
+    "uy": {"en": "Uruguay", "fr": "Uruguay"},
+    "za": {"en": "South Africa", "fr": "Afrique du Sud"},
+    "gr": {"en": "Greece", "fr": "Grèce"},
+    "hu": {"en": "Hungary", "fr": "Hongrie"},
+    "ge": {"en": "Georgia", "fr": "Géorgie"},
+    "gb": {"en": "United Kingdom", "fr": "Royaume-Uni"},
+    "uk": {"en": "United Kingdom", "fr": "Royaume-Uni"},
 }
+
+
+def _country_name(code: str, language: str) -> str:
+    names = COUNTRY_CODE_NAMES.get((code or "").lower())
+    if not names:
+        return ""
+    return names.get(language) or names["en"]
 
 HEADERS = {
     "User-Agent": (
@@ -187,7 +213,7 @@ class VivinoClient:
     # ── Vivino Mobile API (by-id lookup) ──────────────────────────────
 
     async def get_wine_by_id(
-        self, vivino_id: int, vintage: int | None = None
+        self, vivino_id: int, vintage: int | None = None, language: str = "en"
     ) -> dict[str, Any] | None:
         """Look up a wine directly by its Vivino wine id.
 
@@ -201,7 +227,7 @@ class VivinoClient:
             timeout = aiohttp.ClientTimeout(total=15)
             async with session.get(
                 f"{VIVINO_MOBILE_API_URL}/wines/{vivino_id}",
-                headers={"Accept": "application/json"},
+                headers={"Accept": "application/json", "Accept-Language": _accept_language(language)},
                 timeout=timeout,
             ) as resp:
                 if resp.status != 200:
@@ -217,7 +243,7 @@ class VivinoClient:
         winery = (wine_data.get("winery") or {}).get("name", "")
         region_obj = wine_data.get("region") or {}
         region = region_obj.get("name", "")
-        country = COUNTRY_CODE_NAMES.get((region_obj.get("country") or "").lower(), "")
+        country = _country_name(region_obj.get("country") or "", language)
         wine_type = _map_wine_type(wine_data.get("type_id"))
         stats = wine_data.get("statistics") or {}
         rating = stats.get("ratings_average")

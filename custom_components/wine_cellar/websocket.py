@@ -1489,7 +1489,7 @@ async def ws_batch_refresh_vivino(
             # fallback below, if the user opted into it for this run.
             lookup = None
             if wine.get("vivino_id") and not _is_whisky(wine):
-                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"))
+                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
 
             if not lookup and not _is_whisky(wine):
                 if not query:

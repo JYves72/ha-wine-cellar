@@ -126,9 +126,14 @@ def _language_prefix(language: str) -> str:
     return (
         f"Respond in {name}. Every free-text field in your JSON output "
         f"(description, notes, food pairings, tasting profile) MUST be written "
-        f"in {name} — not English. This instruction overrides the language of "
-        f"the rest of this prompt. Wine names, winery names, dates, and numbers "
-        f"stay as-is.\n\n"
+        f"in {name} — not English. This also applies to \"region\" and \"country\": "
+        f"use the {name} exonym for the place (e.g. \"Vallée de la Loire\" not "
+        f"\"Loire Valley\", \"Toscane\" not \"Tuscany\" for French) whenever one is "
+        f"in common use, since the same wine's region/country must always come "
+        f"back as the exact same string regardless of which lookup filled it — "
+        f"the app groups and filters by this text. This instruction overrides "
+        f"the language of the rest of this prompt. Wine names, winery names, "
+        f"dates, and numbers stay as-is.\n\n"
     )
 
 
@@ -136,7 +141,10 @@ def _language_suffix(language: str) -> str:
     """Trailing reminder, reinforcing `_language_prefix` at the end of the prompt."""
     if language not in LANGUAGE_NAMES or language == "en":
         return ""
-    return f"\n\nReminder: write every free-text field in {LANGUAGE_NAMES[language]}."
+    return (
+        f"\n\nReminder: write every free-text field, including region and "
+        f"country, in {LANGUAGE_NAMES[language]}."
+    )
 
 
 def _extract_base64_from_data_url(value: str | None) -> str | None:
