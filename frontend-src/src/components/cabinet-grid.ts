@@ -15,6 +15,16 @@ export class CabinetGrid extends LitElement {
   // Candidates for a pending Vivino removal: every listed bottle gets an
   // orange ring so the user can see which ones may be the removed bottle.
   @property({ attribute: false }) removalHighlightIds: string[] = [];
+  // Set for as long as a long-press move is pending (Android's stand-in
+  // for drag-and-drop) — dims that one bottle so it's clear which one is
+  // "picked up" and waiting for a target tap, until the move completes or
+  // is cancelled. Deliberately its own reactive class, not the .drag-source
+  // that _onDragStart/_onDragEnd toggle: that one only tracks a real HTML5
+  // drag gesture, which touch-and-hold can trigger by accident without
+  // ever firing a matching dragend (see _onTouchEnd's own cleanup) — tying
+  // the "picked up" look to _movingWine's own lifecycle instead means it
+  // can't desync from either end of that.
+  @property({ attribute: false }) movingWineId: string | null = null;
   // "letter" (default): the classic D/H/P badge. "dot": a plain colored
   // circle with no letter (green/blue/purple) — a settings-level choice,
   // not per-bottle.
@@ -530,6 +540,17 @@ export class CabinetGrid extends LitElement {
         transform: scale(0.9);
       }
 
+      /* The one bottle picked up by a long-press, waiting for a target tap
+         (see movingWineId) — deliberately lighter than .drag-source and no
+         scale change, so it doesn't look like it's about to disappear: this
+         state can sit there indefinitely until the user taps a target or
+         cancels, unlike an actual drag in progress. */
+      .cell.move-source,
+      .zone-bottle.move-source,
+      .zone-shelf-dot.move-source {
+        opacity: 0.5;
+      }
+
       .cell.drag-over {
         box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.8);
         transform: scale(1.1);
@@ -1036,7 +1057,7 @@ export class CabinetGrid extends LitElement {
           const bgColor = WINE_TYPE_COLORS[wine.type as WineType] || WINE_TYPE_COLORS.red;
           return html`
             <div
-              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+              class="zone-bottle ${this._dragOverCell === bottleKey ? "drag-over" : ""} ${wine.id === this.highlightWineId ? "locate-highlight" : ""} ${this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine.id === this.movingWineId ? "move-source" : ""}"
               style="background: ${bgColor};${this._dispositionRingStyle(dispClass, this._brightenColor(bgColor))}"
               data-wine-id="${wine.id}"
               draggable="true"
@@ -1169,7 +1190,7 @@ export class CabinetGrid extends LitElement {
       const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
       const basis = scale === 1 ? dotBasis : `calc(${dotBasis} * ${scale})`;
       return html`<span
-        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+        class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine && wine.id === this.movingWineId ? "move-source" : ""}"
         style="flex-basis:${basis};max-width:${basis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
         title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
         draggable=${wine ? "true" : "false"}
@@ -1249,7 +1270,7 @@ export class CabinetGrid extends LitElement {
           const disp = wine?.disposition || "";
           const dispClass = disp === "D" ? "drink" : disp === "H" ? "hold" : disp === "P" ? "past" : "";
           return html`<span
-            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""}"
+            class="zone-shelf-dot ${wine ? "filled" : ""} ${this._dragOverCell === dotKey ? "drag-over" : ""} ${wine && wine.id === this.highlightWineId ? "locate-highlight" : ""} ${wine && this.removalHighlightIds.includes(wine.id) ? "removal-highlight" : ""} ${wine && wine.id === this.movingWineId ? "move-source" : ""}"
             style="flex-basis:${dotBasis};max-width:${dotBasis}${wine ? `;background:${bg};--bottle-type-color:${ring};${this._dispositionRingStyle(dispClass, ring)}` : ""}"
             title="${wine ? `${wine.name} (${wine.vintage || "NV"})` : ""}"
             draggable=${wine ? "true" : "false"}
@@ -1309,9 +1330,10 @@ export class CabinetGrid extends LitElement {
           const isRemovalCandidate =
             this.removalHighlightIds.length > 0 &&
             wines.some((w) => this.removalHighlightIds.includes(w.id));
+          const isMoving = !!this.movingWineId && wines.some((w) => w.id === this.movingWineId);
           return html`
             <div
-              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""}"
+              class="cell ${frontWine ? "filled" : "empty"} ${isDragOver ? "drag-over" : ""} ${isHighlighted ? "locate-highlight" : ""} ${isRemovalCandidate ? "removal-highlight" : ""} ${isMoving ? "move-source" : ""}"
               style=${frontWine ? `background: ${bgColor}; --bottle-type-color: ${ringColor};${this._dispositionRingStyle(dispClass, ringColor)}` : ""}
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}

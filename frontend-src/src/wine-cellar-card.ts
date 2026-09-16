@@ -2799,6 +2799,7 @@ export class WineCellarCard extends LitElement {
                           .wines=${this._getCabinetWines(cab.id)}
                           .highlightWineId=${this._highlightWineId}
                           .removalHighlightIds=${this._removalHighlightIds}
+                          .movingWineId=${this._movingWine?.id || null}
                           .dispositionDisplay=${this._dispositionDisplay}
                           @cell-click=${this._onCellClick}
                           @zone-click=${this._onZoneClick}
@@ -2822,6 +2823,7 @@ export class WineCellarCard extends LitElement {
                             .wines=${this._getCabinetWines(cab.id)}
                             .highlightWineId=${this._highlightWineId}
                             .removalHighlightIds=${this._removalHighlightIds}
+                            .movingWineId=${this._movingWine?.id || null}
                             .dispositionDisplay=${this._dispositionDisplay}
                             @cell-click=${this._onCellClick}
                             @zone-click=${this._onZoneClick}
