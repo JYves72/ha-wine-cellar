@@ -239,7 +239,17 @@ def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]
     so compare winery+name against what was actually searched for and
     refuse the match if it shares no distinctive words, rather than
     silently writing another wine's price/rating/description onto this one.
+
+    Also refuses a match whose wine type disagrees with the subject's own
+    known type — a producer can sell a red, rosé and white under the exact
+    same name (e.g. "Bronzinelle"), so name/winery overlap alone isn't
+    enough to tell them apart. Better to report no match at all than to
+    confidently apply the wrong variant's photo/description/rating.
     """
+    subject_type = subject.get("type")
+    lookup_type = lookup.get("type")
+    if subject_type and lookup_type and subject_type != lookup_type:
+        return False
     subject_words = _significant_words(f"{subject.get('winery', '')} {subject.get('name', '')}")
     lookup_words = _significant_words(f"{lookup.get('winery', '')} {lookup.get('name', '')}")
     if not subject_words or not lookup_words:
@@ -1177,6 +1187,17 @@ async def ws_refresh_wine(
     lookup = None
     if wine.get("vivino_id") and not _is_whisky(wine):
         lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+        if lookup and not _vivino_match_is_trustworthy(wine, lookup):
+            # The stored vivino_id itself points at the wrong variant (e.g.
+            # it was matched to the rosé of a name a producer also sells as
+            # red/white) — a by-id lookup has no query to re-check against,
+            # so this is caught here instead of before it's ever stored.
+            # Don't keep it; fall through to a fresh text search below.
+            _LOGGER.debug(
+                "Vivino by-id lookup for '%s' has the wrong type (%s), re-searching",
+                query, lookup.get("type"),
+            )
+            lookup = None
 
     if not lookup and not _is_whisky(wine):
         if not query:
@@ -1224,9 +1245,14 @@ async def ws_refresh_wine(
         if val:
             updates[key] = val
             if key == "description":
-                # So a later AI analysis run knows this description is
-                # already in the current language and doesn't redo it.
-                updates["description_language"] = language
+                # Vivino's tasting-note text is free-form and community-
+                # authored, not actually translated per Accept-Language
+                # despite the header we send with every request — tag it as
+                # English (its real, likely source language) rather than
+                # the configured language, so a later AI analysis run still
+                # sees a mismatch and regenerates it properly instead of
+                # wrongly believing it's already in the target language.
+                updates["description_language"] = "en"
 
     # Photo: never silently overwrite a photo the user already has. If the
     # wine has no photo yet, apply Vivino's automatically. Otherwise surface
@@ -1517,6 +1543,15 @@ async def ws_batch_refresh_vivino(
             lookup = None
             if wine.get("vivino_id") and not _is_whisky(wine):
                 lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+                if lookup and not _vivino_match_is_trustworthy(wine, lookup):
+                    # Same guard as the single-wine refresh: a stored
+                    # vivino_id can point at the wrong same-name variant
+                    # (e.g. rosé instead of red) — discard it and re-search.
+                    _LOGGER.debug(
+                        "Batch Vivino: by-id lookup for '%s' has the wrong type (%s), re-searching",
+                        query, lookup.get("type"),
+                    )
+                    lookup = None
 
             if not lookup and not _is_whisky(wine):
                 if not query:
@@ -1586,7 +1621,11 @@ async def ws_batch_refresh_vivino(
                 if val:
                     updates[key] = val
                     if key == "description":
-                        updates["description_language"] = language
+                        # See the single-wine refresh above: Vivino's raw
+                        # text isn't actually translated per Accept-Language,
+                        # so tag it as English rather than the configured
+                        # language to let a later AI pass regenerate it.
+                        updates["description_language"] = "en"
 
             # Photo: only overwrite an existing photo when the user opted in
             # via photo_mode="replace"; otherwise leave the user's photo alone.
