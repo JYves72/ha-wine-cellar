@@ -1230,6 +1230,8 @@ var ui$1 = {
 		grapeVarietyLabel: "Grape Variety",
 		alcoholLabel: "Alcohol",
 		alcoholPlaceholder: "e.g. 13.5%",
+		servingTempLabel: "Serving temp.",
+		servingTempPlaceholder: "e.g. 16-18°C",
 		purchaseDateLabel: "Purchase Date",
 		drinkFromLabel: "Drink From",
 		drinkFromPlaceholder: "e.g. 2025",
@@ -1989,6 +1991,8 @@ var ui = {
 		grapeVarietyLabel: "Cépage",
 		alcoholLabel: "Alcool",
 		alcoholPlaceholder: "ex. 13,5 %",
+		servingTempLabel: "Température idéale",
+		servingTempPlaceholder: "ex. 16-18°C",
 		purchaseDateLabel: "Date d'achat",
 		drinkFromLabel: "À boire à partir de",
 		drinkFromPlaceholder: "ex. 2025",
@@ -3993,7 +3997,8 @@ let CabinetGrid = class CabinetGrid extends i {
         const levels = Array.from(byLevel.entries()).sort((a, b) => b[0] - a[0]);
         // One dot size for the whole shelf, sized off whichever level packs the
         // most "weight" into its single interleaved row — front dots count as
-        // 1, back dots (rendered at half scale) count as 0.5, since that's how
+        // 1, back dots (rendered at sqrt(0.5) width — half *area*, see
+        // BACK_DOT_SCALE below) count as that same fraction, since that's how
         // much horizontal room each actually needs. Using the old two-separate-
         // rows maxCount here (just the bigger of front/back alone) badly
         // undersized this: a row now holds front+back dots combined, not
@@ -4002,7 +4007,7 @@ let CabinetGrid = class CabinetGrid extends i {
         let dominantWeight = 1;
         let dominantItems = 1;
         for (const l of levelsData) {
-            const weight = l.front + l.back * 0.5;
+            const weight = l.front + l.back * Math.SQRT1_2;
             if (weight > dominantWeight) {
                 dominantWeight = weight;
                 dominantItems = l.front + l.back;
@@ -4015,10 +4020,14 @@ let CabinetGrid = class CabinetGrid extends i {
         const dotBasis = `calc((100% - ${(dominantItems - 1) * 2 + 8}px) / ${dominantWeight})`;
         // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
         // if it doesn't work out. Interleaves the back lane's dots between the
-        // front lane's, at half size, in one row instead of two labeled ones —
-        // meant to roughly halve each board's height. Nothing about
-        // shelf_levels/front/back/name config changes, only how this one
-        // zone renders.
+        // front lane's, at half *surface area*, in one row instead of two
+        // labeled ones — meant to roughly halve each board's height. Area
+        // scales with the square of the linear dimension, so halving the area
+        // means scaling width/height by sqrt(0.5), not by 0.5 itself (which
+        // would halve the diameter and leave only a quarter of the area).
+        // Nothing about shelf_levels/front/back/name config changes, only how
+        // this one zone renders.
+        const BACK_DOT_SCALE = Math.SQRT1_2;
         const renderDot = (group, indexInGroup, scale) => {
             const depth = group.start + indexInGroup;
             const dotKey = `${zoneKey}-${depth}`;
@@ -4048,8 +4057,8 @@ let CabinetGrid = class CabinetGrid extends i {
         // each position), with the shorter one nested right after — any surplus
         // of the longer lane tacked on at the end. On a swapped level (back=4,
         // front=3), that means position 1 is a back dot, not front. Scale
-        // always follows the lane itself (front=1, back=0.5), regardless of
-        // which one leads.
+        // always follows the lane itself (front=1, back=BACK_DOT_SCALE),
+        // regardless of which one leads.
         const renderInterleavedLane = (front, back) => {
             const frontSize = front?.size || 0;
             const backSize = back?.size || 0;
@@ -4060,11 +4069,11 @@ let CabinetGrid = class CabinetGrid extends i {
                     if (i < frontSize)
                         items.push(renderDot(front, i, 1));
                     if (i < backSize)
-                        items.push(renderDot(back, i, 0.5));
+                        items.push(renderDot(back, i, BACK_DOT_SCALE));
                 }
                 else {
                     if (i < backSize)
-                        items.push(renderDot(back, i, 0.5));
+                        items.push(renderDot(back, i, BACK_DOT_SCALE));
                     if (i < frontSize)
                         items.push(renderDot(front, i, 1));
                 }
@@ -5654,6 +5663,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             drink_window: this.wine.drink_window || "",
             notes: this.wine.notes || "",
             alcohol: this.wine.alcohol || "",
+            serving_temp: this.wine.serving_temp || "",
         };
         const windowStart = (this.wine.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
         this._editDrinkFrom = windowStart ? windowStart[0] : "";
@@ -6114,6 +6124,19 @@ let WineDetailDialog = class WineDetailDialog extends i {
             result.push(current.trim());
         return result;
     }
+    // Purchase date is stored as a plain "YYYY-MM-DD" string (from a native
+    // date input); displayed in the viewer's own locale order instead of
+    // always showing the raw ISO order. The literal "T00:00:00" makes the
+    // Date parse as local midnight rather than UTC midnight, so a negative
+    // UTC-offset timezone doesn't roll it back a day.
+    _formatDate(iso) {
+        if (!iso)
+            return "";
+        const d = new Date(`${iso}T00:00:00`);
+        if (isNaN(d.getTime()))
+            return iso;
+        return d.toLocaleDateString(this.hass?.language, { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
     _hasTastingNotes() {
         const n = this._tastingNotes;
         return !!(n.aroma || n.taste || n.finish || n.overall);
@@ -6210,6 +6233,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
             <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
             <input type="text" .value=${d.alcohol} placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
               @input=${(e) => this._updateEditField("alcohol", e.target.value)} />
+          </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.servingTempLabel")}</label>
+            <input type="text" .value=${d.serving_temp} placeholder="${this._t('ui.wineDetail.servingTempPlaceholder')}"
+              @input=${(e) => this._updateEditField("serving_temp", e.target.value)} />
           </div>
         </div>
 
@@ -6445,8 +6473,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="wine-description">${wine.description}</div>`
                 : A}
 
-                <!-- Info chips (grape, food, alcohol, etc.) -->
-                ${wine.food_pairings || wine.alcohol || wine.grape_variety
+                <!-- Info chips (grape, food, alcohol, serving temp, etc.) -->
+                ${wine.food_pairings || wine.alcohol || wine.serving_temp || wine.grape_variety
                 ? b `
                       <div class="info-chips">
                         ${wine.grape_variety
@@ -6454,6 +6482,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     : A}
                         ${wine.alcohol
                     ? b `<span class="info-chip"><span class="info-chip-icon">%</span> ${wine.alcohol}</span>`
+                    : A}
+                        ${wine.serving_temp
+                    ? b `<span class="info-chip"><span class="info-chip-icon">🌡️</span> ${wine.serving_temp}</span>`
                     : A}
                         ${wine.food_pairings
                     ? this._splitPairings(wine.food_pairings).map((food) => b `<span class="info-chip">${food}</span>`)
@@ -6499,9 +6530,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
                 : A}
                   ${wine.purchase_date && this.mode === "cellar"
-                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${wine.purchase_date}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${this._formatDate(wine.purchase_date)}</span></div>`
                 : A}
-                  ${wine.drink_by
+                  ${wine.drink_by && !wine.disposition
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.drinkByLabel")}</span><span class="detail-value">${wine.drink_by}</span></div>`
                 : A}
                   ${wine.barcode && this.mode === "cellar"
@@ -7675,6 +7706,7 @@ let AddWineDialog = class AddWineDialog extends i {
                     description: result.result.description || "",
                     food_pairings: result.result.food_pairings || "",
                     alcohol: result.result.alcohol || "",
+                    serving_temp: result.result.serving_temp || "",
                     vivino_updated_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_updated_at,
                     vivino_checked_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_checked_at,
                 };
@@ -7753,6 +7785,7 @@ let AddWineDialog = class AddWineDialog extends i {
             description: item.description || "",
             food_pairings: item.food_pairings || "",
             alcohol: item.alcohol || "",
+            serving_temp: item.serving_temp || "",
             vivino_updated_at: new Date().toISOString(),
             vivino_checked_at: new Date().toISOString(),
         };
@@ -7808,6 +7841,8 @@ let AddWineDialog = class AddWineDialog extends i {
                     description: r.description || "",
                     retail_price: r.estimated_price || null,
                     ai_ratings: r.ai_ratings || null,
+                    alcohol: r.alcohol || "",
+                    serving_temp: r.serving_temp || "",
                     notes: r.notes || "",
                     barcode: r.barcode || this._wineData.barcode || "",
                     image_url: thumbUrl,

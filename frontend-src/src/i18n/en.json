@@ -489,6 +489,8 @@
       "grapeVarietyLabel": "Grape Variety",
       "alcoholLabel": "Alcohol",
       "alcoholPlaceholder": "e.g. 13.5%",
+      "servingTempLabel": "Serving temp.",
+      "servingTempPlaceholder": "e.g. 16-18°C",
       "purchaseDateLabel": "Purchase Date",
       "drinkFromLabel": "Drink From",
       "drinkFromPlaceholder": "e.g. 2025",

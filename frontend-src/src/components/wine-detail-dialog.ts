@@ -615,6 +615,7 @@ export class WineDetailDialog extends LitElement {
       drink_window: this.wine.drink_window || "",
       notes: this.wine.notes || "",
       alcohol: this.wine.alcohol || "",
+      serving_temp: this.wine.serving_temp || "",
     };
     const windowStart = (this.wine.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
     this._editDrinkFrom = windowStart ? windowStart[0] : "";
@@ -1060,6 +1061,18 @@ export class WineDetailDialog extends LitElement {
     return result;
   }
 
+  // Purchase date is stored as a plain "YYYY-MM-DD" string (from a native
+  // date input); displayed in the viewer's own locale order instead of
+  // always showing the raw ISO order. The literal "T00:00:00" makes the
+  // Date parse as local midnight rather than UTC midnight, so a negative
+  // UTC-offset timezone doesn't roll it back a day.
+  private _formatDate(iso: string): string {
+    if (!iso) return "";
+    const d = new Date(`${iso}T00:00:00`);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(this.hass?.language, { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
   private _hasTastingNotes(): boolean {
     const n = this._tastingNotes;
     return !!(n.aroma || n.taste || n.finish || n.overall);
@@ -1159,6 +1172,11 @@ export class WineDetailDialog extends LitElement {
             <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
             <input type="text" .value=${d.alcohol} placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
               @input=${(e: Event) => this._updateEditField("alcohol", (e.target as HTMLInputElement).value)} />
+          </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.servingTempLabel")}</label>
+            <input type="text" .value=${d.serving_temp} placeholder="${this._t('ui.wineDetail.servingTempPlaceholder')}"
+              @input=${(e: Event) => this._updateEditField("serving_temp", (e.target as HTMLInputElement).value)} />
           </div>
         </div>
 
@@ -1403,8 +1421,8 @@ export class WineDetailDialog extends LitElement {
                   ? html`<div class="wine-description">${wine.description}</div>`
                   : nothing}
 
-                <!-- Info chips (grape, food, alcohol, etc.) -->
-                ${wine.food_pairings || wine.alcohol || wine.grape_variety
+                <!-- Info chips (grape, food, alcohol, serving temp, etc.) -->
+                ${wine.food_pairings || wine.alcohol || wine.serving_temp || wine.grape_variety
                   ? html`
                       <div class="info-chips">
                         ${wine.grape_variety
@@ -1412,6 +1430,9 @@ export class WineDetailDialog extends LitElement {
                           : nothing}
                         ${wine.alcohol
                           ? html`<span class="info-chip"><span class="info-chip-icon">%</span> ${wine.alcohol}</span>`
+                          : nothing}
+                        ${wine.serving_temp
+                          ? html`<span class="info-chip"><span class="info-chip-icon">🌡️</span> ${wine.serving_temp}</span>`
                           : nothing}
                         ${wine.food_pairings
                           ? this._splitPairings(wine.food_pairings).map(
@@ -1459,9 +1480,9 @@ export class WineDetailDialog extends LitElement {
                     ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
                     : nothing}
                   ${wine.purchase_date && this.mode === "cellar"
-                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${wine.purchase_date}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${this._formatDate(wine.purchase_date)}</span></div>`
                     : nothing}
-                  ${wine.drink_by
+                  ${wine.drink_by && !wine.disposition
                     ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.drinkByLabel")}</span><span class="detail-value">${wine.drink_by}</span></div>`
                     : nothing}
                   ${wine.barcode && this.mode === "cellar"

@@ -154,7 +154,7 @@ def _build_ai_updates(
     # Fill in fields the AI could read off the label photo (or knows from
     # the producer) — only when the wine doesn't already have them, same
     # "fill empty fields only" rule Vivino's own enrichment follows.
-    for key in ("region", "country", "grape_variety", "alcohol"):
+    for key in ("region", "country", "grape_variety", "alcohol", "serving_temp"):
         val = result.get(key)
         if val and not wine.get(key):
             updates[key] = val

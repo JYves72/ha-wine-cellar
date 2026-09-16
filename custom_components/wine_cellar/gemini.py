@@ -170,6 +170,8 @@ LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognitio
   "rating_rp": null,
   "rating_jd": null,
   "rating_ag": null,
+  "alcohol": null,
+  "serving_temp": null,
   "notes": "brief notes from the label",
   "barcode": null
 }}
@@ -190,7 +192,7 @@ Whisky labels (type "whisky") reuse the same fields:
 - "region": the whisky region (e.g. Islay, Speyside, Highlands, Kentucky, Hokkaido)
 - "disposition": always "D", "drink_by": "" and "drink_window": "" — whisky does not age in the bottle
 - Rating fields (rating_ws, rating_rp, rating_jd, rating_ag) are wine critics: return null for whisky
-- "estimated_price" and "description" apply as normal; "notes" may hold the ABV, bottle size and cask strength/chill-filtration details from the label
+- "estimated_price" and "description" apply as normal; "alcohol" is the ABV as printed (e.g. "43%"); "serving_temp" is null (whisky is drunk neat or on the rocks, not chilled to a range); "notes" may hold the bottle size and cask strength/chill-filtration details from the label
 
 Wine analysis rules:
 - "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak
@@ -209,6 +211,8 @@ Wine analysis rules:
 - "estimated_price": estimated current US retail price as a number (e.g. 45.00). Use null only if truly unknown.
 - Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess.
   - rating_ws = Wine Spectator, rating_rp = Robert Parker, rating_jd = Jeb Dunnuck, rating_ag = Antonio Galloni
+- "alcohol": read the printed ABV off the label if visible (e.g. "13.5%"); otherwise give your best estimate for a wine of this type/region/style (e.g. most dry reds 13-14.5%, most dry whites 12-13%, off-dry/dessert wines lower, fortified wines 17-20%). Only null if you genuinely cannot judge even a range.
+- "serving_temp": the ideal serving temperature range in Celsius for this wine's type and style (e.g. "16-18°C" for a full-bodied red, "8-10°C" for a light white, "6-8°C" for sparkling, "10-12°C" for dessert/fortified) — always give a range, this is standard sommelier knowledge independent of the specific bottle.
 - "notes": brief info from the label itself (appellation, classification, etc.)"""
 
 
@@ -330,13 +334,16 @@ Return ONLY a JSON object with these fields:
   "region": null,
   "country": null,
   "grape_variety": null,
-  "alcohol": null
+  "alcohol": null,
+  "serving_temp": null
 }}
 
 Rules:
 - "disposition" is always "D" and "drink_by"/"drink_window" are always "": whisky does not develop in a sealed bottle
 - "description": professional tasting-style description (nose, palate, finish) of this expression. If you don't know this exact bottling, describe what to expect from the distillery's style, the age statement and the cask type.
 - "estimated_price": estimated current retail price in {currency} for this bottle as a number (e.g. 65.00). Return null only if you truly cannot estimate.
+- "alcohol": the ABV if printed or known for this expression (e.g. "43%"); best estimate otherwise (most whisky is 40-46%, cask strength releases higher) — only null if you genuinely cannot judge even a range
+- "serving_temp": always null — whisky is drunk neat, on the rocks or with a splash of water, not served within a temperature range
 - The rating fields are wine critics and must stay null
 - "region"/"country"/"grape_variety"/"alcohol": only fill these in if the corresponding field above is empty AND you can actually determine it. "grape_variety" holds the cask/maturation info (e.g. "Ex-bourbon and oloroso sherry casks"), "alcohol" the ABV as printed (e.g. "46%"). Leave null if already provided above or genuinely unknown — don't guess.""" + photo_note
 
@@ -453,6 +460,8 @@ class BaseAIClient:
             "description": str(result.get("description") or "").strip(),
             "estimated_price": est_price,
             "ai_ratings": ai_ratings if ai_ratings else None,
+            "alcohol": str(result.get("alcohol") or "").strip(),
+            "serving_temp": str(result.get("serving_temp") or "").strip(),
             "notes": str(result.get("notes") or "").strip(),
             "barcode": barcode,
             "rating": None,
@@ -636,7 +645,8 @@ Return ONLY a JSON object with these fields:
   "region": null,
   "country": null,
   "grape_variety": null,
-  "alcohol": null
+  "alcohol": null,
+  "serving_temp": null
 }}
 
 Rules:
@@ -662,7 +672,9 @@ Rules:
   - "rating_jd": Jeb Dunnuck score (out of 100)
   - "rating_ag": Antonio Galloni / Vinous score (out of 100)
 - "estimated_price": estimated current retail price in {currency} as a number (e.g. 45.00). Use your knowledge of the wine market to estimate what this bottle currently sells for. Return null only if you truly cannot estimate.
-- "region"/"country"/"grape_variety"/"alcohol": only fill these in if the "Region"/"Country"/"Grape" fields above are empty AND you can actually determine them (from the label photo if attached, or from your own knowledge of this producer). Leave null if already provided above or genuinely unknown — don't guess.""" + (
+- "region"/"country"/"grape_variety": only fill these in if the "Region"/"Country"/"Grape" fields above are empty AND you can actually determine them (from the label photo if attached, or from your own knowledge of this producer). Leave null if already provided above or genuinely unknown — don't guess.
+- "alcohol": read the printed ABV off the label if visible (e.g. "13.5%"), otherwise give your best estimate for a wine of this type/region/style (most dry reds 13-14.5%, most dry whites 12-13%, off-dry/dessert lower, fortified 17-20%). Only null if you genuinely cannot judge even a range.
+- "serving_temp": the ideal serving temperature range in Celsius for this wine's type and style (e.g. "16-18°C" for a full-bodied red, "8-10°C" for a light white, "6-8°C" for sparkling, "10-12°C" for dessert/fortified) — always give a range, this is standard sommelier knowledge independent of the specific bottle.""" + (
             "\n\nA photo of the bottle/label is attached"
             + (" (front, then back)" if back_photo else " (front label)")
             + ". If you don't recognize this specific wine from general knowledge "
@@ -716,6 +728,7 @@ Rules:
             "country": str(result.get("country") or "").strip(),
             "grape_variety": str(result.get("grape_variety") or "").strip(),
             "alcohol": str(result.get("alcohol") or "").strip(),
+            "serving_temp": str(result.get("serving_temp") or "").strip(),
         }
 
     async def analyze_collection(self, wines: list[dict[str, Any]]) -> dict[str, Any]:

@@ -674,6 +674,7 @@ export class AddWineDialog extends LitElement {
           description: result.result.description || "",
           food_pairings: result.result.food_pairings || "",
           alcohol: result.result.alcohol || "",
+          serving_temp: result.result.serving_temp || "",
           vivino_updated_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_updated_at,
           vivino_checked_at: result.result.source === "vivino" ? new Date().toISOString() : this._wineData.vivino_checked_at,
         };
@@ -754,6 +755,7 @@ export class AddWineDialog extends LitElement {
       description: item.description || "",
       food_pairings: item.food_pairings || "",
       alcohol: item.alcohol || "",
+      serving_temp: item.serving_temp || "",
       vivino_updated_at: new Date().toISOString(),
       vivino_checked_at: new Date().toISOString(),
     };
@@ -812,6 +814,8 @@ export class AddWineDialog extends LitElement {
           description: r.description || "",
           retail_price: r.estimated_price || null,
           ai_ratings: r.ai_ratings || null,
+          alcohol: r.alcohol || "",
+          serving_temp: r.serving_temp || "",
           notes: r.notes || "",
           barcode: r.barcode || this._wineData.barcode || "",
           image_url: thumbUrl,

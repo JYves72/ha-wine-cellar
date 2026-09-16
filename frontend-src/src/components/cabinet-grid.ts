@@ -1116,7 +1116,8 @@ export class CabinetGrid extends LitElement {
 
     // One dot size for the whole shelf, sized off whichever level packs the
     // most "weight" into its single interleaved row — front dots count as
-    // 1, back dots (rendered at half scale) count as 0.5, since that's how
+    // 1, back dots (rendered at sqrt(0.5) width — half *area*, see
+    // BACK_DOT_SCALE below) count as that same fraction, since that's how
     // much horizontal room each actually needs. Using the old two-separate-
     // rows maxCount here (just the bigger of front/back alone) badly
     // undersized this: a row now holds front+back dots combined, not
@@ -1125,7 +1126,7 @@ export class CabinetGrid extends LitElement {
     let dominantWeight = 1;
     let dominantItems = 1;
     for (const l of levelsData) {
-      const weight = l.front + l.back * 0.5;
+      const weight = l.front + l.back * Math.SQRT1_2;
       if (weight > dominantWeight) {
         dominantWeight = weight;
         dominantItems = l.front + l.back;
@@ -1139,10 +1140,14 @@ export class CabinetGrid extends LitElement {
 
     // EXPERIMENTAL — see conversation 2026-09-14, planned to be rolled back
     // if it doesn't work out. Interleaves the back lane's dots between the
-    // front lane's, at half size, in one row instead of two labeled ones —
-    // meant to roughly halve each board's height. Nothing about
-    // shelf_levels/front/back/name config changes, only how this one
-    // zone renders.
+    // front lane's, at half *surface area*, in one row instead of two
+    // labeled ones — meant to roughly halve each board's height. Area
+    // scales with the square of the linear dimension, so halving the area
+    // means scaling width/height by sqrt(0.5), not by 0.5 itself (which
+    // would halve the diameter and leave only a quarter of the area).
+    // Nothing about shelf_levels/front/back/name config changes, only how
+    // this one zone renders.
+    const BACK_DOT_SCALE = Math.SQRT1_2;
     const renderDot = (group: ShelfSlotGroup, indexInGroup: number, scale: number) => {
       const depth = group.start + indexInGroup;
       const dotKey = `${zoneKey}-${depth}`;
@@ -1173,8 +1178,8 @@ export class CabinetGrid extends LitElement {
     // each position), with the shorter one nested right after — any surplus
     // of the longer lane tacked on at the end. On a swapped level (back=4,
     // front=3), that means position 1 is a back dot, not front. Scale
-    // always follows the lane itself (front=1, back=0.5), regardless of
-    // which one leads.
+    // always follows the lane itself (front=1, back=BACK_DOT_SCALE),
+    // regardless of which one leads.
     const renderInterleavedLane = (front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined) => {
       const frontSize = front?.size || 0;
       const backSize = back?.size || 0;
@@ -1183,9 +1188,9 @@ export class CabinetGrid extends LitElement {
       for (let i = 0; i < Math.max(frontSize, backSize); i++) {
         if (frontLeads) {
           if (i < frontSize) items.push(renderDot(front!, i, 1));
-          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+          if (i < backSize) items.push(renderDot(back!, i, BACK_DOT_SCALE));
         } else {
-          if (i < backSize) items.push(renderDot(back!, i, 0.5));
+          if (i < backSize) items.push(renderDot(back!, i, BACK_DOT_SCALE));
           if (i < frontSize) items.push(renderDot(front!, i, 1));
         }
       }
