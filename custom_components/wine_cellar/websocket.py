@@ -151,10 +151,19 @@ def _build_ai_updates(
             updates["retail_price"] = round(float(est_price), 2)
             updates["retail_price_currency"] = currency
 
-    # Fill in fields the AI could read off the label photo (or knows from
-    # the producer) — only when the wine doesn't already have them, same
-    # "fill empty fields only" rule Vivino's own enrichment follows.
-    for key in ("region", "country", "grape_variety", "alcohol", "serving_temp"):
+    # "region"/"country" are always overwritten by a manual re-analysis —
+    # same precedent as Vivino's own manual refresh for these exact two
+    # fields (ws_refresh_wine): a re-run is the user asking for fresh data
+    # there, most often specifically because the stored value is wrong
+    # (wrong language, too broad/narrow a place name — see gemini.py's
+    # region rules). The rest only fill a gap, never override what's
+    # already there — that's still the right default for grape_variety/
+    # alcohol/serving_temp, which don't have that class of problem.
+    for key in ("region", "country"):
+        val = result.get(key)
+        if val:
+            updates[key] = val
+    for key in ("grape_variety", "alcohol", "serving_temp"):
         val = result.get(key)
         if val and not wine.get(key):
             updates[key] = val

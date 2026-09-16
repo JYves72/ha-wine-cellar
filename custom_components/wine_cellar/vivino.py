@@ -96,6 +96,33 @@ def _country_name(code: str, language: str) -> str:
         return ""
     return names.get(language) or names["en"]
 
+
+# Reverse of COUNTRY_CODE_NAMES's English name, for sources that hand back a
+# plain country name instead of an ISO code — Open Food Facts does this, in
+# whatever language its own product data happens to be tagged in (usually
+# English), regardless of the language this integration is configured for.
+_EN_COUNTRY_NAME_TO_TRANSLATIONS = {
+    names["en"].lower(): names for names in COUNTRY_CODE_NAMES.values()
+}
+
+
+def _translate_country_name(name: str, language: str) -> str:
+    """Best-effort translation of a plain (usually English) country name.
+
+    Falls back to the name as given for anything not in the small
+    wine-producing-country table above — better than an error, and no
+    worse than what came in.
+    """
+    if not name or language == "en":
+        return name
+    # A multi-value field ("Italy,France") only ever needs its first entry
+    # translated — the rest is unusual enough for a wine that guessing
+    # further would do more harm than good.
+    first = name.split(",")[0].strip()
+    names = _EN_COUNTRY_NAME_TO_TRANSLATIONS.get(first.lower())
+    return names.get(language, name) if names else name
+
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
@@ -196,7 +223,7 @@ class VivinoClient:
         """
         upc_result, off_result = await asyncio.gather(
             self._lookup_upc_itemdb(barcode),
-            self._search_open_food_facts(barcode),
+            self._search_open_food_facts(barcode, language),
             return_exceptions=True,
         )
         for result in (upc_result, off_result):
@@ -747,7 +774,7 @@ class VivinoClient:
 
     # ── Open Food Facts ──────────────────────────────────────────────
 
-    async def _search_open_food_facts(self, barcode: str) -> dict[str, Any] | None:
+    async def _search_open_food_facts(self, barcode: str, language: str = "en") -> dict[str, Any] | None:
         """Fall back to Open Food Facts for barcode lookup."""
         session = async_get_clientsession(self._hass)
 
@@ -773,7 +800,7 @@ class VivinoClient:
                     categories = product.get("categories", "").lower()
                     image = product.get("image_url", "")
                     origin = product.get("origins", "")
-                    country = product.get("countries", "")
+                    country = _translate_country_name(product.get("countries", ""), language)
 
                     wine_type = "red"
                     if _looks_like_whisky(categories) or _looks_like_whisky(name):

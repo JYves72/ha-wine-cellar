@@ -166,7 +166,7 @@ LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognitio
   "winery": "the producer/winery/domaine/château name",
   "vintage": 2020,
   "type": "red",
-  "region": "the wine region (e.g. Bordeaux, Napa Valley, Barossa Valley)",
+  "region": "the broad, commonly-recognized wine region — see the rule below, not just any label text",
   "country": "the country of origin",
   "grape_variety": "grape varieties if mentioned on label or known for this wine",
   "disposition": "D",
@@ -189,6 +189,9 @@ Label reading rules:
 - "vintage" must be a 4-digit year as an integer, or null if not visible (NV wines = null) — check both front and back label if two images are provided, since the vintage is often only on the back
 - "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - For "type", infer from visual cues (bottle color, label text like "Blanc", "Rosé", "Brut") if not explicitly stated
+- "region" must be the broad, commonly-recognized wine region — the level used for grouping and filtering (e.g. "Bordeaux", "Vallée du Rhône", "Vallée de la Loire", "Toscane", "Napa Valley"), never:
+  - a specific appellation, commune or vineyard name printed on the label (e.g. a label reading "Saint-Nicolas-de-Bourgueil" belongs to the Loire Valley — that IS the region, the appellation on the label is not)
+  - a generic quality classification with no geographic meaning (e.g. "Vin de France", "Table Wine", "IGP") — if that is the only designation on the label, infer the actual region from the address/appellation printed instead; only fall back to the classification itself if truly nothing more specific is knowable
 - "barcode": if a barcode is visible in any image, read the digits printed alongside/below it (typically 8-14 digits, EAN-13 or UPC-A) and return them as a string. Only return digits you can actually read — null if no barcode is visible or the digits aren't legible.
 - If the image is neither a wine label nor a whisky label, return {{"error": "not_a_wine_label"}}
 
@@ -681,6 +684,7 @@ Rules:
   - "rating_ag": Antonio Galloni / Vinous score (out of 100)
 - "estimated_price": estimated current retail price in {currency} as a number (e.g. 45.00). Use your knowledge of the wine market to estimate what this bottle currently sells for. Return null only if you truly cannot estimate.
 - "region"/"country"/"grape_variety": only fill these in if the "Region"/"Country"/"Grape" fields above are empty AND you can actually determine them (from the label photo if attached, or from your own knowledge of this producer). Leave null if already provided above or genuinely unknown — don't guess.
+  - "region" must be the broad, commonly-recognized wine region — the level used for grouping and filtering (e.g. "Bordeaux", "Vallée du Rhône", "Vallée de la Loire", "Toscane", "Napa Valley"), never a specific appellation/commune/vineyard name (the wine's own name/appellation is not the region — e.g. a "Saint-Nicolas-de-Bourgueil" wine's region is the Loire Valley, not "Saint-Nicolas-de-Bourgueil" itself) and never a generic classification with no geographic meaning ("Vin de France", "Table Wine", "IGP") when the actual region is knowable from the producer or appellation.
 - "alcohol": read the printed ABV off the label if visible (e.g. "13.5%"), otherwise give your best estimate for a wine of this type/region/style (most dry reds 13-14.5%, most dry whites 12-13%, off-dry/dessert lower, fortified 17-20%). Only null if you genuinely cannot judge even a range.
 - "serving_temp": the ideal serving temperature range in Celsius for this wine's type and style (e.g. "16-18°C" for a full-bodied red, "8-10°C" for a light white, "6-8°C" for sparkling, "10-12°C" for dessert/fortified) — always give a range, this is standard sommelier knowledge independent of the specific bottle.""" + (
             "\n\nA photo of the bottle/label is attached"
