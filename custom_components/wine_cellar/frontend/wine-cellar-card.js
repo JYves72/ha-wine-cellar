@@ -2775,9 +2775,23 @@ function planSlots(target, cabinets, wines, count) {
             row: null,
             col: null,
         };
+        const sr = storageRowFor(cabinet, target.zone);
         // An unlimited container would never stop filling; cap it at the request.
-        if (c.kind === "zone" && !storageRowFor(cabinet, target.zone))
+        if (c.kind === "zone" && !sr)
             return out;
+        // A slot-addressable zone (shelf/quinconce) has a fixed physical
+        // position per depth — the caller picking a specific empty dot must
+        // land there, not wherever "first free in the zone" happens to be
+        // (which is what fill() below always does, and is exactly right for a
+        // bulk/box pile, where there's no such thing as "the dot you clicked").
+        if (sr && (sr.type === "shelf" || sr.type === "stepped") && target.depth != null) {
+            const capacity = zoneCapacity(sr);
+            const taken = new Set(winesInContainer(c, known()).map((w) => w.depth || 0));
+            if (target.depth < capacity && !taken.has(target.depth)) {
+                out.push({ row: null, col: null, zone: c.zone, depth: target.depth });
+                placed.push({ cabinet_id: c.cabinetId, zone: c.zone, row: null, col: null, depth: target.depth });
+            }
+        }
         fill(c);
         return out;
     }
