@@ -3744,17 +3744,28 @@ let CabinetGrid = class CabinetGrid extends i {
             }));
         }, 500);
     }
-    _onTouchEnd() {
+    // draggable="true" plus a touch-and-hold can make some Android browsers
+    // start a real HTML5 drag on their own from this same touch sequence,
+    // even though nothing here calls dragstart deliberately — _onDragStart
+    // then adds .drag-source (dimmed + shrunk), but the matching dragend
+    // that would remove it is unreliable on touch and often never fires,
+    // leaving the bottle stuck looking "picked up" regardless of whether the
+    // long-press move that followed was completed or cancelled. Touch ending
+    // (released or cancelled by a scroll) is always a safe point to clear it
+    // too, on this same element.
+    _onTouchEnd(e) {
         if (this._longPressTimer !== null) {
             clearTimeout(this._longPressTimer);
             this._longPressTimer = null;
         }
+        e?.currentTarget?.classList.remove("drag-source");
     }
-    _onTouchMove() {
+    _onTouchMove(e) {
         if (this._longPressTimer !== null) {
             clearTimeout(this._longPressTimer);
             this._longPressTimer = null;
         }
+        e?.currentTarget?.classList.remove("drag-source");
     }
     // --- Drag and drop ---
     _onDragStart(e, wine, row, col, zone) {
@@ -3926,8 +3937,8 @@ let CabinetGrid = class CabinetGrid extends i {
               @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
               @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine); }}
               @touchstart=${(e) => { e.stopPropagation(); this._onTouchStart(wine); }}
-              @touchend=${() => this._onTouchEnd()}
-              @touchmove=${() => this._onTouchMove()}
+              @touchend=${(e) => this._onTouchEnd(e)}
+              @touchmove=${(e) => this._onTouchMove(e)}
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
@@ -4049,8 +4060,8 @@ let CabinetGrid = class CabinetGrid extends i {
         @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
         @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
         @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
-        @touchend=${() => this._onTouchEnd()}
-        @touchmove=${() => this._onTouchMove()}
+        @touchend=${(e) => this._onTouchEnd(e)}
+        @touchmove=${(e) => this._onTouchMove(e)}
       >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
         };
         // Whichever lane is longer leads the sequence (its dot comes first at
@@ -4130,8 +4141,8 @@ let CabinetGrid = class CabinetGrid extends i {
             @dragleave=${(e) => { e.stopPropagation(); this._onDragLeave(e); }}
             @drop=${(e) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
             @touchstart=${wine ? (e) => { e.stopPropagation(); this._onTouchStart(wine); } : A}
-            @touchend=${() => this._onTouchEnd()}
-            @touchmove=${() => this._onTouchMove()}
+            @touchend=${(e) => this._onTouchEnd(e)}
+            @touchmove=${(e) => this._onTouchMove(e)}
           >${wine?.image_url ? b `<img class="wine-thumb" src="${wine.image_url}" alt="" />` : A}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
@@ -4181,8 +4192,8 @@ let CabinetGrid = class CabinetGrid extends i {
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : A}
-              @touchend=${frontWine ? () => this._onTouchEnd() : A}
-              @touchmove=${frontWine ? () => this._onTouchMove() : A}
+              @touchend=${frontWine ? (e) => this._onTouchEnd(e) : A}
+              @touchmove=${frontWine ? (e) => this._onTouchMove(e) : A}
               @dragstart=${frontWine ? (e) => this._onDragStart(e, frontWine, row, col) : A}
               @dragend=${frontWine ? (e) => this._onDragEnd(e) : A}
               @dragover=${(e) => this._onDragOver(e, cellKey)}
@@ -4252,8 +4263,8 @@ let CabinetGrid = class CabinetGrid extends i {
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : A}
-        @touchend=${frontWine ? () => this._onTouchEnd() : A}
-        @touchmove=${frontWine ? () => this._onTouchMove() : A}
+        @touchend=${frontWine ? (e) => this._onTouchEnd(e) : A}
+        @touchmove=${frontWine ? (e) => this._onTouchMove(e) : A}
         @dragstart=${frontWine ? (e) => this._onDragStart(e, frontWine, row, col) : A}
         @dragend=${frontWine ? (e) => this._onDragEnd(e) : A}
         @dragover=${(e) => this._onDragOver(e, cellKey)}

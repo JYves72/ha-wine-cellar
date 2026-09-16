@@ -850,18 +850,29 @@ export class CabinetGrid extends LitElement {
     }, 500);
   }
 
-  private _onTouchEnd() {
+  // draggable="true" plus a touch-and-hold can make some Android browsers
+  // start a real HTML5 drag on their own from this same touch sequence,
+  // even though nothing here calls dragstart deliberately — _onDragStart
+  // then adds .drag-source (dimmed + shrunk), but the matching dragend
+  // that would remove it is unreliable on touch and often never fires,
+  // leaving the bottle stuck looking "picked up" regardless of whether the
+  // long-press move that followed was completed or cancelled. Touch ending
+  // (released or cancelled by a scroll) is always a safe point to clear it
+  // too, on this same element.
+  private _onTouchEnd(e?: TouchEvent) {
     if (this._longPressTimer !== null) {
       clearTimeout(this._longPressTimer);
       this._longPressTimer = null;
     }
+    (e?.currentTarget as HTMLElement | null)?.classList.remove("drag-source");
   }
 
-  private _onTouchMove() {
+  private _onTouchMove(e?: TouchEvent) {
     if (this._longPressTimer !== null) {
       clearTimeout(this._longPressTimer);
       this._longPressTimer = null;
     }
+    (e?.currentTarget as HTMLElement | null)?.classList.remove("drag-source");
   }
 
   // --- Drag and drop ---
@@ -1039,8 +1050,8 @@ export class CabinetGrid extends LitElement {
               @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
               @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine); }}
               @touchstart=${(e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); }}
-              @touchend=${() => this._onTouchEnd()}
-              @touchmove=${() => this._onTouchMove()}
+              @touchend=${(e: TouchEvent) => this._onTouchEnd(e)}
+              @touchmove=${(e: TouchEvent) => this._onTouchMove(e)}
               title="${wine.name} (${wine.vintage || "NV"})"
             >
               ${(wine.vintage || "NV").toString().slice(-2)}
@@ -1169,8 +1180,8 @@ export class CabinetGrid extends LitElement {
         @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
         @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
         @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
-        @touchend=${() => this._onTouchEnd()}
-        @touchmove=${() => this._onTouchMove()}
+        @touchend=${(e: TouchEvent) => this._onTouchEnd(e)}
+        @touchmove=${(e: TouchEvent) => this._onTouchMove(e)}
       >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
     };
 
@@ -1249,8 +1260,8 @@ export class CabinetGrid extends LitElement {
             @dragleave=${(e: DragEvent) => { e.stopPropagation(); this._onDragLeave(e); }}
             @drop=${(e: DragEvent) => { e.stopPropagation(); this._onDrop(e, undefined, undefined, zoneId, wine, depth); }}
             @touchstart=${wine ? (e: TouchEvent) => { e.stopPropagation(); this._onTouchStart(wine); } : nothing}
-            @touchend=${() => this._onTouchEnd()}
-            @touchmove=${() => this._onTouchMove()}
+            @touchend=${(e: TouchEvent) => this._onTouchEnd(e)}
+            @touchmove=${(e: TouchEvent) => this._onTouchMove(e)}
           >${wine?.image_url ? html`<img class="wine-thumb" src="${wine.image_url}" alt="" />` : nothing}${this._dispositionBadge(dispClass, disp)}</span>`;
         })}
       </div>
@@ -1305,8 +1316,8 @@ export class CabinetGrid extends LitElement {
               draggable=${frontWine ? "true" : "false"}
               @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
               @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
-              @touchend=${frontWine ? () => this._onTouchEnd() : nothing}
-              @touchmove=${frontWine ? () => this._onTouchMove() : nothing}
+              @touchend=${frontWine ? (e: TouchEvent) => this._onTouchEnd(e) : nothing}
+              @touchmove=${frontWine ? (e: TouchEvent) => this._onTouchMove(e) : nothing}
               @dragstart=${frontWine ? (e: DragEvent) => this._onDragStart(e, frontWine, row, col) : nothing}
               @dragend=${frontWine ? (e: DragEvent) => this._onDragEnd(e) : nothing}
               @dragover=${(e: DragEvent) => this._onDragOver(e, cellKey)}
@@ -1379,8 +1390,8 @@ export class CabinetGrid extends LitElement {
         draggable=${frontWine ? "true" : "false"}
         @click=${() => this._onCellClick(row, col, frontWine, wineCount, cabinetDepth, wines)}
         @touchstart=${frontWine ? () => this._onTouchStart(frontWine) : nothing}
-        @touchend=${frontWine ? () => this._onTouchEnd() : nothing}
-        @touchmove=${frontWine ? () => this._onTouchMove() : nothing}
+        @touchend=${frontWine ? (e: TouchEvent) => this._onTouchEnd(e) : nothing}
+        @touchmove=${frontWine ? (e: TouchEvent) => this._onTouchMove(e) : nothing}
         @dragstart=${frontWine ? (e: DragEvent) => this._onDragStart(e, frontWine, row, col) : nothing}
         @dragend=${frontWine ? (e: DragEvent) => this._onDragEnd(e) : nothing}
         @dragover=${(e: DragEvent) => this._onDragOver(e, cellKey)}
