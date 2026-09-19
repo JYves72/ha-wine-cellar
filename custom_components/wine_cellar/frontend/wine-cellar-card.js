@@ -5909,6 +5909,17 @@ let WineDetailDialog = class WineDetailDialog extends i {
             console.error("Failed to move wine to Unassigned", err);
         }
     }
+    _isInPeakWindow(wine) {
+        if (!wine.peak_window)
+            return false;
+        const currentYear = new Date().getFullYear();
+        const years = wine.peak_window.split("-").map(y => parseInt(y, 10));
+        if (years.length === 1)
+            return currentYear === years[0];
+        if (years.length === 2)
+            return currentYear >= years[0] && currentYear <= years[1];
+        return false;
+    }
     _onRatingChange(e) {
         this._userRating = e.detail.value;
     }
@@ -6552,7 +6563,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 <!-- Drink by banner for disposition wines -->
                 ${wine.disposition
                 ? b `
-                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''}">
+                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInPeakWindow(wine) ? 'peak' : ''}">
                         ${wine.disposition === "D"
                     ? (wine.drink_window
                         ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))
@@ -7041,6 +7052,12 @@ WineDetailDialog.styles = [
       .drink-by-banner.drink {
         background: rgba(46, 125, 50, 0.12);
         color: #2e7d32;
+      }
+
+      .drink-by-banner.drink.peak {
+        background: rgba(27, 94, 32, 0.2);
+        color: #1b5e20;
+        font-weight: 600;
       }
 
       .drink-by-banner.hold {
