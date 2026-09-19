@@ -702,7 +702,7 @@ Rules:
 Examples (current year {current_year}):
 - 2023 Saint-Joseph Syrah (quality red): drink_window="2025-2030", peak_window="2027-2028", disposition="H" (Hold—hasn't reached peak yet)
 - 2015 Bordeaux Pauillac (premium): drink_window="2018-2032", peak_window="2022-2025", disposition="P" (Past Peak—{current_year} is after the peak window ended; wine is in decline)
-- 2024 Sauvignon Blanc (everyday white): drink_window="{current_year}-{current_year + 1}", peak_window="{current_year}", disposition="D" (Drink Now—young white, peak is now)""" + (
+- 2024 Sauvignon Blanc (everyday white): drink_window="{{current_year}}-{{current_year + 1}}", peak_window="{{current_year}}", disposition="D" (Drink Now—young white, peak is now)""" + (
             "\n\nA photo of the bottle/label is attached"
             + (" (front, then back)" if back_photo else " (front label)")
             + ". If you don't recognize this specific wine from general knowledge "
