@@ -685,6 +685,7 @@ Rules:
   - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}", disposition "D".
 - When in doubt, consult the stored current drink_by date: it is a prior assessment and should not be ignored without strong reason.
 - CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
+- CRITICAL: If the wine is already past its intended drinking window (current year {current_year} is AFTER the drink_by year you would normally assign), the drink_window MUST end in a year BEFORE {current_year}, and disposition MUST be "P" (Past Peak). Do not backdate the window to a future year just because it seems safer to drink it now — if the vintage has already aged past its prime, show that honestly.
 - "description": Write a professional tasting-style description of what this wine is known for. If you know the wine, describe its character. If not, describe what to expect based on grape, region, and vintage.
 - "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this, based on standard sommelier pairing knowledge for the grape/style even if you don't know the specific wine.
 - Rating fields: If you know published critic scores for this specific wine and vintage, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's track record, region quality, and vintage reputation. Only use null for obscure wines you truly cannot assess.
@@ -696,7 +697,12 @@ Rules:
 - "region"/"country"/"grape_variety": only fill these in if the "Region"/"Country"/"Grape" fields above are empty AND you can actually determine them (from the label photo if attached, or from your own knowledge of this producer). Leave null if already provided above or genuinely unknown — don't guess.
   - "region" must be the broad, commonly-recognized wine region — the level used for grouping and filtering (e.g. "Bordeaux", "Vallée du Rhône", "Vallée de la Loire", "Toscane", "Napa Valley"), never a specific appellation/commune/vineyard name (the wine's own name/appellation is not the region — e.g. a "Saint-Nicolas-de-Bourgueil" wine's region is the Loire Valley, not "Saint-Nicolas-de-Bourgueil" itself) and never a generic classification with no geographic meaning ("Vin de France", "Table Wine", "IGP") when the actual region is knowable from the producer or appellation.
 - "alcohol": read the printed ABV off the label if visible (e.g. "13.5%"), otherwise give your best estimate for a wine of this type/region/style (most dry reds 13-14.5%, most dry whites 12-13%, off-dry/dessert lower, fortified 17-20%). Only null if you genuinely cannot judge even a range.
-- "serving_temp": the ideal serving temperature range in Celsius for this wine's type and style (e.g. "16-18°C" for a full-bodied red, "8-10°C" for a light white, "6-8°C" for sparkling, "10-12°C" for dessert/fortified) — always give a range, this is standard sommelier knowledge independent of the specific bottle.""" + (
+- "serving_temp": the ideal serving temperature range in Celsius for this wine's type and style (e.g. "16-18°C" for a full-bodied red, "8-10°C" for a light white, "6-8°C" for sparkling, "10-12°C" for dessert/fortified) — always give a range, this is standard sommelier knowledge independent of the specific bottle.
+
+Examples (current year {current_year}):
+- 2023 Saint-Joseph Syrah (quality red): drink_window="2025-2030", peak_window="2027-2028", disposition="H" (Hold—hasn't reached peak yet)
+- 2015 Bordeaux Pauillac (premium): drink_window="2018-2032", peak_window="2022-2025", disposition="P" (Past Peak—{current_year} is after the peak window ended; wine is in decline)
+- 2024 Sauvignon Blanc (everyday white): drink_window="{current_year}-{current_year + 1}", peak_window="{current_year}", disposition="D" (Drink Now—young white, peak is now)""" + (
             "\n\nA photo of the bottle/label is attached"
             + (" (front, then back)" if back_photo else " (front label)")
             + ". If you don't recognize this specific wine from general knowledge "
