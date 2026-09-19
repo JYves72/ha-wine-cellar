@@ -4257,7 +4257,7 @@ let CabinetGrid = class CabinetGrid extends i {
                 ? b `
                     ${frontWine.image_url ? b `<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : A}
                     <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-                    ${this._dispositionBadge(dispClass, disp, wine)}
+                    ${this._dispositionBadge(dispClass, disp, frontWine)}
                     ${ratingDisplay ? b `<span class="rating-badge">★${ratingDisplay}</span>` : A}
                     ${wineCount > 1 ? b `<span class="depth-badge">${wineCount}</span>` : A}
                     ${cabinetDepth >= 2
@@ -4328,7 +4328,7 @@ let CabinetGrid = class CabinetGrid extends i {
             ? b `
               ${frontWine.image_url ? b `<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : A}
               <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-              ${this._dispositionBadge(dispClass, disp, wine)}
+              ${this._dispositionBadge(dispClass, disp, frontWine)}
               ${ratingDisplay ? b `<span class="rating-badge">★${ratingDisplay}</span>` : A}
               ${wineCount > 1 ? b `<span class="depth-badge">${wineCount}</span>` : A}
               ${cabinetDepth >= 2

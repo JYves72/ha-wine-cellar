@@ -1378,7 +1378,7 @@ export class CabinetGrid extends LitElement {
                 ? html`
                     ${frontWine.image_url ? html`<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : nothing}
                     <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-                    ${this._dispositionBadge(dispClass, disp, wine)}
+                    ${this._dispositionBadge(dispClass, disp, frontWine)}
                     ${ratingDisplay ? html`<span class="rating-badge">★${ratingDisplay}</span>` : nothing}
                     ${wineCount > 1 ? html`<span class="depth-badge">${wineCount}</span>` : nothing}
                     ${cabinetDepth >= 2
@@ -1452,7 +1452,7 @@ export class CabinetGrid extends LitElement {
           ? html`
               ${frontWine.image_url ? html`<img class="wine-thumb" src="${frontWine.image_url}" alt="" />` : nothing}
               <span class="bottle-label">${frontWine.vintage || "NV"}</span>
-              ${this._dispositionBadge(dispClass, disp, wine)}
+              ${this._dispositionBadge(dispClass, disp, frontWine)}
               ${ratingDisplay ? html`<span class="rating-badge">★${ratingDisplay}</span>` : nothing}
               ${wineCount > 1 ? html`<span class="depth-badge">${wineCount}</span>` : nothing}
               ${cabinetDepth >= 2
