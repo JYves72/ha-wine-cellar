@@ -673,7 +673,9 @@ Rules:
 - "drink_by": the LAST year of the drinking window (the year after which the wine will likely be in decline). This MUST be a 4-digit year.
 - "drink_window": optimal drinking window as "YYYY-YYYY" range (earliest to latest year the wine should be consumed). This is the ENTIRE period when the wine is suitable to drink. This MUST be "YYYY-YYYY" format.
 - "peak_window": (NEW) the specific 1-2 year window when the wine is at its BEST (apex of maturity). Format "YYYY-YYYY" or "YYYY" for a single year. For most young wines, this is 1 year after vintage. For age-worthy wines, it peaks 2-5 years in. **CRITICAL: peak_window MUST ALWAYS be entirely within drink_window — the peak years cannot be before, after, or outside the drinking period.**
-- IMPORTANT: drink_window MUST be internally consistent across calls for the same wine (same vintage/type/price/region). Use these aging guidelines consistently:
+- IMPORTANT: drink_window MUST be internally consistent across calls for the same wine (same vintage/type/price/region).
+- **PRIORITY:** If you recognize this specific wine (by name + winery + vintage) as a known/classic wine with published aging data, use YOUR KNOWLEDGE of that specific wine's actual aging window, not the generic guidelines below. Known wines (Bordeaux first growths, Burgundy grands crus, etc.) often age differently than the generic rules suggest.
+- Use these aging guidelines ONLY for unknown or generic wines:
   - Most everyday reds and whites (under $20): drink within 1-3 years of vintage, peak ~1 year in. Disposition "D" (Drink Now).
   - Quality reds (Cabernet, Merlot, Syrah, $20-50): drink 3-7 years from vintage, peak ~4 years in. Usually "H" (Hold).
   - Premium Bordeaux, Barolo, Napa Cab ($50+): drink 10-15 years from vintage, peak ~8-10 years in. "H" or "D" depending on current year vs. window.
