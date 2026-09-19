@@ -622,6 +622,7 @@ class BaseAIClient:
         Returns enriched data or {"error": "..."}.
         """
         current_year = datetime.now().year
+        next_year = current_year + 1
         vintage = wine.get("vintage") or "NV"
         wine_type = wine.get("type", "red")
         name = wine.get("name", "Unknown")
