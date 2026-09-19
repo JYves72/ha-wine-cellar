@@ -1240,6 +1240,8 @@ var ui$1 = {
 		drinkFromPlaceholder: "e.g. 2025",
 		drinkByLabel: "Drink By",
 		drinkByPlaceholder: "e.g. 2030",
+		peakWindowLabel: "Peak (Optional)",
+		peakWindowPlaceholder: "e.g. 2028-2029 or 2028",
 		notesLabel: "Notes",
 		saving: "Saving...",
 		save: "Save",
@@ -1275,11 +1277,14 @@ var ui$1 = {
 		labelScanFailed: "Label scan failed. Please try again.",
 		applyNoteConfirm: "Apply this note to your other {count} bottle{plural} of {name} too?",
 		drinkNowWithWindow: "Drink now • {window}",
+		drinkNowWithPeak: "Drink now • {window} (Peak: {peak})",
 		drinkNowPlain: "Drink now",
 		holdWithWindow: "Hold • drink {window}",
+		holdWithPeak: "Hold • drink {window} (Peak: {peak})",
 		holdUntil: "Hold until {date}",
 		holdPlain: "Hold",
 		pastPeakWithWindow: "Past peak • was {window}",
+		pastPeakWithPeak: "Past peak • was {window} (Peak was: {peak})",
 		pastPeakPlain: "Past peak",
 		aiLabel: "AI"
 	},
@@ -2004,6 +2009,8 @@ var ui = {
 		drinkFromPlaceholder: "ex. 2025",
 		drinkByLabel: "À boire avant",
 		drinkByPlaceholder: "ex. 2030",
+		peakWindowLabel: "Apogée (Optionnel)",
+		peakWindowPlaceholder: "ex. 2028-2029 ou 2028",
 		notesLabel: "Notes",
 		saving: "Enregistrement...",
 		save: "Enregistrer",
@@ -2039,11 +2046,14 @@ var ui = {
 		labelScanFailed: "Échec du scan de l'étiquette. Veuillez réessayer.",
 		applyNoteConfirm: "Appliquer aussi cette note à vos {count} autre{plural} bouteille{plural} de {name} ?",
 		drinkNowWithWindow: "À boire maintenant • {window}",
+		drinkNowWithPeak: "À boire maintenant • {window} (Apogée : {peak})",
 		drinkNowPlain: "À boire maintenant",
 		holdWithWindow: "À garder • à boire {window}",
+		holdWithPeak: "À garder • à boire {window} (Apogée : {peak})",
 		holdUntil: "À garder jusqu'à {date}",
 		holdPlain: "À garder",
 		pastPeakWithWindow: "Sur le déclin • était {window}",
+		pastPeakWithPeak: "Sur le déclin • était {window} (Apogée : {peak})",
 		pastPeakPlain: "Sur le déclin",
 		aiLabel: "IA"
 	},
@@ -5704,6 +5714,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             purchase_date: this.wine.purchase_date || "",
             drink_by: this.wine.drink_by || "",
             drink_window: this.wine.drink_window || "",
+            peak_window: this.wine.peak_window || "",
             notes: this.wine.notes || "",
             alcohol: this.wine.alcohol || "",
             serving_temp: this.wine.serving_temp || "",
@@ -6330,6 +6341,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
             <input type="text" placeholder="${this._t('ui.wineDetail.drinkByPlaceholder')}" .value=${d.drink_by}
               @input=${(e) => this._updateDrinkWindowPart("by", e.target.value)} />
           </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.peakWindowLabel")}</label>
+            <input type="text" placeholder="${this._t('ui.wineDetail.peakWindowPlaceholder')}" .value=${d.peak_window || ""}
+              @input=${(e) => this._updateEditField("peak_window", e.target.value)} />
+          </div>
         </div>
 
         <div class="form-group">
@@ -6538,10 +6554,16 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `
                       <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''}">
                         ${wine.disposition === "D"
-                    ? (wine.drink_window ? this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.drinkNowPlain"))
+                    ? (wine.drink_window
+                        ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))
+                        : this._t("ui.wineDetail.drinkNowPlain"))
                     : wine.disposition === "H"
-                        ? (wine.drink_window ? this._t("ui.wineDetail.holdWithWindow", { window: wine.drink_window }) : wine.drink_by ? this._t("ui.wineDetail.holdUntil", { date: wine.drink_by }) : this._t("ui.wineDetail.holdPlain"))
-                        : (wine.drink_window ? this._t("ui.wineDetail.pastPeakWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.pastPeakPlain"))}
+                        ? (wine.drink_window
+                            ? (wine.peak_window ? this._t("ui.wineDetail.holdWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.holdWithWindow", { window: wine.drink_window }))
+                            : wine.drink_by ? this._t("ui.wineDetail.holdUntil", { date: wine.drink_by }) : this._t("ui.wineDetail.holdPlain"))
+                        : (wine.drink_window
+                            ? (wine.peak_window ? this._t("ui.wineDetail.pastPeakWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.pastPeakWithWindow", { window: wine.drink_window }))
+                            : this._t("ui.wineDetail.pastPeakPlain"))}
                       </div>
                     `
                 : A}
@@ -7916,6 +7938,7 @@ let AddWineDialog = class AddWineDialog extends i {
                     disposition: r.disposition || "",
                     drink_by: r.drink_by || "",
                     drink_window: r.drink_window || "",
+                    peak_window: r.peak_window || "",
                     description: r.description || "",
                     retail_price: r.estimated_price || null,
                     ai_ratings: r.ai_ratings || null,

@@ -811,6 +811,7 @@ export class AddWineDialog extends LitElement {
           disposition: r.disposition || "",
           drink_by: r.drink_by || "",
           drink_window: r.drink_window || "",
+          peak_window: r.peak_window || "",
           description: r.description || "",
           retail_price: r.estimated_price || null,
           ai_ratings: r.ai_ratings || null,

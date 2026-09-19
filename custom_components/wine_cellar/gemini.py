@@ -652,6 +652,7 @@ Return ONLY a JSON object with these fields:
   "disposition": "D or H or P",
   "drink_by": "optimal year to drink by, e.g. 2028",
   "drink_window": "e.g. 2025-2030",
+  "peak_window": "when the wine is at its absolute best, e.g. 2027-2028 or 2027",
   "description": "2-3 sentence tasting profile and character of this wine",
   "food_pairings": "3-5 suggested food pairings, comma-separated",
   "estimated_price": null,
@@ -667,21 +668,23 @@ Return ONLY a JSON object with these fields:
 }}
 
 Rules:
-- "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak
-- "drink_by": the LAST year of the drinking window — when the wine should be consumed by. Be conservative and realistic.
-- "drink_window": optimal drinking window as "YYYY-YYYY" range. This is what will be shown to the user.
-- IMPORTANT aging guidelines — be conservative, most wines don't age long:
-  - Most everyday reds and whites (under $20): drink within 1-3 years of vintage. These are "Drink Now."
-  - Quality reds (good Cabernet, Merlot, Syrah, $20-50): 3-7 years from vintage
-  - Premium Bordeaux, Barolo, Napa Cab ($50+): can age 10-15 years, rarely more than 20
-  - Rosé: drink within 1-2 years of vintage — always "Drink Now"
-  - Most whites (Sauvignon Blanc, Pinot Grigio): 1-3 years from vintage
-  - Quality Chardonnay/Riesling: 3-5 years from vintage
-  - Sparkling/Champagne NV: drink within 2-3 years. Vintage Champagne: 5-10 years.
-  - Dessert wines (Sauternes, Port): can age 10-20+ years
-  - NV (non-vintage) wines: assume current, "Drink Now" with drink_window "{current_year}-{current_year + 1}"
-  - If the wine is already past its typical aging window, mark as "Past Peak" or "Drink Now" (not "Hold")
-  - When in doubt, err on the side of drinking sooner rather than later
+- "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak. This MUST be based ONLY on the drink_window dates below and the current year {current_year}: if today is within or before the window, answer "D" or "H" (whichever fits the window start); if after the window, answer "P".
+- "drink_by": the LAST year of the drinking window (the year after which the wine will likely be in decline). This MUST be a 4-digit year.
+- "drink_window": optimal drinking window as "YYYY-YYYY" range (earliest to latest year the wine should be consumed). This is the ENTIRE period when the wine is suitable to drink. This MUST be "YYYY-YYYY" format.
+- "peak_window": (NEW) the specific 1-2 year window when the wine is at its BEST (apex of maturity). Format "YYYY-YYYY" or "YYYY" for a single year. For most young wines, this is 1 year after vintage. For age-worthy wines, it peaks 2-5 years in.
+- IMPORTANT: drink_window MUST be internally consistent across calls for the same wine (same vintage/type/price/region). Use these aging guidelines consistently:
+  - Most everyday reds and whites (under $20): drink within 1-3 years of vintage, peak ~1 year in. Disposition "D" (Drink Now).
+  - Quality reds (Cabernet, Merlot, Syrah, $20-50): drink 3-7 years from vintage, peak ~4 years in. Usually "H" (Hold).
+  - Premium Bordeaux, Barolo, Napa Cab ($50+): drink 10-15 years from vintage, peak ~8-10 years in. "H" or "D" depending on current year vs. window.
+  - Rosé: drink within 1-2 years, peak immediately. Always "D" (Drink Now).
+  - Most whites (Sauvignon Blanc, Pinot Grigio): drink within 1-3 years, peak ~1 year in. "D".
+  - Quality Chardonnay/Riesling: drink 3-5 years, peak ~3 years in. "H".
+  - Sparkling/Champagne NV: drink 2-3 years, peak immediately. "D".
+  - Vintage Champagne: drink 5-10 years, peak ~6 years in. "H" or "D".
+  - Dessert wines (Sauternes, Port): drink 10-20+ years, peak ~10 years in. "H".
+  - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}", disposition "D".
+- When in doubt, consult the stored current drink_by date: it is a prior assessment and should not be ignored without strong reason.
+- CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
 - "description": Write a professional tasting-style description of what this wine is known for. If you know the wine, describe its character. If not, describe what to expect based on grape, region, and vintage.
 - "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this, based on standard sommelier pairing knowledge for the grape/style even if you don't know the specific wine.
 - Rating fields: If you know published critic scores for this specific wine and vintage, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's track record, region quality, and vintage reputation. Only use null for obscure wines you truly cannot assess.
@@ -713,7 +716,7 @@ Rules:
             ) + _language_suffix(language)
 
         result = await self._call_ai(
-            prompt, front_photo, timeout_s=45, temperature=0.2, extra_image_base64=back_photo
+            prompt, front_photo, timeout_s=45, temperature=0.1, extra_image_base64=back_photo
         )
         if "error" in result:
             return result
@@ -737,6 +740,7 @@ Rules:
             # answer null as often as "" — str(None) would store "None".
             "drink_by": str(result.get("drink_by") or "").strip(),
             "drink_window": str(result.get("drink_window") or "").strip(),
+            "peak_window": str(result.get("peak_window") or "").strip(),
             "description": str(result.get("description") or "").strip(),
             "food_pairings": str(result.get("food_pairings") or "").strip(),
             "estimated_price": est_price,

@@ -614,6 +614,7 @@ export class WineDetailDialog extends LitElement {
       purchase_date: this.wine.purchase_date || "",
       drink_by: this.wine.drink_by || "",
       drink_window: this.wine.drink_window || "",
+      peak_window: this.wine.peak_window || "",
       notes: this.wine.notes || "",
       alcohol: this.wine.alcohol || "",
       serving_temp: this.wine.serving_temp || "",
@@ -1223,6 +1224,11 @@ export class WineDetailDialog extends LitElement {
             <input type="text" placeholder="${this._t('ui.wineDetail.drinkByPlaceholder')}" .value=${d.drink_by}
               @input=${(e: Event) => this._updateDrinkWindowPart("by", (e.target as HTMLInputElement).value)} />
           </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.peakWindowLabel")}</label>
+            <input type="text" placeholder="${this._t('ui.wineDetail.peakWindowPlaceholder')}" .value=${d.peak_window || ""}
+              @input=${(e: Event) => this._updateEditField("peak_window", (e.target as HTMLInputElement).value)} />
+          </div>
         </div>
 
         <div class="form-group">
@@ -1440,10 +1446,16 @@ export class WineDetailDialog extends LitElement {
                   ? html`
                       <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''}">
                         ${wine.disposition === "D"
-                          ? (wine.drink_window ? this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.drinkNowPlain"))
+                          ? (wine.drink_window
+                              ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))
+                              : this._t("ui.wineDetail.drinkNowPlain"))
                           : wine.disposition === "H"
-                            ? (wine.drink_window ? this._t("ui.wineDetail.holdWithWindow", { window: wine.drink_window }) : wine.drink_by ? this._t("ui.wineDetail.holdUntil", { date: wine.drink_by }) : this._t("ui.wineDetail.holdPlain"))
-                            : (wine.drink_window ? this._t("ui.wineDetail.pastPeakWithWindow", { window: wine.drink_window }) : this._t("ui.wineDetail.pastPeakPlain"))}
+                            ? (wine.drink_window
+                                ? (wine.peak_window ? this._t("ui.wineDetail.holdWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.holdWithWindow", { window: wine.drink_window }))
+                                : wine.drink_by ? this._t("ui.wineDetail.holdUntil", { date: wine.drink_by }) : this._t("ui.wineDetail.holdPlain"))
+                            : (wine.drink_window
+                                ? (wine.peak_window ? this._t("ui.wineDetail.pastPeakWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.pastPeakWithWindow", { window: wine.drink_window }))
+                                : this._t("ui.wineDetail.pastPeakPlain"))}
                       </div>
                     `
                   : nothing}

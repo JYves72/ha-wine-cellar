@@ -153,6 +153,9 @@ def _build_ai_updates(
     if result.get("drink_window"):
         updates["drink_window"] = result["drink_window"]
 
+    if result.get("peak_window"):
+        updates["peak_window"] = result["peak_window"]
+
     # disposition is never taken from the AI's own guess directly — it's
     # always re-derived from whatever drink_by/drink_window end up on the
     # wine after this update, the same pure rule the daily/startup recompute

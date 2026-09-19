@@ -54,6 +54,10 @@ export interface Wine {
   // never overwrites.
   disposition_source?: string;
   drink_window: string;
+  // Specific peak maturity window (when the wine is at its absolute best),
+  // distinct from drink_window (entire suitable-to-drink period).
+  // Format: "YYYY-YYYY" or "YYYY" for a single year. AI-filled only.
+  peak_window?: string;
   ai_ratings: Record<string, number> | null;
   // `*_updated_at` is when the data last actually changed; `*_checked_at` is
   // when the source was last consulted. A checked_at newer than updated_at
