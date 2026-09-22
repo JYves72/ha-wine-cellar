@@ -8,9 +8,20 @@ import { Wine, Cabinet } from "../models";
 
 // Accent-insensitive lowercase: "Côtes" and "cotes", "Rosé" and "rose" must
 // match. Home Assistant users type without accents far more often than with.
+//
+// "œ"/"æ" are ligature letters, not accented letters — Unicode defines no
+// canonical (or even compatibility) decomposition for them into "oe"/"ae",
+// so NFD/NFKD leaves them untouched on their own. Without the explicit
+// replace below, typing "boeuf" (as most keyboards do, since œ isn't a
+// normal key) would never match "bœuf", "sœur", "cœur", "œuf", "nœud"...
+// stored with the real ligature.
 export function normalizeText(value: unknown): string {
   if (value === null || value === undefined) return "";
   return String(value)
+    .replace(/œ/g, "oe")
+    .replace(/Œ/g, "OE")
+    .replace(/æ/g, "ae")
+    .replace(/Æ/g, "AE")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();

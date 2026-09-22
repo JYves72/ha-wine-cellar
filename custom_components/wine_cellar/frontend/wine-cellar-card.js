@@ -2487,10 +2487,21 @@ function getWineLocation(wine, cabinets, language) {
 // related now lives here so a field only ever has to be added once.
 // Accent-insensitive lowercase: "Côtes" and "cotes", "Rosé" and "rose" must
 // match. Home Assistant users type without accents far more often than with.
+//
+// "œ"/"æ" are ligature letters, not accented letters — Unicode defines no
+// canonical (or even compatibility) decomposition for them into "oe"/"ae",
+// so NFD/NFKD leaves them untouched on their own. Without the explicit
+// replace below, typing "boeuf" (as most keyboards do, since œ isn't a
+// normal key) would never match "bœuf", "sœur", "cœur", "œuf", "nœud"...
+// stored with the real ligature.
 function normalizeText(value) {
     if (value === null || value === undefined)
         return "";
     return String(value)
+        .replace(/œ/g, "oe")
+        .replace(/Œ/g, "OE")
+        .replace(/æ/g, "ae")
+        .replace(/Æ/g, "AE")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
@@ -12176,6 +12187,113 @@ WineListDialog = __decorate([
     t$1("wine-list-dialog")
 ], WineListDialog);
 
+const OTHER_LABEL = "Autres accords";
+const FOOD_CATEGORIES = [
+    {
+        label: "Apéritif & tapas",
+        keywords: ["aperitif", "tapas", "gougere", "amuse-bouche", "amuse bouche"],
+    },
+    {
+        label: "Charcuterie",
+        keywords: ["charcuterie", "rillette", "saucisson", "jambon", "pate", "terrine", "salami", "chorizo"],
+    },
+    {
+        label: "Fromages",
+        keywords: ["fromage", "roquefort", "comte", "chevre", "brie", "camembert", "munster", "reblochon", "morbier", "parmesan"],
+    },
+    {
+        label: "Fruits de mer",
+        keywords: ["fruits de mer", "huitre", "crevette", "homard", "crustace", "coquille", "moule", "langouste", "crabe", "sushi", "sashimi"],
+    },
+    {
+        label: "Poissons",
+        keywords: ["poisson", "saumon", "cabillaud", "sole", "brochet", "truite", "papillote", "thon", "dorade", "morue", "bar"],
+    },
+    {
+        label: "Canard & foie gras",
+        keywords: ["canard", "magret", "foie gras"],
+    },
+    {
+        label: "Volaille",
+        keywords: ["volaille", "poulet", "poularde", "dinde", "pintade", "chapon"],
+    },
+    {
+        label: "Agneau",
+        keywords: ["agneau", "gigot"],
+    },
+    {
+        label: "Gibier",
+        keywords: ["gibier", "cerf", "chevreuil", "sanglier", "biche", "faisan", "perdrix", "lievre"],
+    },
+    {
+        label: "Bœuf & viandes rouges",
+        keywords: ["boeuf", "entrecote", "steak", "tournedos", "viande rouge", "viandes rouges", "cote de boeuf"],
+    },
+    {
+        label: "Plats mijotés & en sauce",
+        keywords: ["daube", "bourguignon", "carbonnade", "civet", "cassoulet", "mijote", "en sauce", "ragout", "pot-au-feu", "blanquette", "estouffade"],
+    },
+    {
+        label: "Grillades & barbecue",
+        keywords: ["grillade", "grille", "barbecue", "brochette"],
+    },
+    {
+        label: "Cuisine épicée & du monde",
+        keywords: ["curry", "epice", "asiatique", "wok", "tex-mex", "mexicain", "indien", "thai", "szechuan"],
+    },
+    {
+        label: "Cuisine méditerranéenne",
+        keywords: ["~mediterran", "~provenc", "ratatouille", "tajine"],
+    },
+    {
+        label: "Salades",
+        keywords: ["salade"],
+    },
+    {
+        label: "Plats végétariens",
+        keywords: ["risotto", "legume", "~vegetarien", "asperge", "champignon", "quiche"],
+    },
+    {
+        label: "Desserts",
+        keywords: ["dessert", "chocolat", "tarte", "patisserie", "gateau", "glace", "sorbet", "fruit"],
+    },
+];
+// Two matching modes per keyword:
+// - default: word-boundary match allowing an optional French "e"/"s"/"es"
+//   suffix (singular/plural + masc/fem agreement) without an open wildcard,
+//   so short stems don't swallow unrelated words ("bar" must not match
+//   "barbecue", "chevre" must not match "chevreuil", "brochet" must not
+//   match "brochette").
+// - "~"-prefixed: open wildcard suffix, reserved for longer stems with
+//   irregular agreement (méditerranéen/-enne/-ens/-ennes) that are long
+//   enough to carry no collision risk.
+// - multi-word phrases (contain a space or hyphen): plain substring match,
+//   already specific enough on their own.
+function matchesKeyword(haystack, keyword) {
+    if (keyword.includes(" ") || keyword.includes("-")) {
+        return haystack.includes(keyword);
+    }
+    if (keyword.startsWith("~")) {
+        return new RegExp(`\\b${keyword.slice(1)}\\w*\\b`).test(haystack);
+    }
+    return new RegExp(`\\b${keyword}(?:e?s?)\\b`).test(haystack);
+}
+// Maps one split pairing ("daube de bœuf") to its generic category label
+// ("Plats mijotés & en sauce"). Falls back to a shared "Autres accords"
+// bucket when nothing matches, rather than showing the raw specific text —
+// keeping the filter list short is the whole point of this function.
+function categorizeFoodPairing(pairing) {
+    const haystack = normalizeText(pairing);
+    if (!haystack)
+        return OTHER_LABEL;
+    for (const category of FOOD_CATEGORIES) {
+        if (category.keywords.some((kw) => matchesKeyword(haystack, kw))) {
+            return category.label;
+        }
+    }
+    return OTHER_LABEL;
+}
+
 // Persisted so the inventory reopens the way it was left; the search query is
 // deliberately excluded — a stale query silently hiding the cellar is far more
 // confusing than a stale sort order.
@@ -12414,11 +12532,13 @@ let InventoryDialog = class InventoryDialog extends i {
     _grapeOptions() {
         return collectFacet(this.wines, (w) => splitMulti(w.grape_variety));
     }
-    // Vivino returns pairings from a closed vocabulary ("Beef", "Blue cheese",
-    // "Spicy food"…), so offering the ones actually present in the cellar beats
-    // hoping the user guesses the exact wording.
+    // The AI's food pairings are free text ("daube de bœuf", "bœuf
+    // bourguignon", "carbonnade flamande"…), which left unfiltered would
+    // balloon this dropdown into dozens of near-synonyms. Each split pairing
+    // is mapped to a generic category (see foodCategories.ts) so the filter
+    // stays short — the wine detail view still shows the original AI text.
     _foodOptions() {
-        return collectFacet(this.wines, (w) => splitMulti(w.food_pairings));
+        return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map(categorizeFoodPairing));
     }
     _winesWithoutPairings() {
         return this.wines.filter((w) => !splitMulti(w.food_pairings).length).length;
@@ -12541,8 +12661,7 @@ let InventoryDialog = class InventoryDialog extends i {
             wines = wines.filter((w) => normalizeText(w.grape_variety).includes(want));
         }
         if (this._foodFilter !== "all") {
-            const want = normalizeText(this._foodFilter);
-            wines = wines.filter((w) => normalizeText(w.food_pairings).includes(want));
+            wines = wines.filter((w) => splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p) === this._foodFilter));
         }
         if (this._cabinetFilter !== "all") {
             const known = new Set(this.cabinets.map((c) => c.id));

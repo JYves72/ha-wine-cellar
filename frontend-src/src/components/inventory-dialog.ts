@@ -11,6 +11,7 @@ import {
   splitMulti,
   collectFacet,
 } from "../utils/search";
+import { categorizeFoodPairing } from "../utils/foodCategories";
 import "./wine-detail-dialog";
 
 type SortField =
@@ -922,11 +923,13 @@ export class InventoryDialog extends LitElement {
     return collectFacet(this.wines, (w) => splitMulti(w.grape_variety));
   }
 
-  // Vivino returns pairings from a closed vocabulary ("Beef", "Blue cheese",
-  // "Spicy food"…), so offering the ones actually present in the cellar beats
-  // hoping the user guesses the exact wording.
+  // The AI's food pairings are free text ("daube de bœuf", "bœuf
+  // bourguignon", "carbonnade flamande"…), which left unfiltered would
+  // balloon this dropdown into dozens of near-synonyms. Each split pairing
+  // is mapped to a generic category (see foodCategories.ts) so the filter
+  // stays short — the wine detail view still shows the original AI text.
   private _foodOptions(): string[] {
-    return collectFacet(this.wines, (w) => splitMulti(w.food_pairings));
+    return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map(categorizeFoodPairing));
   }
 
   private _winesWithoutPairings(): number {
@@ -1065,8 +1068,9 @@ export class InventoryDialog extends LitElement {
     }
 
     if (this._foodFilter !== "all") {
-      const want = normalizeText(this._foodFilter);
-      wines = wines.filter((w) => normalizeText(w.food_pairings).includes(want));
+      wines = wines.filter((w) =>
+        splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p) === this._foodFilter)
+      );
     }
 
     if (this._cabinetFilter !== "all") {
