@@ -660,10 +660,10 @@ const sharedStyles = i$3 `
   }
 
   /* Dot style: same badge, no letter — see cabinet-grid.ts's .dot-style for
-     the rack-drawing equivalent. Past Peak gets its own purple instead of
-     red, same reasoning as there. */
+     the rack-drawing equivalent. Past Peak uses red to align with all other
+     decline indicators throughout the interface. */
   .depth-slot-disposition.dot-style.past {
-    background: #7b1fa2;
+    background: #c62828;
   }
 
   .depth-slot-info {
@@ -3747,6 +3747,17 @@ let CabinetGrid = class CabinetGrid extends i {
             return currentYear >= years[0] && currentYear <= years[1];
         return false;
     }
+    // Check if wine is in peak window OR after (plateau d'apogée) — keep dark green until decline phase
+    _isInOrAfterPeakWindow(wine) {
+        if (!wine?.peak_window || !wine?.drink_window)
+            return false;
+        const currentYear = new Date().getFullYear();
+        const peakYears = wine.peak_window.split("-").map(y => parseInt(y, 10));
+        const drinkYears = wine.drink_window.split("-").map(y => parseInt(y, 10));
+        const peakStart = peakYears[0];
+        const drinkEnd = drinkYears.length === 2 ? drinkYears[1] : drinkYears[0];
+        return currentYear >= peakStart && currentYear <= drinkEnd;
+    }
     // The classic D/H/P letter badge — only in "letter" mode. In "dot" mode
     // there's no badge at all; _dispositionRingStyle below draws the status
     // as a thicker colored ring around the bottle instead, so the photo
@@ -3754,7 +3765,7 @@ let CabinetGrid = class CabinetGrid extends i {
     _dispositionBadge(dispClass, disp, wine, className = "disposition") {
         if (!dispClass || this.dispositionDisplay === "dot")
             return A;
-        const peakClass = dispClass === "drink" && this._isInPeakWindow(wine) ? "peak" : "";
+        const peakClass = dispClass === "drink" && this._isInOrAfterPeakWindow(wine) ? "peak" : "";
         return b `<span class="${className} ${dispClass} ${peakClass}">${disp}</span>`;
     }
     // "dot" mode's ring: a thicker border colored by disposition (green/blue/
@@ -3770,13 +3781,13 @@ let CabinetGrid = class CabinetGrid extends i {
             return "";
         let color = "#4caf50"; // drink default
         if (dispClass === "drink") {
-            color = this._isInPeakWindow(wine) ? "#1b5e20" : "#4caf50";
+            color = this._isInOrAfterPeakWindow(wine) ? "#1b5e20" : "#4caf50";
         }
         else if (dispClass === "hold") {
             color = "#2196f3";
         }
         else if (dispClass === "past") {
-            color = "#ab47bc";
+            color = "#c62828";
         }
         else {
             color = typeRingColor;
@@ -5950,6 +5961,16 @@ let WineDetailDialog = class WineDetailDialog extends i {
             return currentYear >= years[0] && currentYear <= years[1];
         return false;
     }
+    _isInOrAfterPeakWindow(wine) {
+        if (!wine.peak_window || !wine.drink_window)
+            return false;
+        const currentYear = new Date().getFullYear();
+        const peakYears = wine.peak_window.split("-").map(y => parseInt(y, 10));
+        const drinkYears = wine.drink_window.split("-").map(y => parseInt(y, 10));
+        const peakStart = peakYears[0];
+        const drinkEnd = drinkYears.length === 2 ? drinkYears[1] : drinkYears[0];
+        return currentYear >= peakStart && currentYear <= drinkEnd;
+    }
     _onRatingChange(e) {
         this._userRating = e.detail.value;
     }
@@ -6593,7 +6614,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 <!-- Drink by banner for disposition wines -->
                 ${wine.disposition
                 ? b `
-                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInPeakWindow(wine) ? 'peak' : ''}">
+                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInOrAfterPeakWindow(wine) ? 'peak' : ''}">
                         ${wine.disposition === "D"
                     ? (wine.drink_window
                         ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))

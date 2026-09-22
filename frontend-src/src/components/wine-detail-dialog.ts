@@ -833,6 +833,16 @@ export class WineDetailDialog extends LitElement {
     return false;
   }
 
+  private _isInOrAfterPeakWindow(wine: Wine): boolean {
+    if (!wine.peak_window || !wine.drink_window) return false;
+    const currentYear = new Date().getFullYear();
+    const peakYears = wine.peak_window.split("-").map(y => parseInt(y, 10));
+    const drinkYears = wine.drink_window.split("-").map(y => parseInt(y, 10));
+    const peakStart = peakYears[0];
+    const drinkEnd = drinkYears.length === 2 ? drinkYears[1] : drinkYears[0];
+    return currentYear >= peakStart && currentYear <= drinkEnd;
+  }
+
   private _onRatingChange(e: CustomEvent) {
     this._userRating = e.detail.value;
   }
@@ -1459,7 +1469,7 @@ export class WineDetailDialog extends LitElement {
                 <!-- Drink by banner for disposition wines -->
                 ${wine.disposition
                   ? html`
-                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInPeakWindow(wine) ? 'peak' : ''}">
+                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInOrAfterPeakWindow(wine) ? 'peak' : ''}">
                         ${wine.disposition === "D"
                           ? (wine.drink_window
                               ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))

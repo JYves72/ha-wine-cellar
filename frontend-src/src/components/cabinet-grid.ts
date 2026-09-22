@@ -848,13 +848,24 @@ export class CabinetGrid extends LitElement {
     return false;
   }
 
+  // Check if wine is in peak window OR after (plateau d'apogée) — keep dark green until decline phase
+  private _isInOrAfterPeakWindow(wine: Wine | undefined): boolean {
+    if (!wine?.peak_window || !wine?.drink_window) return false;
+    const currentYear = new Date().getFullYear();
+    const peakYears = wine.peak_window.split("-").map(y => parseInt(y, 10));
+    const drinkYears = wine.drink_window.split("-").map(y => parseInt(y, 10));
+    const peakStart = peakYears[0];
+    const drinkEnd = drinkYears.length === 2 ? drinkYears[1] : drinkYears[0];
+    return currentYear >= peakStart && currentYear <= drinkEnd;
+  }
+
   // The classic D/H/P letter badge — only in "letter" mode. In "dot" mode
   // there's no badge at all; _dispositionRingStyle below draws the status
   // as a thicker colored ring around the bottle instead, so the photo
   // stays uncovered.
   private _dispositionBadge(dispClass: string, disp: string, wine?: Wine, className = "disposition") {
     if (!dispClass || this.dispositionDisplay === "dot") return nothing;
-    const peakClass = dispClass === "drink" && this._isInPeakWindow(wine) ? "peak" : "";
+    const peakClass = dispClass === "drink" && this._isInOrAfterPeakWindow(wine) ? "peak" : "";
     return html`<span class="${className} ${dispClass} ${peakClass}">${disp}</span>`;
   }
 
@@ -870,11 +881,11 @@ export class CabinetGrid extends LitElement {
     if (this.dispositionDisplay !== "dot") return "";
     let color = "#4caf50"; // drink default
     if (dispClass === "drink") {
-      color = this._isInPeakWindow(wine) ? "#1b5e20" : "#4caf50";
+      color = this._isInOrAfterPeakWindow(wine) ? "#1b5e20" : "#4caf50";
     } else if (dispClass === "hold") {
       color = "#2196f3";
     } else if (dispClass === "past") {
-      color = "#ab47bc";
+      color = "#c62828";
     } else {
       color = typeRingColor;
     }

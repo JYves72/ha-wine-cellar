@@ -588,10 +588,10 @@ export const sharedStyles = css`
   }
 
   /* Dot style: same badge, no letter — see cabinet-grid.ts's .dot-style for
-     the rack-drawing equivalent. Past Peak gets its own purple instead of
-     red, same reasoning as there. */
+     the rack-drawing equivalent. Past Peak uses red to align with all other
+     decline indicators throughout the interface. */
   .depth-slot-disposition.dot-style.past {
-    background: #7b1fa2;
+    background: #c62828;
   }
 
   .depth-slot-info {
