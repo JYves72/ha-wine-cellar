@@ -545,6 +545,9 @@
       "pastPeakWithWindow": "Sur le déclin • était {window}",
       "pastPeakWithPeak": "Sur le déclin • était {window} (Apogée : {peak})",
       "pastPeakPlain": "Sur le déclin",
+      "chamberingReady": "🌡️ Prêt à servir",
+      "chamberingWarmUp": "🌡️ Sortir {duration} avant de servir",
+      "chamberingChill": "🧊 Rafraîchir ~15–20 min avant de servir",
       "aiLabel": "IA"
     },
     "rack": {
@@ -564,6 +567,8 @@
       "delBtn": "Suppr",
       "addRackBtn": "+ Ajouter un rack",
       "rackNameLabel": "Nom du rack",
+      "cabinetSensorsLabel": "Capteurs (température / humidité)",
+      "sensorNone": "—",
       "gridLayoutTitle": "Disposition de la grille",
       "styleLabel": "Style du rack",
       "styleGrid": "Grille classique",

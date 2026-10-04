@@ -401,6 +401,33 @@ export class RackSettingsDialog extends LitElement {
         cursor: pointer;
       }
 
+      .sensor-picker-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 4px 0 8px;
+      }
+
+      .sensor-picker-wrap {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75em;
+        color: var(--wc-text-secondary);
+      }
+
+      .sensor-select {
+        max-width: 220px;
+        padding: 2px 4px;
+        border: 1px solid var(--wc-border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        background: var(--wc-bg);
+        color: var(--wc-text);
+        cursor: pointer;
+      }
+
       .row-shelf-input {
         width: 32px;
         padding: 2px 4px;
@@ -541,6 +568,64 @@ export class RackSettingsDialog extends LitElement {
   private _setRowsFor(slot: SecondarySlot, rows: StorageRow[]) {
     if (slot === "primary") this._primaryStorageRows = rows;
     else this._secondaryStorageRows = rows;
+  }
+
+  // --- Sensor pickers (temp/humidity) ---
+  // Plain <select> rather than HA's own <ha-entity-picker>: that element's
+  // API has shifted across HA versions, and it doesn't exist at all in this
+  // project's standalone Lovelace-less preview page — a native <select>
+  // works identically everywhere and needs nothing beyond hass.states.
+  private _sensorEntityIds(deviceClass: "temperature" | "humidity"): string[] {
+    const states = this.hass?.states || {};
+    return Object.keys(states)
+      .filter(
+        (id) => id.startsWith("sensor.") && states[id]?.attributes?.device_class === deviceClass
+      )
+      .sort((a, b) =>
+        (states[a].attributes.friendly_name || a).localeCompare(
+          states[b].attributes.friendly_name || b
+        )
+      );
+  }
+
+  private _renderSensorPickers(
+    tempValue: string,
+    humidityValue: string,
+    onTemp: (value: string) => void,
+    onHumidity: (value: string) => void
+  ) {
+    const states = this.hass?.states || {};
+    const friendlyName = (id: string) => states[id]?.attributes?.friendly_name || id;
+    const tempIds = this._sensorEntityIds("temperature");
+    const humidityIds = this._sensorEntityIds("humidity");
+    return html`
+      <div class="sensor-picker-row">
+        <div class="sensor-picker-wrap">
+          <span>🌡️</span>
+          <select
+            class="sensor-select"
+            @change=${(e: Event) => onTemp((e.target as HTMLSelectElement).value)}
+          >
+            <option value="" ?selected=${!tempValue}>${this._t("ui.rack.sensorNone")}</option>
+            ${tempIds.map(
+              (id) => html`<option value=${id} ?selected=${tempValue === id}>${friendlyName(id)}</option>`
+            )}
+          </select>
+        </div>
+        <div class="sensor-picker-wrap">
+          <span>💧</span>
+          <select
+            class="sensor-select"
+            @change=${(e: Event) => onHumidity((e.target as HTMLSelectElement).value)}
+          >
+            <option value="" ?selected=${!humidityValue}>${this._t("ui.rack.sensorNone")}</option>
+            ${humidityIds.map(
+              (id) => html`<option value=${id} ?selected=${humidityValue === id}>${friendlyName(id)}</option>`
+            )}
+          </select>
+        </div>
+      </div>
+    `;
   }
 
   private _styleFor(slot: SecondarySlot): RackStyle | "none" {
@@ -1022,6 +1107,8 @@ export class RackSettingsDialog extends LitElement {
           storage_rows: this._finalStorageRows(),
           order: this.cabinets.length,
           orientation: "vertical",
+          temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
+          humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
         },
       });
       this._notifyUpdate();
@@ -1054,6 +1141,8 @@ export class RackSettingsDialog extends LitElement {
           bottom_zone_name: "",
           storage_rows: this._finalStorageRows(),
           orientation: "vertical",
+          temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
+          humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
         },
       });
 
@@ -1455,6 +1544,18 @@ export class RackSettingsDialog extends LitElement {
                 name: (e.target as HTMLInputElement).value,
               })}
           />
+        </div>
+
+        <!-- Whole-cabinet sensors: used as-is by a plain grid rack, and as
+             the fallback for any zone below that doesn't set its own. -->
+        <div class="form-group">
+          <label>${this._t("ui.rack.cabinetSensorsLabel")}</label>
+          ${this._renderSensorPickers(
+            this._editCabinet.temp_sensor_entity_id || "",
+            this._editCabinet.humidity_sensor_entity_id || "",
+            (value) => (this._editCabinet = { ...this._editCabinet, temp_sensor_entity_id: value }),
+            (value) => (this._editCabinet = { ...this._editCabinet, humidity_sensor_entity_id: value })
+          )}
         </div>
 
         <!-- Primary style: exactly one of these five, chosen once -->

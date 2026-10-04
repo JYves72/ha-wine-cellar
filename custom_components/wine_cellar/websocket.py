@@ -14,6 +14,9 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import (
     CONF_AI_FALLBACK_ALWAYS,
+    CONF_CHAMBERING_EQUILIBRATION_HOURS,
+    CONF_CHAMBERING_TIME_CONSTANT_MINUTES,
+    CONF_CHAMBERING_ROOM_SENSOR,
     CONF_DEFAULT_WINE_TYPE,
     CONF_DISMISSED_ARRANGEMENTS,
     CONF_DISPOSITION_DISPLAY,
@@ -24,6 +27,8 @@ from .const import (
     CONF_VIVINO_MODE,
     CONF_WINE_HISTORY,
     CONF_WINES,
+    DEFAULT_CHAMBERING_EQUILIBRATION_HOURS,
+    DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES,
     DEFAULT_DISPOSITION_DISPLAY,
     DEFAULT_METADATA_CURRENCY,
     DEFAULT_METADATA_LANGUAGE,
@@ -78,6 +83,34 @@ def _get_vivino_mode(hass: HomeAssistant) -> str:
     if entries:
         return entries[0].options.get(CONF_VIVINO_MODE, DEFAULT_VIVINO_MODE)
     return DEFAULT_VIVINO_MODE
+
+
+def _get_chambering_room_sensor(hass: HomeAssistant) -> str:
+    """Return the configured chambering-room temperature sensor entity_id."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if entries:
+        return entries[0].options.get(CONF_CHAMBERING_ROOM_SENSOR, "")
+    return ""
+
+
+def _get_chambering_time_constant_minutes(hass: HomeAssistant) -> int:
+    """Return the configured warm-up estimate, in minutes per °C."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if entries:
+        return entries[0].options.get(
+            CONF_CHAMBERING_TIME_CONSTANT_MINUTES, DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES
+        )
+    return DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES
+
+
+def _get_chambering_equilibration_hours(hass: HomeAssistant) -> int:
+    """Return how long a bottle must sit in a zone before trusting its sensor."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if entries:
+        return entries[0].options.get(
+            CONF_CHAMBERING_EQUILIBRATION_HOURS, DEFAULT_CHAMBERING_EQUILIBRATION_HOURS
+        )
+    return DEFAULT_CHAMBERING_EQUILIBRATION_HOURS
 
 
 def _is_whisky(wine: dict[str, Any]) -> bool:
@@ -1078,6 +1111,9 @@ def ws_get_capabilities(
                     CONF_DISMISSED_ARRANGEMENTS, []
                 )
             ),
+            "chambering_room_sensor": _get_chambering_room_sensor(hass),
+            "chambering_time_constant_minutes": _get_chambering_time_constant_minutes(hass),
+            "chambering_equilibration_hours": _get_chambering_equilibration_hours(hass),
         },
     )
 

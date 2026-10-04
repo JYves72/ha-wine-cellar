@@ -68,6 +68,10 @@ export interface Wine {
   ai_updated_at: string | null;
   ai_checked_at: string | null;
   vivino_id: number | null;
+  // When cabinet_id/row/col/zone last actually changed — what a zone's
+  // temp/humidity sensor is checked against before it's trusted as this
+  // bottle's own temperature (see utils/chambering.ts).
+  location_updated_at?: string;
 }
 
 export type StorageRowType = "bulk" | "box" | "shelf" | "stepped";
@@ -176,6 +180,11 @@ export interface Cabinet {
   bottom_zone_name: string;
   storage_rows: StorageRow[];
   order: number;
+  // Live temp/humidity sensors of this zone (the whole rack card) — shown in
+  // its title banner, and what bottles stored here are assumed to be at
+  // (see utils/chambering.ts).
+  temp_sensor_entity_id: string;
+  humidity_sensor_entity_id: string;
 }
 
 export interface CellarStats {

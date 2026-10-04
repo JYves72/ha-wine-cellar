@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
+import { readSensorValue } from "../utils/chambering";
 
 @customElement("cabinet-grid")
 export class CabinetGrid extends LitElement {
@@ -358,6 +359,13 @@ export class CabinetGrid extends LitElement {
         color: rgba(255, 255, 255, 0.6);
         width: 100%;
         text-align: center;
+      }
+
+      .zone-sensor-badge {
+        display: block;
+        font-size: 0.75em;
+        font-weight: 400;
+        opacity: 0.85;
       }
 
       .zone-bottle {
@@ -768,6 +776,18 @@ export class CabinetGrid extends LitElement {
     return this.wines.filter(
       (w) => w.cabinet_id === this.cabinet.id && w.zone === "bottom"
     );
+  }
+
+  // Live temperature/humidity of the zone, shown in its title banner.
+  private _renderSensorBadge() {
+    const temp = readSensorValue(this.hass, this.cabinet.temp_sensor_entity_id || "");
+    const humidity = readSensorValue(this.hass, this.cabinet.humidity_sensor_entity_id || "");
+    if (temp === null && humidity === null) return nothing;
+    return html`
+      <span class="zone-sensor-badge">
+        ${temp !== null ? html`🌡️ ${temp}°C` : nothing}${temp !== null && humidity !== null ? " · " : nothing}${humidity !== null ? html`💧 ${humidity}%` : nothing}
+      </span>
+    `;
   }
 
   private _getStorageRowWines(row: number): Wine[] {
@@ -1522,7 +1542,7 @@ export class CabinetGrid extends LitElement {
           class="cabinet-name ${titleClickable ? "clickable" : ""}"
           @click=${titleClickable ? () => this._onRackClick() : nothing}
           title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
-        >${this.cabinet.name}</div>
+        >${this.cabinet.name}${this._renderSensorBadge()}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) =>
               storageRows.has(row)

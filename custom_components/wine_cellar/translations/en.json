@@ -26,7 +26,10 @@
           "vivino_cellar_url": "Vivino cellar page URL",
           "vivino_session_cookie": "Vivino session cookie (from your logged-in browser)",
           "vivino_mode": "Vivino mode",
-          "vivino_auto_sync": "Automatically sync the Vivino cellar twice a day"
+          "vivino_auto_sync": "Automatically sync the Vivino cellar twice a day",
+          "chambering_room_sensor": "Chambering room temperature sensor",
+          "chambering_time_constant_minutes": "Bottle warm-up time constant (minutes)",
+          "chambering_equilibration_hours": "Zone sensor trust delay (hours)"
         },
         "data_description": {
           "gemini_model": "Format: gemini-2.5-flash",
@@ -34,7 +37,10 @@
           "ai_api_key": "Sent as header: Authorization: Bearer {key}",
           "ai_model": "Format: the exact model name your provider expects, e.g. gemini-2.5-flash",
           "vivino_cellar_url": "Open your cellar in a browser and copy the address from the address bar. It ends with /cellars/ and your cellar number.",
-          "vivino_mode": "Import mirrors your Vivino cellar into Cork Dork and never writes to your Vivino account. Synchronize also pushes bottles you add or drink in Cork Dork back to Vivino — in Import mode, manage your bottle counts in Vivino."
+          "vivino_mode": "Import mirrors your Vivino cellar into Cork Dork and never writes to your Vivino account. Synchronize also pushes bottles you add or drink in Cork Dork back to Vivino — in Import mode, manage your bottle counts in Vivino.",
+          "chambering_room_sensor": "The room where bottles are brought up to serving temperature. Used to estimate how long before serving a bottle should be taken out of its storage zone.",
+          "chambering_time_constant_minutes": "How fast a bottle warms in the chambering room: every this-many minutes, the gap between the bottle and the room shrinks by about two thirds. Around 75 is a rough starting point — time a real bottle and adjust (larger = slower).",
+          "chambering_equilibration_hours": "How long a bottle must have sat in its current zone before that zone's sensor is trusted as the bottle's own temperature."
         }
       }
     },

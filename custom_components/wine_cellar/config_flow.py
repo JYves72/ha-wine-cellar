@@ -17,6 +17,8 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -28,6 +30,9 @@ from .const import (
     CONF_AI_BASE_URL,
     CONF_AI_MODEL,
     CONF_AI_PROVIDER,
+    CONF_CHAMBERING_EQUILIBRATION_HOURS,
+    CONF_CHAMBERING_TIME_CONSTANT_MINUTES,
+    CONF_CHAMBERING_ROOM_SENSOR,
     CONF_GEMINI_API_KEY,
     CONF_GEMINI_MODEL,
     CONF_VIVINO_AUTO_SYNC,
@@ -35,6 +40,8 @@ from .const import (
     CONF_VIVINO_MODE,
     CONF_VIVINO_SESSION_COOKIE,
     DEFAULT_AI_PROVIDER,
+    DEFAULT_CHAMBERING_EQUILIBRATION_HOURS,
+    DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES,
     DEFAULT_GEMINI_MODEL,
     DEFAULT_VIVINO_MODE,
     DOMAIN,
@@ -145,6 +152,26 @@ class WineCellarOptionsFlow(OptionsFlow):
                         CONF_VIVINO_AUTO_SYNC,
                         default=current.get(CONF_VIVINO_AUTO_SYNC, False),
                     ): bool,
+                    vol.Optional(
+                        CONF_CHAMBERING_ROOM_SENSOR,
+                        default=current.get(CONF_CHAMBERING_ROOM_SENSOR, ""),
+                    ): EntitySelector(
+                        EntitySelectorConfig(domain="sensor", device_class="temperature")
+                    ),
+                    vol.Optional(
+                        CONF_CHAMBERING_TIME_CONSTANT_MINUTES,
+                        default=current.get(
+                            CONF_CHAMBERING_TIME_CONSTANT_MINUTES,
+                            DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES,
+                        ),
+                    ): vol.Coerce(int),
+                    vol.Optional(
+                        CONF_CHAMBERING_EQUILIBRATION_HOURS,
+                        default=current.get(
+                            CONF_CHAMBERING_EQUILIBRATION_HOURS,
+                            DEFAULT_CHAMBERING_EQUILIBRATION_HOURS,
+                        ),
+                    ): vol.Coerce(int),
                 }
             ),
         )

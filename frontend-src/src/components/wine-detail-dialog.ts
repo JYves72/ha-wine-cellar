@@ -4,6 +4,7 @@ import { Wine, Cabinet, TastingNotes, getWineTypeLabels, getSelectableWineTypes,
 import { sharedStyles } from "../styles";
 import { resizeImageForStorage } from "../utils/image";
 import { t } from "../i18n";
+import { getChamberingAdvice, formatDuration } from "../utils/chambering";
 import "./star-rating";
 import "./label-camera";
 
@@ -47,6 +48,9 @@ export class WineDetailDialog extends LitElement {
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) currency = "USD";
+  @property({ type: String }) chamberingRoomSensor = "";
+  @property({ type: Number }) chamberingTimeConstantMinutes = 75;
+  @property({ type: Number }) chamberingEquilibrationHours = 24;
 
   static styles = [
     sharedStyles,
@@ -280,6 +284,21 @@ export class WineDetailDialog extends LitElement {
       .drink-by-banner.past {
         background: rgba(198, 40, 40, 0.12);
         color: #c62828;
+      }
+
+      .drink-by-banner.chambering-ready {
+        background: rgba(46, 125, 50, 0.12);
+        color: #2e7d32;
+      }
+
+      .drink-by-banner.chambering-warm_up {
+        background: rgba(230, 81, 0, 0.12);
+        color: #e65100;
+      }
+
+      .drink-by-banner.chambering-chill {
+        background: rgba(2, 119, 189, 0.12);
+        color: #0277bd;
       }
 
       .wine-description {
@@ -841,6 +860,30 @@ export class WineDetailDialog extends LitElement {
     const peakStart = peakYears[0];
     const drinkEnd = drinkYears.length === 2 ? drinkYears[1] : drinkYears[0];
     return currentYear >= peakStart && currentYear <= drinkEnd;
+  }
+
+  private _renderChamberingBanner(wine: Wine) {
+    const cabinet = this.cabinets.find((c) => c.id === wine.cabinet_id);
+    const advice = getChamberingAdvice(
+      wine,
+      cabinet,
+      this.hass,
+      this.chamberingRoomSensor,
+      this.chamberingTimeConstantMinutes,
+      this.chamberingEquilibrationHours
+    );
+    if (!advice) return nothing;
+    return html`
+      <div class="drink-by-banner chambering-${advice.status}">
+        ${advice.status === "ready"
+          ? this._t("ui.wineDetail.chamberingReady")
+          : advice.status === "chill"
+            ? this._t("ui.wineDetail.chamberingChill")
+            : this._t("ui.wineDetail.chamberingWarmUp", {
+                duration: formatDuration(advice.minutes || 0),
+              })}
+      </div>
+    `;
   }
 
   private _onRatingChange(e: CustomEvent) {
@@ -1484,6 +1527,8 @@ export class WineDetailDialog extends LitElement {
                       </div>
                     `
                   : nothing}
+
+                ${this._renderChamberingBanner(wine)}
 
                 <!-- Description -->
                 ${wine.description
