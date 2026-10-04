@@ -848,7 +848,7 @@ var ui$1 = {
 		keepExistingPhotos: "Keep My Existing Photos",
 		replaceWithVivinoPhotos: "Replace With Vivino Photos",
 		runAiBatchTitle: "Run AI Batch Scan?",
-		runAiBatchBody: "This will run a full AI analysis on all {n} wines, one API call per bottle. It may take a while and use significant AI quota.",
+		runAiBatchBody: "This will run a full AI analysis on all {n} bottles. Identical bottles (same name, producer and vintage) are analysed only once, so {m} API calls are needed. This can take a while and use a significant amount of AI quota.",
 		runOnNWines: "Run on {n} Wines",
 		repriceOption: "Also re-estimate prices that are already set. Replaces prices you entered yourself.",
 		aiBatchScanBtn: "🤖 AI Batch Scan",
@@ -1217,6 +1217,7 @@ var ui$1 = {
 		ratingsCountSuffix: " ({count} ratings)",
 		myRating: "My Rating",
 		aiScanBtn: "AI Scan",
+		repriceOption: "Also re-estimate the price (replaces the current value) when running the AI scan",
 		scanLabelBtn: "Scan Label",
 		scanLabelTitle: "Take a fresh photo of the label to update this bottle's photo and details",
 		resetAiContentBtn: "Reset text",
@@ -1623,7 +1624,7 @@ var ui = {
 		keepExistingPhotos: "Garder mes photos actuelles",
 		replaceWithVivinoPhotos: "Remplacer par les photos Vivino",
 		runAiBatchTitle: "Lancer l'analyse IA groupée ?",
-		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} vins, un appel API par bouteille. Cela peut prendre du temps et consommer un quota IA important.",
+		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} bouteilles. Les bouteilles identiques (même nom, producteur et millésime) ne sont analysées qu'une fois : {m} appels API. Cela peut prendre du temps et consommer un quota IA important.",
 		runOnNWines: "Lancer sur {n} vins",
 		repriceOption: "Ré-estimer aussi les prix déjà renseignés. Remplace les prix que vous avez saisis vous-même.",
 		aiBatchScanBtn: "🤖 Analyse IA groupée",
@@ -1992,6 +1993,7 @@ var ui = {
 		ratingsCountSuffix: " ({count} avis)",
 		myRating: "Ma note",
 		aiScanBtn: "Analyse IA",
+		repriceOption: "Ré-estimer aussi le prix (remplace la valeur actuelle) lors du scan IA",
 		scanLabelBtn: "Scanner l'étiquette",
 		scanLabelTitle: "Prendre une nouvelle photo de l'étiquette pour mettre à jour la photo et les détails de cette bouteille",
 		resetAiContentBtn: "Réinitialiser",
@@ -5829,6 +5831,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._saving = false;
         this._refreshing = false;
         this._analyzing = false;
+        this._repriceOnAnalyze = false;
         this._resettingAiContent = false;
         this._scanningLabel = false;
         this._showLabelCamera = false;
@@ -6279,7 +6282,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             this._updatePhoto(thumbUrl, this._photoSide === "back" ? "back_image_url" : "image_url");
         }
     }
-    async _analyzeWithAI() {
+    async _analyzeWithAI(reprice = false) {
         const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
@@ -6288,6 +6291,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             const resp = await this.hass.callWS({
                 type: "wine_cellar/analyze_single_wine",
                 wine_id: this.wine.id,
+                reprice,
             });
             if (resp.error) {
                 alert(resp.error);
@@ -6701,7 +6705,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   </button>
                   ${this.hasGemini
                 ? b `<button class="btn btn-primary" style="background:#1565c0"
-                        ?disabled=${this._analyzing} @click=${this._analyzeWithAI}>
+                        ?disabled=${this._analyzing} @click=${() => this._analyzeWithAI(this._repriceOnAnalyze && !!this.wine?.retail_price)}>
                         ${this._analyzing ? "..." : `🤖 ${this._t("ui.wineDetail.aiScanBtn")}`}
                       </button>
                       <button class="btn btn-primary" style="background:#2e7d32"
@@ -6727,6 +6731,13 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button class="btn btn-primary" style="background:#c62828"
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
+                ${this.hasGemini && wine.retail_price
+                ? b `<label style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.75em;color:var(--wc-text-secondary);margin:-4px 0 10px;cursor:pointer">
+                      <input type="checkbox" .checked=${this._repriceOnAnalyze}
+                        @change=${(e) => (this._repriceOnAnalyze = e.target.checked)} />
+                      ${this._t("ui.wineDetail.repriceOption")}
+                    </label>`
+                : A}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                 ? b `
                       <div style="text-align:center;font-size:0.68em;color:var(--wc-text-secondary);margin-top:-6px;padding-bottom:10px">
@@ -7627,6 +7638,9 @@ __decorate([
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_analyzing", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_repriceOnAnalyze", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_resettingAiContent", void 0);
@@ -18000,7 +18014,10 @@ let WineCellarCard = class WineCellarCard extends i {
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
               <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.runAiBatchTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
+                ${this._t("ui.card.runAiBatchBody", {
+            n: this._wines.length,
+            m: new Set(this._wines.map((w) => `${w.name}|${w.winery}|${w.vintage ?? ""}`)).size,
+        })}
               </p>
               <label style="display:flex;align-items:flex-start;gap:6px;justify-content:center;text-align:left;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
                 <input

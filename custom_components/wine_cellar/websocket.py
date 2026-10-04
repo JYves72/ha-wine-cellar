@@ -1434,6 +1434,7 @@ async def ws_refresh_wine(
     {
         vol.Required("type"): "wine_cellar/analyze_single_wine",
         vol.Required("wine_id"): str,
+        vol.Optional("reprice", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -1465,7 +1466,7 @@ async def ws_analyze_single_wine(
         return
 
     # Apply results to wine
-    updates = _build_ai_updates(wine, result, currency, language)
+    updates = _build_ai_updates(wine, result, currency, language, msg.get("reprice", False))
 
     _LOGGER.debug("Final updates for wine %s: %s", msg["wine_id"], list(updates.keys()))
     # Same split as the Vivino path: the check is always recorded, the update
@@ -1558,7 +1559,18 @@ async def ws_batch_analyze_wines(
     errors = 0
     total = len(wines)
 
+    # Identical bottles (same name + winery + vintage — the key
+    # _propagate_to_duplicates matches on) share the result of one AI call:
+    # analyze one representative and let propagation fill in its twins.
+    # Counters stay per bottle so they add up to `total`.
+    groups: dict[tuple, list[dict[str, Any]]] = {}
     for wine in wines:
+        key = (wine.get("name", ""), wine.get("winery", ""), wine.get("vintage"))
+        groups.setdefault(key, []).append(wine)
+
+    for members in groups.values():
+        wine = members[0]
+        n = len(members)
         try:
             result = await gemini.analyze_single_wine(wine, language, currency)
             if "error" in result:
@@ -1566,7 +1578,7 @@ async def ws_batch_analyze_wines(
                     "Batch AI: error for wine %s: %s",
                     wine.get("id"), result["error"],
                 )
-                errors += 1
+                errors += n
                 continue
 
             updates = _build_ai_updates(wine, result, currency, language, reprice)
@@ -1582,9 +1594,9 @@ async def ws_batch_analyze_wines(
             storage.update_wine(wine["id"], updates)
             _propagate_to_duplicates(storage, wine, updates)
             if had_changes:
-                updated += 1
+                updated += n
             else:
-                unchanged += 1
+                unchanged += n
 
             # Small delay between API calls to avoid rate limits
             await asyncio.sleep(0.5)
@@ -1593,7 +1605,7 @@ async def ws_batch_analyze_wines(
             _LOGGER.warning(
                 "Batch AI: exception for wine %s: %s", wine.get("id"), err
             )
-            errors += 1
+            errors += n
 
     if updated or unchanged:
         await storage.async_save()

@@ -3144,7 +3144,10 @@ export class WineCellarCard extends LitElement {
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
               <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.runAiBatchTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
+                ${this._t("ui.card.runAiBatchBody", {
+                  n: this._wines.length,
+                  m: new Set(this._wines.map((w) => `${w.name}|${w.winery}|${w.vintage ?? ""}`)).size,
+                })}
               </p>
               <label style="display:flex;align-items:flex-start;gap:6px;justify-content:center;text-align:left;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
                 <input
