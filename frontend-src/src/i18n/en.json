@@ -104,6 +104,7 @@
       "runAiBatchTitle": "Run AI Batch Scan?",
       "runAiBatchBody": "This will run a full AI analysis on all {n} wines, one API call per bottle. It may take a while and use significant AI quota.",
       "runOnNWines": "Run on {n} Wines",
+      "repriceOption": "Also re-estimate prices that are already set. Replaces prices you entered yourself.",
       "aiBatchScanBtn": "🤖 AI Batch Scan",
       "aiScanning": "AI Scanning...",
       "vivinoBatchScanBtn": "🍇 Vivino Batch Scan",

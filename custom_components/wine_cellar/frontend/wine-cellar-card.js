@@ -850,6 +850,7 @@ var ui$1 = {
 		runAiBatchTitle: "Run AI Batch Scan?",
 		runAiBatchBody: "This will run a full AI analysis on all {n} wines, one API call per bottle. It may take a while and use significant AI quota.",
 		runOnNWines: "Run on {n} Wines",
+		repriceOption: "Also re-estimate prices that are already set. Replaces prices you entered yourself.",
 		aiBatchScanBtn: "🤖 AI Batch Scan",
 		aiScanning: "AI Scanning...",
 		vivinoBatchScanBtn: "🍇 Vivino Batch Scan",
@@ -1624,6 +1625,7 @@ var ui = {
 		runAiBatchTitle: "Lancer l'analyse IA groupée ?",
 		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} vins, un appel API par bouteille. Cela peut prendre du temps et consommer un quota IA important.",
 		runOnNWines: "Lancer sur {n} vins",
+		repriceOption: "Ré-estimer aussi les prix déjà renseignés. Remplace les prix que vous avez saisis vous-même.",
 		aiBatchScanBtn: "🤖 Analyse IA groupée",
 		aiScanning: "Analyse IA en cours...",
 		vivinoBatchScanBtn: "🍇 Analyse Vivino groupée",
@@ -18006,7 +18008,7 @@ let WineCellarCard = class WineCellarCard extends i {
                   .checked=${this._batchReprice}
                   @change=${(e) => (this._batchReprice = e.target.checked)}
                 />
-                <span>Also re-estimate prices that are already set. Replaces prices you entered yourself.</span>
+                <span>${this._t("ui.card.repriceOption")}</span>
               </label>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>

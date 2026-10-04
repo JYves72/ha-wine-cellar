@@ -3152,7 +3152,7 @@ export class WineCellarCard extends LitElement {
                   .checked=${this._batchReprice}
                   @change=${(e: Event) => (this._batchReprice = (e.target as HTMLInputElement).checked)}
                 />
-                <span>Also re-estimate prices that are already set. Replaces prices you entered yourself.</span>
+                <span>${this._t("ui.card.repriceOption")}</span>
               </label>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>

@@ -104,6 +104,7 @@
       "runAiBatchTitle": "Lancer l'analyse IA groupée ?",
       "runAiBatchBody": "Cela va lancer une analyse IA complète sur les {n} vins, un appel API par bouteille. Cela peut prendre du temps et consommer un quota IA important.",
       "runOnNWines": "Lancer sur {n} vins",
+      "repriceOption": "Ré-estimer aussi les prix déjà renseignés. Remplace les prix que vous avez saisis vous-même.",
       "aiBatchScanBtn": "🤖 Analyse IA groupée",
       "aiScanning": "Analyse IA en cours...",
       "vivinoBatchScanBtn": "🍇 Analyse Vivino groupée",
