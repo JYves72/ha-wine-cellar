@@ -53,7 +53,10 @@
       { id: "10", barcode: "", name: "Vega Sicilia Unico 2011", winery: "Vega Sicilia", region: "Ribera del Duero", country: "Spain", vintage: 2011, type: "red", grape_variety: "Tempranillo", rating: 4.7, ratings_count: 2560, image_url: "https://images.vivino.com/thumbs/1SprQfT5TeGkfnyaYwWbpg_375x500.jpg", price: 450, purchase_date: "2024-08-01", drink_by: "2045", notes: "", description: "Spain's most prestigious wine. Exquisite complexity and aging potential.", food_pairings: "Beef, Lamb, Game", alcohol: "14.0%", cabinet_id: "cabinet-1", row: 1, col: 1, depth: 0, zone: "", disposition: "H", added_at: "2024-08-01T10:00:00Z" },
       { id: "11", barcode: "", name: "Château d'Yquem 2015", winery: "Château d'Yquem", region: "Sauternes", country: "France", vintage: 2015, type: "white", grape_variety: "Sémillon", rating: 4.9, ratings_count: 3890, image_url: "https://images.vivino.com/thumbs/FUfxvPjcTVqByy8FBjuUJA_375x500.jpg", price: 400, purchase_date: "2024-08-15", drink_by: "2060", notes: "Premier Cru Supérieur", description: "The world's greatest sweet wine. Extraordinary depth and longevity.", food_pairings: "Foie Gras, Blue Cheese, Dessert", alcohol: "14.0%", cabinet_id: "cabinet-2", row: 1, col: 0, depth: 0, zone: "", disposition: "H", added_at: "2024-08-15T10:00:00Z" },
       { id: "12", barcode: "", name: "Chablis Grand Cru 2020", winery: "William Fèvre", region: "Chablis, Burgundy", country: "France", vintage: 2020, type: "white", grape_variety: "Chardonnay", rating: 4.3, ratings_count: 1670, image_url: "https://images.vivino.com/thumbs/RQf52a0TX0GN3Bl7giH5-Q_375x500.jpg", price: 85, purchase_date: "2024-09-01", drink_by: "2032", notes: "", description: "Mineral-driven with citrus, flint, and subtle oak influence.", food_pairings: "Shellfish, Fish, Poultry", alcohol: "13.0%", cabinet_id: "cabinet-2", row: 2, col: 0, depth: 0, zone: "", disposition: "D", added_at: "2024-09-01T10:00:00Z" },
-      { id: "b1", barcode: "", name: "Pio Cesare Barolo (Bulk)", winery: "Pio Cesare", region: "Barolo", country: "Italy", vintage: 2019, type: "red", grape_variety: "Nebbiolo", rating: 4.3, ratings_count: 1100, image_url: "", price: 60, purchase_date: "2024-10-01", drink_by: "2035", notes: "Bulk storage", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-1", row: null, col: null, depth: 0, zone: "storage-9", disposition: "", added_at: "2024-10-01T10:00:00Z" },
+      { id: "b1", barcode: "", name: "Pio Cesare Barolo (Bulk)", winery: "Pio Cesare", region: "Barolo", country: "Italy", vintage: 2019, type: "red", grape_variety: "Nebbiolo", rating: 4.3, ratings_count: 1100, image_url: "", price: 60, purchase_date: "2024-10-01", drink_by: "2035", notes: "Bulk storage", description: "", food_pairings: "", alcohol: "", serving_temp: "16-18°C", cabinet_id: "cabinet-1", row: null, col: null, depth: 0, zone: "storage-9", disposition: "", added_at: "2024-10-01T10:00:00Z", location_updated_at: "2024-10-01T10:00:00Z" },
+      // Same zone/serving_temp as b1, but "just moved" — chambering advice
+      // must stay hidden until chambering_equilibration_hours has passed.
+      { id: "b1c", barcode: "", name: "Pio Cesare Barolo (Just Moved)", winery: "Pio Cesare", region: "Barolo", country: "Italy", vintage: 2019, type: "red", grape_variety: "Nebbiolo", rating: 4.3, ratings_count: 1100, image_url: "", price: 60, purchase_date: "2024-10-01", drink_by: "2035", notes: "", description: "", food_pairings: "", alcohol: "", serving_temp: "16-18°C", cabinet_id: "cabinet-1", row: null, col: null, depth: 1, zone: "storage-9", disposition: "", added_at: "2024-10-01T10:00:00Z", location_updated_at: new Date().toISOString() },
       { id: "b2", barcode: "", name: "Château Margaux 2018 (Case)", winery: "Château Margaux", region: "Margaux", country: "France", vintage: 2018, type: "red", grape_variety: "Cabernet Sauvignon", rating: 4.6, ratings_count: 980, image_url: "", price: 400, purchase_date: "2024-10-15", drink_by: "2045", notes: "12-bottle case", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-2", row: null, col: null, depth: 0, zone: "storage-9", disposition: "", added_at: "2024-10-15T10:00:00Z" },
       { id: "b3", barcode: "", name: "Château Margaux 2018 (Case #2)", winery: "Château Margaux", region: "Margaux", country: "France", vintage: 2018, type: "red", grape_variety: "Cabernet Sauvignon", rating: 4.6, ratings_count: 980, image_url: "", price: 400, purchase_date: "2024-10-15", drink_by: "2045", notes: "12-bottle case", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-2", row: null, col: null, depth: 1, zone: "storage-9", disposition: "", added_at: "2024-10-15T10:00:00Z" },
       { id: "b4", barcode: "", name: "Château Margaux 2018 (Case #3)", winery: "Château Margaux", region: "Margaux", country: "France", vintage: 2018, type: "red", grape_variety: "Cabernet Sauvignon", rating: 4.6, ratings_count: 980, image_url: "", price: 400, purchase_date: "2024-10-15", drink_by: "2045", notes: "12-bottle case", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-2", row: null, col: null, depth: 2, zone: "storage-9", disposition: "", added_at: "2024-10-15T10:00:00Z" },
@@ -76,7 +79,7 @@
     ];
 
     const mockCabinets = [
-      { id: "cabinet-1", name: "Section 1", type: "grid", rows: 10, cols: 9, depth: 1, has_bottom_zone: false, bottom_zone_name: "", storage_rows: [{ row: 9, name: "Bulk Bin", type: "bulk", capacity: 20 }], order: 0 },
+      { id: "cabinet-1", name: "Section 1", type: "grid", rows: 10, cols: 9, depth: 1, has_bottom_zone: false, bottom_zone_name: "", storage_rows: [{ row: 9, name: "Bulk Bin", type: "bulk", capacity: 20 }], order: 0, temp_sensor_entity_id: "sensor.cave_temp", humidity_sensor_entity_id: "sensor.cave_humidity" },
       { id: "cabinet-2", name: "Section 2", type: "grid", rows: 9, cols: 10, depth: 2, has_bottom_zone: false, bottom_zone_name: "", storage_rows: [{ row: 8, name: "Bordeaux Case", type: "box", capacity: 18, boxes: [6, 12] }], order: 1 },
       { id: "cabinet-3", name: "Section 3", type: "grid", rows: 10, cols: 9, depth: 1, has_bottom_zone: false, bottom_zone_name: "", storage_rows: [{ row: 9, name: "Wall Rack", type: "bulk", capacity: 6 }], order: 2 },
       { id: "cabinet-4", name: "Capacity Test", type: "zone", rows: 2, cols: 1, depth: 1, has_bottom_zone: false, bottom_zone_name: "", storage_rows: [
@@ -129,6 +132,15 @@
     window.fireWineCellarUpdated = fireWineCellarUpdated;
 
     const mockHass = {
+      // A few fake sensors so the zone sensor pickers (Rack Settings) and
+      // the live zone/chambering badges are exercisable without real HA —
+      // see CLAUDE.md's chambering section for why a plain <select> reading
+      // this rather than <ha-entity-picker> was chosen.
+      states: {
+        "sensor.cave_temp": { state: "12.4", attributes: { device_class: "temperature", friendly_name: "Cave — Température" } },
+        "sensor.cave_humidity": { state: "68", attributes: { device_class: "humidity", friendly_name: "Cave — Humidité" } },
+        "sensor.salon_temp": { state: "21.0", attributes: { device_class: "temperature", friendly_name: "Salon — Température" } },
+      },
       connection: {
         subscribeEvents: async (cb, eventType) => {
           if (eventType !== "wine_cellar_updated") return () => {};
@@ -145,7 +157,13 @@
           case "wine_cellar/get_stats":
             return mockStats;
           case "wine_cellar/get_capabilities":
-            return { has_gemini: true, dismissed_arrangements: mockSettings.dismissed_arrangements || [] };
+            return {
+              has_gemini: true,
+              dismissed_arrangements: mockSettings.dismissed_arrangements || [],
+              chambering_room_sensor: "sensor.salon_temp",
+              chambering_time_constant_minutes: 75,
+              chambering_equilibration_hours: 24,
+            };
           case "wine_cellar/lookup_barcode":
             return { result: { name: "Test Wine", winery: "Test Winery", region: "Test Region", country: "France", vintage: 2020, type: "red", grape_variety: "Merlot", rating: 4.0, ratings_count: 500, image_url: "https://images.vivino.com/thumbs/ApnxEJsiSaCuFadP5WMFKQ_375x500.jpg", price: 30, description: "A rich, full-bodied red.", food_pairings: "Beef, Pasta", alcohol: "13.5%", source: "mock" }, cached: false };
           case "wine_cellar/search_wine":

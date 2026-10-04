@@ -545,6 +545,9 @@
       "pastPeakWithWindow": "Past peak • was {window}",
       "pastPeakWithPeak": "Past peak • was {window} (Peak was: {peak})",
       "pastPeakPlain": "Past peak",
+      "chamberingReady": "🌡️ Ready to serve",
+      "chamberingWarmUp": "🌡️ Take out {duration} before serving",
+      "chamberingChill": "🧊 Chill ~15–20 min before serving",
       "aiLabel": "AI"
     },
     "rack": {
@@ -564,6 +567,8 @@
       "delBtn": "Del",
       "addRackBtn": "+ Add Rack",
       "rackNameLabel": "Rack Name",
+      "cabinetSensorsLabel": "Sensors (temperature / humidity)",
+      "sensorNone": "—",
       "gridLayoutTitle": "Grid Layout",
       "styleLabel": "Rack style",
       "styleGrid": "Classic grid",

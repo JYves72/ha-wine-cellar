@@ -1286,6 +1286,9 @@ var ui$1 = {
 		pastPeakWithWindow: "Past peak • was {window}",
 		pastPeakWithPeak: "Past peak • was {window} (Peak was: {peak})",
 		pastPeakPlain: "Past peak",
+		chamberingReady: "🌡️ Ready to serve",
+		chamberingWarmUp: "🌡️ Take out {duration} before serving",
+		chamberingChill: "🧊 Chill ~15–20 min before serving",
 		aiLabel: "AI"
 	},
 	rack: {
@@ -1305,6 +1308,8 @@ var ui$1 = {
 		delBtn: "Del",
 		addRackBtn: "+ Add Rack",
 		rackNameLabel: "Rack Name",
+		cabinetSensorsLabel: "Sensors (temperature / humidity)",
+		sensorNone: "—",
 		gridLayoutTitle: "Grid Layout",
 		styleLabel: "Rack style",
 		styleGrid: "Classic grid",
@@ -2055,6 +2060,9 @@ var ui = {
 		pastPeakWithWindow: "Sur le déclin • était {window}",
 		pastPeakWithPeak: "Sur le déclin • était {window} (Apogée : {peak})",
 		pastPeakPlain: "Sur le déclin",
+		chamberingReady: "🌡️ Prêt à servir",
+		chamberingWarmUp: "🌡️ Sortir {duration} avant de servir",
+		chamberingChill: "🧊 Rafraîchir ~15–20 min avant de servir",
 		aiLabel: "IA"
 	},
 	rack: {
@@ -2074,6 +2082,8 @@ var ui = {
 		delBtn: "Suppr",
 		addRackBtn: "+ Ajouter un rack",
 		rackNameLabel: "Nom du rack",
+		cabinetSensorsLabel: "Capteurs (température / humidité)",
+		sensorNone: "—",
 		gridLayoutTitle: "Disposition de la grille",
 		styleLabel: "Style du rack",
 		styleGrid: "Grille classique",
@@ -3640,6 +3650,85 @@ ArrangementDialog = __decorate([
     t$1("arrangement-dialog")
 ], ArrangementDialog);
 
+// "Chambering" = bringing a bottle from its storage zone's temperature up to
+// its ideal serving temperature. This module turns a zone's live sensor, a
+// wine's serving_temp, and the chambering room's sensor into simple, honest
+// advice. A "zone" here is a whole rack card (a Cabinet) — sensors are set
+// per rack, not per shelf or bin inside it.
+function readSensorValue(hass, entityId) {
+    if (!entityId || !hass?.states)
+        return null;
+    const state = hass.states[entityId];
+    if (!state || state.state === "unavailable" || state.state === "unknown")
+        return null;
+    const value = parseFloat(state.state);
+    return Number.isFinite(value) ? value : null;
+}
+// Parses "16-18°C" / "16°C" / "16-18" / "16" — lenient on purpose since this
+// is an AI-filled free-text field, not a structured one.
+function parseServingTemp(servingTemp) {
+    if (!servingTemp)
+        return null;
+    // No leading sign: serving temperatures are never sub-zero in practice,
+    // and allowing one would make parseServingTemp("16-18°C") misread the
+    // range's own hyphen as a minus sign on 18 (giving -18, not 18).
+    const numbers = (servingTemp.match(/\d+(?:[.,]\d+)?/g) || []).map((n) => parseFloat(n.replace(",", ".")));
+    if (numbers.length === 0 || numbers.some((n) => !Number.isFinite(n)))
+        return null;
+    if (numbers.length === 1)
+        return { low: numbers[0], high: numbers[0] };
+    return { low: Math.min(numbers[0], numbers[1]), high: Math.max(numbers[0], numbers[1]) };
+}
+function getChamberingAdvice(wine, cabinet, hass, roomSensorEntityId, timeConstantMinutes, equilibrationHours) {
+    const range = parseServingTemp(wine.serving_temp);
+    if (!range)
+        return null;
+    const cellarTemp = readSensorValue(hass, cabinet?.temp_sensor_entity_id || "");
+    if (cellarTemp === null)
+        return null;
+    if (wine.location_updated_at) {
+        const movedAt = new Date(wine.location_updated_at).getTime();
+        if (Number.isFinite(movedAt)) {
+            const hoursInZone = (Date.now() - movedAt) / 3_600_000;
+            if (hoursInZone < equilibrationHours)
+                return null;
+        }
+    }
+    if (cellarTemp >= range.low && cellarTemp <= range.high) {
+        return { status: "ready" };
+    }
+    if (cellarTemp > range.high) {
+        return { status: "chill" };
+    }
+    // cellarTemp < range.low: the bottle warms towards the room's temperature.
+    // Newton's law of heating: T(t) = room - (room - cellar) * exp(-t / tau),
+    // so reaching `target` takes t = tau * ln((room - cellar) / (room - target)).
+    // A warmer room therefore means a shorter wait, and the bottle can never
+    // pass the room temperature — a target at or above it is unreachable.
+    const roomTemp = readSensorValue(hass, roomSensorEntityId);
+    if (roomTemp === null || !(timeConstantMinutes > 0))
+        return null;
+    // Aim for the middle of the serving range; if the room is too close to (or
+    // below) that, settle for the bottom of the range. The margin keeps the
+    // logarithm finite when the target is barely under the room temperature.
+    const margin = 0.5;
+    const targetTemp = [(range.low + range.high) / 2, range.low].find((t) => t <= roomTemp - margin);
+    if (targetTemp === undefined)
+        return null;
+    const minutes = timeConstantMinutes * Math.log((roomTemp - cellarTemp) / (roomTemp - targetTemp));
+    return { status: "warm_up", minutes: Math.max(0, Math.round(minutes / 5) * 5) };
+}
+// "90 minutes" -> "1h30"
+function formatDuration(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0)
+        return `${m}min`;
+    if (m === 0)
+        return `${h}h`;
+    return `${h}h${String(m).padStart(2, "0")}`;
+}
+
 let CabinetGrid = class CabinetGrid extends i {
     constructor() {
         super(...arguments);
@@ -3688,6 +3777,18 @@ let CabinetGrid = class CabinetGrid extends i {
     }
     _getBottomZoneWines() {
         return this.wines.filter((w) => w.cabinet_id === this.cabinet.id && w.zone === "bottom");
+    }
+    // Live temperature/humidity of the zone, shown in its title banner.
+    _renderSensorBadge() {
+        const temp = readSensorValue(this.hass, this.cabinet.temp_sensor_entity_id || "");
+        const humidity = readSensorValue(this.hass, this.cabinet.humidity_sensor_entity_id || "");
+        if (temp === null && humidity === null)
+            return A;
+        return b `
+      <span class="zone-sensor-badge">
+        ${temp !== null ? b `🌡️ ${temp}°C` : A}${temp !== null && humidity !== null ? " · " : A}${humidity !== null ? b `💧 ${humidity}%` : A}
+      </span>
+    `;
     }
     _getStorageRowWines(row) {
         return this.wines
@@ -4402,7 +4503,7 @@ let CabinetGrid = class CabinetGrid extends i {
           class="cabinet-name ${titleClickable ? "clickable" : ""}"
           @click=${titleClickable ? () => this._onRackClick() : A}
           title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
-        >${this.cabinet.name}</div>
+        >${this.cabinet.name}${this._renderSensorBadge()}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) => storageRows.has(row)
             ? this._renderStorageZone(row)
@@ -4767,6 +4868,13 @@ CabinetGrid.styles = [
         color: rgba(255, 255, 255, 0.6);
         width: 100%;
         text-align: center;
+      }
+
+      .zone-sensor-badge {
+        display: block;
+        font-size: 0.75em;
+        font-weight: 400;
+        opacity: 0.85;
       }
 
       .zone-bottle {
@@ -5728,6 +5836,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this.aiFallbackAlways = false;
         this.enableWhisky = false;
         this.currency = "USD";
+        this.chamberingRoomSensor = "";
+        this.chamberingTimeConstantMinutes = 75;
+        this.chamberingEquilibrationHours = 24;
     }
     // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
     _t(key, params) {
@@ -5981,6 +6092,23 @@ let WineDetailDialog = class WineDetailDialog extends i {
         const peakStart = peakYears[0];
         const drinkEnd = drinkYears.length === 2 ? drinkYears[1] : drinkYears[0];
         return currentYear >= peakStart && currentYear <= drinkEnd;
+    }
+    _renderChamberingBanner(wine) {
+        const cabinet = this.cabinets.find((c) => c.id === wine.cabinet_id);
+        const advice = getChamberingAdvice(wine, cabinet, this.hass, this.chamberingRoomSensor, this.chamberingTimeConstantMinutes, this.chamberingEquilibrationHours);
+        if (!advice)
+            return A;
+        return b `
+      <div class="drink-by-banner chambering-${advice.status}">
+        ${advice.status === "ready"
+            ? this._t("ui.wineDetail.chamberingReady")
+            : advice.status === "chill"
+                ? this._t("ui.wineDetail.chamberingChill")
+                : this._t("ui.wineDetail.chamberingWarmUp", {
+                    duration: formatDuration(advice.minutes || 0),
+                })}
+      </div>
+    `;
     }
     _onRatingChange(e) {
         this._userRating = e.detail.value;
@@ -6641,6 +6769,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     `
                 : A}
 
+                ${this._renderChamberingBanner(wine)}
+
                 <!-- Description -->
                 ${wine.description
                 ? b `<div class="wine-description">${wine.description}</div>`
@@ -7132,6 +7262,21 @@ WineDetailDialog.styles = [
         color: #c62828;
       }
 
+      .drink-by-banner.chambering-ready {
+        background: rgba(46, 125, 50, 0.12);
+        color: #2e7d32;
+      }
+
+      .drink-by-banner.chambering-warm_up {
+        background: rgba(230, 81, 0, 0.12);
+        color: #e65100;
+      }
+
+      .drink-by-banner.chambering-chill {
+        background: rgba(2, 119, 189, 0.12);
+        color: #0277bd;
+      }
+
       .wine-description {
         padding: 0 20px 12px;
         font-size: 0.85em;
@@ -7514,6 +7659,15 @@ __decorate([
 __decorate([
     n({ type: String })
 ], WineDetailDialog.prototype, "currency", void 0);
+__decorate([
+    n({ type: String })
+], WineDetailDialog.prototype, "chamberingRoomSensor", void 0);
+__decorate([
+    n({ type: Number })
+], WineDetailDialog.prototype, "chamberingTimeConstantMinutes", void 0);
+__decorate([
+    n({ type: Number })
+], WineDetailDialog.prototype, "chamberingEquilibrationHours", void 0);
 WineDetailDialog = __decorate([
     t$1("wine-detail-dialog")
 ], WineDetailDialog);
@@ -9771,6 +9925,47 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         else
             this._secondaryStorageRows = rows;
     }
+    // --- Sensor pickers (temp/humidity) ---
+    // Plain <select> rather than HA's own <ha-entity-picker>: that element's
+    // API has shifted across HA versions, and it doesn't exist at all in this
+    // project's standalone Lovelace-less preview page — a native <select>
+    // works identically everywhere and needs nothing beyond hass.states.
+    _sensorEntityIds(deviceClass) {
+        const states = this.hass?.states || {};
+        return Object.keys(states)
+            .filter((id) => id.startsWith("sensor.") && states[id]?.attributes?.device_class === deviceClass)
+            .sort((a, b) => (states[a].attributes.friendly_name || a).localeCompare(states[b].attributes.friendly_name || b));
+    }
+    _renderSensorPickers(tempValue, humidityValue, onTemp, onHumidity) {
+        const states = this.hass?.states || {};
+        const friendlyName = (id) => states[id]?.attributes?.friendly_name || id;
+        const tempIds = this._sensorEntityIds("temperature");
+        const humidityIds = this._sensorEntityIds("humidity");
+        return b `
+      <div class="sensor-picker-row">
+        <div class="sensor-picker-wrap">
+          <span>🌡️</span>
+          <select
+            class="sensor-select"
+            @change=${(e) => onTemp(e.target.value)}
+          >
+            <option value="" ?selected=${!tempValue}>${this._t("ui.rack.sensorNone")}</option>
+            ${tempIds.map((id) => b `<option value=${id} ?selected=${tempValue === id}>${friendlyName(id)}</option>`)}
+          </select>
+        </div>
+        <div class="sensor-picker-wrap">
+          <span>💧</span>
+          <select
+            class="sensor-select"
+            @change=${(e) => onHumidity(e.target.value)}
+          >
+            <option value="" ?selected=${!humidityValue}>${this._t("ui.rack.sensorNone")}</option>
+            ${humidityIds.map((id) => b `<option value=${id} ?selected=${humidityValue === id}>${friendlyName(id)}</option>`)}
+          </select>
+        </div>
+      </div>
+    `;
+    }
     _styleFor(slot) {
         return slot === "primary" ? this._primaryStyle : this._secondaryStyle;
     }
@@ -10239,6 +10434,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     storage_rows: this._finalStorageRows(),
                     order: this.cabinets.length,
                     orientation: "vertical",
+                    temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
+                    humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
                 },
             });
             this._notifyUpdate();
@@ -10269,6 +10466,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     bottom_zone_name: "",
                     storage_rows: this._finalStorageRows(),
                     orientation: "vertical",
+                    temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
+                    humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
                 },
             });
             for (const wine of displaced) {
@@ -10658,6 +10857,13 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             name: e.target.value,
         })}
           />
+        </div>
+
+        <!-- Whole-cabinet sensors: used as-is by a plain grid rack, and as
+             the fallback for any zone below that doesn't set its own. -->
+        <div class="form-group">
+          <label>${this._t("ui.rack.cabinetSensorsLabel")}</label>
+          ${this._renderSensorPickers(this._editCabinet.temp_sensor_entity_id || "", this._editCabinet.humidity_sensor_entity_id || "", (value) => (this._editCabinet = { ...this._editCabinet, temp_sensor_entity_id: value }), (value) => (this._editCabinet = { ...this._editCabinet, humidity_sensor_entity_id: value }))}
         </div>
 
         <!-- Primary style: exactly one of these five, chosen once -->
@@ -11162,6 +11368,33 @@ RackSettingsDialog.styles = [
         border: 1px solid var(--wc-border);
         border-radius: 4px;
         font-size: 0.8em;
+        background: var(--wc-bg);
+        color: var(--wc-text);
+        cursor: pointer;
+      }
+
+      .sensor-picker-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 4px 0 8px;
+      }
+
+      .sensor-picker-wrap {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75em;
+        color: var(--wc-text-secondary);
+      }
+
+      .sensor-select {
+        max-width: 220px;
+        padding: 2px 4px;
+        border: 1px solid var(--wc-border);
+        border-radius: 4px;
+        font-size: 0.85em;
         background: var(--wc-bg);
         color: var(--wc-text);
         cursor: pointer;
@@ -15222,6 +15455,9 @@ let WineCellarCard = class WineCellarCard extends i {
         this._enableWhisky = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
+        this._chamberingRoomSensor = "";
+        this._chamberingTimeConstantMinutes = 75;
+        this._chamberingEquilibrationHours = 24;
         this._showVivinoAiSettings = false;
         this._showWineList = false;
         this._showInventory = false;
@@ -15397,6 +15633,9 @@ let WineCellarCard = class WineCellarCard extends i {
             this._enableWhisky = capResult?.enable_whisky || false;
             this._defaultWineType = capResult?.default_wine_type || "red";
             this._dispositionDisplay = capResult?.disposition_display || "letter";
+            this._chamberingRoomSensor = capResult?.chambering_room_sensor || "";
+            this._chamberingTimeConstantMinutes = capResult?.chambering_time_constant_minutes ?? 75;
+            this._chamberingEquilibrationHours = capResult?.chambering_equilibration_hours ?? 24;
             this._dismissedArrangements = capResult?.dismissed_arrangements || [];
             this._buyList = buyListResult?.buy_list || [];
             this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
@@ -17780,6 +18019,9 @@ let WineCellarCard = class WineCellarCard extends i {
           .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
           .mode=${this._detailMode}
+          .chamberingRoomSensor=${this._chamberingRoomSensor}
+          .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+          .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           @close=${() => (this._showDetail = false)}
           @remove-wine=${this._onRemoveWine}
           @remove-buy-list-item=${(e) => {
@@ -19000,6 +19242,15 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_dispositionDisplay", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_chamberingRoomSensor", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_chamberingTimeConstantMinutes", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_chamberingEquilibrationHours", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_showVivinoAiSettings", void 0);

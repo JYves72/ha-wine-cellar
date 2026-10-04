@@ -142,7 +142,24 @@ DEFAULT_VIVINO_MODE = VIVINO_MODE_IMPORT
 
 VIVINO_AUTO_SYNC_INTERVAL_HOURS = 12
 
+# Where the wine is brought up to serving temperature ("chambering"). A
+# single global sensor — not per-zone, per-cabinet fields below are the
+# storage-side temperature/humidity, this is the separate room-side one.
+CONF_CHAMBERING_ROOM_SENSOR = "chambering_room_sensor"
+
+# Thermal time constant (tau) of a bottle warming in still room air, per
+# Newton's law of heating: the gap to the room temperature shrinks by a
+# factor e every tau minutes. A rough starting point from a back-of-envelope
+# estimate (not a measurement) — meant to be tuned by timing a real bottle.
+CONF_CHAMBERING_TIME_CONSTANT_MINUTES = "chambering_time_constant_minutes"
+DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES = 75
+
+# How long a bottle must have sat in its current zone before that zone's
+# sensor reading is trusted as the bottle's own temperature.
+CONF_CHAMBERING_EQUILIBRATION_HOURS = "chambering_equilibration_hours"
+DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
+
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20260919d"
+FRONTEND_VERSION = "20260927a"

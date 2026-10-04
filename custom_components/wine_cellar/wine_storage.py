@@ -121,6 +121,10 @@ class WineCellarStorage:
             if cab.get("has_bottom_zone"):
                 cab["has_bottom_zone"] = False
                 cab["bottom_zone_name"] = ""
+            # Migrate: add whole-cabinet sensor fields
+            for key in ("temp_sensor_entity_id", "humidity_sensor_entity_id"):
+                if key not in cab:
+                    cab[key] = ""
             # Migrate storage rows to include type and capacity
             for sr in cab.get("storage_rows", []):
                 if "type" not in sr:
@@ -142,6 +146,12 @@ class WineCellarStorage:
                 wine["retail_price"] = None
             if "depth" not in wine:
                 wine["depth"] = 0
+            # Backfill from added_at: the best available proxy for "when did
+            # this bottle start sitting in its current spot" for a wine that
+            # predates location tracking (same reasoning as the vivino/ai
+            # checked_at backfill just below).
+            if "location_updated_at" not in wine:
+                wine["location_updated_at"] = wine.get("added_at", "")
             # Backfill the check timestamps: a wine that was updated from a
             # source was certainly consulted, so seed checked_at from
             # updated_at rather than reporting it as never looked up. Both
@@ -196,6 +206,7 @@ class WineCellarStorage:
             "col": wine_data.get("col"),
             "depth": wine_data.get("depth", 0),
             "zone": wine_data.get("zone", ""),
+            "location_updated_at": datetime.now(timezone.utc).isoformat(),
             "user_rating": wine_data.get("user_rating"),
             "tasting_notes": wine_data.get("tasting_notes"),
             "disposition": wine_data.get("disposition", ""),
@@ -271,13 +282,25 @@ class WineCellarStorage:
                 return wine
         return None
 
+    _LOCATION_KEYS = ("cabinet_id", "row", "col", "zone")
+
     def update_wine(self, wine_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
         """Update a wine bottle's data."""
         for wine in self._data[CONF_WINES]:
             if wine["id"] == wine_id:
+                moved = any(
+                    key in updates and updates[key] != wine.get(key)
+                    for key in self._LOCATION_KEYS
+                )
                 for key, value in updates.items():
                     if key != "id":
                         wine[key] = value
+                if moved:
+                    # A bottle's zone sensor reading only describes it once
+                    # it's had time to equilibrate (see chambering advice in
+                    # the frontend) — this timestamp is what that's measured
+                    # against.
+                    wine["location_updated_at"] = datetime.now(timezone.utc).isoformat()
                 # A caller setting disposition without also setting its
                 # source is Gemini AI, not the date-based auto-recompute
                 # (disposition.py writes disposition_source itself,
@@ -340,6 +363,8 @@ class WineCellarStorage:
             "bottom_zone_name": cabinet_data.get("bottom_zone_name", "Storage"),
             "storage_rows": cabinet_data.get("storage_rows", []),
             "order": cabinet_data.get("order", len(self.cabinets)),
+            "temp_sensor_entity_id": cabinet_data.get("temp_sensor_entity_id", ""),
+            "humidity_sensor_entity_id": cabinet_data.get("humidity_sensor_entity_id", ""),
         }
         self._data[CONF_CABINETS].append(cabinet)
         return cabinet

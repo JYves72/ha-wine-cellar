@@ -90,6 +90,9 @@ export class WineCellarCard extends LitElement {
   @state() private _enableWhisky = false;
   @state() private _defaultWineType: WineType = "red";
   @state() private _dispositionDisplay: "letter" | "dot" = "letter";
+  @state() private _chamberingRoomSensor = "";
+  @state() private _chamberingTimeConstantMinutes = 75;
+  @state() private _chamberingEquilibrationHours = 24;
   @state() private _showVivinoAiSettings = false;
   @state() private _showWineList = false;
   @state() private _showInventory = false;
@@ -679,6 +682,9 @@ export class WineCellarCard extends LitElement {
       this._enableWhisky = capResult?.enable_whisky || false;
       this._defaultWineType = capResult?.default_wine_type || "red";
       this._dispositionDisplay = capResult?.disposition_display || "letter";
+      this._chamberingRoomSensor = capResult?.chambering_room_sensor || "";
+      this._chamberingTimeConstantMinutes = capResult?.chambering_time_constant_minutes ?? 75;
+      this._chamberingEquilibrationHours = capResult?.chambering_equilibration_hours ?? 24;
       this._dismissedArrangements = capResult?.dismissed_arrangements || [];
       this._buyList = buyListResult?.buy_list || [];
       this._pendingRemovals = pendingRemovalsResult?.pending_removals || {};
@@ -3164,6 +3170,9 @@ export class WineCellarCard extends LitElement {
           .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
           .mode=${this._detailMode}
+          .chamberingRoomSensor=${this._chamberingRoomSensor}
+          .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+          .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           @close=${() => (this._showDetail = false)}
           @remove-wine=${this._onRemoveWine}
           @remove-buy-list-item=${(e: CustomEvent) => {
