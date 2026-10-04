@@ -1659,7 +1659,17 @@ async def ws_batch_refresh_vivino(
     ai_fallback_used = 0
     total = len(wines)
 
+    # Identical bottles (same name + winery + vintage) share one lookup —
+    # and one possible AI call — via _propagate_to_duplicates. Counters stay
+    # per bottle so they add up to `total`.
+    groups: dict[tuple, list[dict[str, Any]]] = {}
     for wine in wines:
+        key = (wine.get("name", ""), wine.get("winery", ""), wine.get("vintage"))
+        groups.setdefault(key, []).append(wine)
+
+    for members in groups.values():
+        wine = members[0]
+        n = len(members)
         try:
             # Build search query
             parts = []
@@ -1710,7 +1720,7 @@ async def ws_batch_refresh_vivino(
             if not lookup:
                 # No usable Vivino match. Only fall back to AI if the user
                 # opted into it upfront for this batch run — never silently.
-                mismatched += 1
+                mismatched += n
                 gained_data = False
                 gemini = hass.data[DOMAIN].get("gemini") if ai_fallback_mode == "use" else None
                 if gemini:
@@ -1726,8 +1736,8 @@ async def ws_batch_refresh_vivino(
                             storage.update_wine(wine["id"], ai_updates)
                             _propagate_to_duplicates(storage, wine, ai_updates)
                             if had_ai_changes:
-                                updated += 1
-                                ai_fallback_used += 1
+                                updated += n
+                                ai_fallback_used += n
                                 gained_data = True
                     except Exception as err:
                         _LOGGER.debug(
@@ -1743,7 +1753,7 @@ async def ws_batch_refresh_vivino(
                     {"vivino_checked_at": datetime.now(timezone.utc).isoformat()},
                 )
                 if not gained_data:
-                    unchanged += 1
+                    unchanged += n
                 await asyncio.sleep(1.0)
                 continue
 
@@ -1763,9 +1773,9 @@ async def ws_batch_refresh_vivino(
             if candidate_image and candidate_image != wine.get("image_url"):
                 if not wine.get("image_url") or photo_mode == "replace":
                     updates["image_url"] = candidate_image
-                    photos_updated += 1
+                    photos_updated += n
                 else:
-                    photos_kept += 1
+                    photos_kept += n
 
             # Vivino price as retail_price
             if lookup.get("price"):
@@ -1819,9 +1829,9 @@ async def ws_batch_refresh_vivino(
             storage.update_wine(wine["id"], updates)
             _propagate_to_duplicates(storage, wine, updates)
             if had_changes:
-                updated += 1
+                updated += n
             else:
-                unchanged += 1
+                unchanged += n
 
             # Small delay to avoid rate limits
             await asyncio.sleep(1.0)
@@ -1830,7 +1840,7 @@ async def ws_batch_refresh_vivino(
             _LOGGER.warning(
                 "Batch Vivino: exception for wine %s: %s", wine.get("id"), err
             )
-            errors += 1
+            errors += n
 
     if updated or unchanged:
         await storage.async_save()
