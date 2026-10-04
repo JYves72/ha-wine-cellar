@@ -327,12 +327,17 @@ const sharedStyles = i$3 `
     .dialog {
       width: 100%;
       max-width: 100%;
-      max-height: 100vh;
+      /* Stay below the status bar / notch. In the Companion app the page runs
+         edge-to-edge, so a full-height dialog put its top-right close button
+         under the clock and battery, where touches never reach it. */
+      max-height: calc(100vh - env(safe-area-inset-top, 0px));
       border-radius: 12px 12px 0 0;
       margin-top: auto;
     }
     .dialog-overlay {
       align-items: flex-end;
+      padding-top: env(safe-area-inset-top, 0px);
+      box-sizing: border-box;
     }
     .dialog-header {
       padding: 16px 16px 10px;
@@ -15429,6 +15434,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._batchVivino = false;
         this._showBatchVivinoConfirm = false;
         this._showBatchAiConfirm = false;
+        this._batchReprice = false;
         this._batchAiFallback = false;
         this._vivinoSyncing = false;
         this._toast = "";
@@ -16936,11 +16942,10 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Batch AI Analysis ---
     _batchAnalyzeWines() {
-        if (this._wines.length > 5) {
-            this._showBatchAiConfirm = true;
-            return;
-        }
-        this._runBatchAnalyzeWines();
+        // Always confirm: the dialog carries the re-estimate option, which would
+        // be unreachable on a small cellar if it were skipped.
+        this._batchReprice = false;
+        this._showBatchAiConfirm = true;
     }
     async _runBatchAnalyzeWines() {
         this._showBatchAiConfirm = false;
@@ -16949,6 +16954,7 @@ let WineCellarCard = class WineCellarCard extends i {
         try {
             const result = await this.hass.callWS({
                 type: "wine_cellar/batch_analyze_wines",
+                reprice: this._batchReprice,
             });
             if (result.error) {
                 this._showToast(this._t("toast.aiBatchFailedError", { error: result.error }));
@@ -17994,6 +18000,14 @@ let WineCellarCard = class WineCellarCard extends i {
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
                 ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
               </p>
+              <label style="display:flex;align-items:flex-start;gap:6px;justify-content:center;text-align:left;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
+                <input
+                  type="checkbox"
+                  .checked=${this._batchReprice}
+                  @change=${(e) => (this._batchReprice = e.target.checked)}
+                />
+                <span>Also re-estimate prices that are already set. Replaces prices you entered yourself.</span>
+              </label>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
                   ${this._t("ui.card.runOnNWines", { n: this._wines.length })}
@@ -19179,6 +19193,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_showBatchAiConfirm", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_batchReprice", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_batchAiFallback", void 0);

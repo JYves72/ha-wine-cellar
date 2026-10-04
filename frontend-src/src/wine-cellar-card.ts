@@ -64,6 +64,7 @@ export class WineCellarCard extends LitElement {
   @state() private _batchVivino = false;
   @state() private _showBatchVivinoConfirm = false;
   @state() private _showBatchAiConfirm = false;
+  @state() private _batchReprice = false;
   @state() private _batchAiFallback = false;
   @state() private _vivinoSyncing = false;
   @state() private _toast = "";
@@ -2058,11 +2059,10 @@ export class WineCellarCard extends LitElement {
 
   // --- Batch AI Analysis ---
   private _batchAnalyzeWines() {
-    if (this._wines.length > 5) {
-      this._showBatchAiConfirm = true;
-      return;
-    }
-    this._runBatchAnalyzeWines();
+    // Always confirm: the dialog carries the re-estimate option, which would
+    // be unreachable on a small cellar if it were skipped.
+    this._batchReprice = false;
+    this._showBatchAiConfirm = true;
   }
 
   private async _runBatchAnalyzeWines() {
@@ -2072,6 +2072,7 @@ export class WineCellarCard extends LitElement {
     try {
       const result = await this.hass.callWS({
         type: "wine_cellar/batch_analyze_wines",
+        reprice: this._batchReprice,
       });
       if (result.error) {
         this._showToast(this._t("toast.aiBatchFailedError", { error: result.error }));
@@ -3145,6 +3146,14 @@ export class WineCellarCard extends LitElement {
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
                 ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
               </p>
+              <label style="display:flex;align-items:flex-start;gap:6px;justify-content:center;text-align:left;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
+                <input
+                  type="checkbox"
+                  .checked=${this._batchReprice}
+                  @change=${(e: Event) => (this._batchReprice = (e.target as HTMLInputElement).checked)}
+                />
+                <span>Also re-estimate prices that are already set. Replaces prices you entered yourself.</span>
+              </label>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
                   ${this._t("ui.card.runOnNWines", { n: this._wines.length })}

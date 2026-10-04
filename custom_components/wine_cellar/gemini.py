@@ -221,7 +221,7 @@ Wine analysis rules:
   - NV wines: "Drink Now" with drink_window "{current_year}-{next_year}"
 - "description": Professional tasting-style description of this wine's character
 - "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this from standard sommelier pairing knowledge for the grape/style, even if you don't know the specific wine.
-- "estimated_price": estimated current US retail price as a number (e.g. 45.00). Use null only if truly unknown.
+- "estimated_price": estimated current retail price in {currency} as a number (e.g. 45.00). Use null only if truly unknown.
 - Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess.
   - rating_ws = Wine Spectator, rating_rp = Robert Parker, rating_jd = Jeb Dunnuck, rating_ag = Antonio Galloni
 - "alcohol": read the printed ABV off the label if visible (e.g. "13.5%"); otherwise give your best estimate for a wine of this type/region/style (e.g. most dry reds 13-14.5%, most dry whites 12-13%, off-dry/dessert wines lower, fortified wines 17-20%). Only null if you genuinely cannot judge even a range.
@@ -269,7 +269,7 @@ Extraction rules:
 - "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - "list_price" is the price as a number (e.g. 65.00). Use null only if truly unreadable.
 - "list_price_currency" should be the 3-letter currency code (USD, EUR, GBP, etc.)
-- "estimated_retail_price": estimated current US retail price for this wine as a number (e.g. 35.00). Use your knowledge of the wine market to estimate what this bottle currently sells for at a retail store. Use null only if truly unknown.
+- "estimated_retail_price": estimated current retail price in {currency} for this wine as a number (e.g. 35.00). Use your knowledge of the wine market to estimate what this bottle currently sells for at a retail store. Use null only if truly unknown.
 - "glass_price" is the by-the-glass price if offered, otherwise null
 - "bottle_size" defaults to "750ml" unless the menu specifies otherwise
 - "currency" is the primary currency used on the document
@@ -385,7 +385,11 @@ class BaseAIClient:
         raise NotImplementedError
 
     async def recognize_label(
-        self, image_base64: str, language: str = "en", back_image_base64: str | None = None
+        self,
+        image_base64: str,
+        language: str = "en",
+        back_image_base64: str | None = None,
+        currency: str = "USD",
     ) -> dict[str, Any]:
         """Send a front label photo (optionally + a back label photo) to the
         AI backend and get structured wine data. The back label often has
@@ -401,7 +405,9 @@ class BaseAIClient:
         )
 
         prompt = _language_prefix(language) + LABEL_PROMPT.format(
-            current_year=datetime.now().year, next_year=datetime.now().year + 1
+            current_year=datetime.now().year,
+            next_year=datetime.now().year + 1,
+            currency=currency,
         ) + (
             "\n\nYou were given two images: the FRONT label first, then the BACK "
             "label. Combine information from both — the back label often has "
@@ -486,7 +492,9 @@ class BaseAIClient:
             "source": "gemini",
         }
 
-    async def extract_wine_list(self, image_base64: str, language: str = "en") -> dict[str, Any]:
+    async def extract_wine_list(
+        self, image_base64: str, language: str = "en", currency: str = "USD"
+    ) -> dict[str, Any]:
         """Extract all wines from a restaurant wine list photo.
 
         Returns {"wines": [...], "restaurant_name": ..., "currency": ...}
@@ -498,6 +506,7 @@ class BaseAIClient:
         prompt = _language_prefix(language) + WINE_LIST_PROMPT.format(
             current_year=current_year,
             next_year=current_year + 1,
+            currency=currency,
         ) + _language_suffix(language)
 
         result = await self._call_ai(prompt, image_base64, timeout_s=180, temperature=0.1)

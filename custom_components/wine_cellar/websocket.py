@@ -137,9 +137,17 @@ def _select_wines(storage: Any, wine_ids: list[str] | None) -> list[dict[str, An
 
 
 def _build_ai_updates(
-    wine: dict[str, Any], result: dict[str, Any], currency: str = "USD", language: str = "en"
+    wine: dict[str, Any],
+    result: dict[str, Any],
+    currency: str = "USD",
+    language: str = "en",
+    reprice: bool = False,
 ) -> dict[str, Any]:
-    """Build a wine `updates` dict from a Gemini analyze_single_wine result."""
+    """Build a wine `updates` dict from a Gemini analyze_single_wine result.
+
+    `reprice` replaces a price that is already set. Off by default, so an
+    ordinary run never overwrites a price the user may have entered.
+    """
     updates: dict[str, Any] = {}
     if result.get("drink_by"):
         updates["drink_by"] = result["drink_by"]
@@ -211,7 +219,7 @@ def _build_ai_updates(
         # A price already captured in a different currency is stale, not
         # "already have one" — an unconverted number in the wrong currency
         # is worse than no number at all.
-        if not wine.get("retail_price") or wine.get("retail_price_currency") != currency:
+        if reprice or not wine.get("retail_price") or wine.get("retail_price_currency") != currency:
             updates["retail_price"] = round(float(est_price), 2)
             updates["retail_price_currency"] = currency
 
@@ -1058,7 +1066,10 @@ async def ws_recognize_label(
 
     _LOGGER.debug("Recognizing label image (%d chars)", len(msg["image"]))
     result = await gemini.recognize_label(
-        msg["image"], _get_metadata_language(hass), back_image_base64=msg.get("back_image")
+        msg["image"],
+        _get_metadata_language(hass),
+        back_image_base64=msg.get("back_image"),
+        currency=_get_metadata_currency(hass),
     )
 
     # The gemini client now returns {"error": "..."} on failure
@@ -1515,6 +1526,7 @@ async def ws_reset_ai_content(
     {
         vol.Required("type"): "wine_cellar/batch_analyze_wines",
         vol.Optional("wine_ids"): [str],
+        vol.Optional("reprice", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -1540,6 +1552,7 @@ async def ws_batch_analyze_wines(
 
     language = _get_metadata_language(hass)
     currency = _get_metadata_currency(hass)
+    reprice = msg.get("reprice", False)
     updated = 0
     unchanged = 0
     errors = 0
@@ -1556,7 +1569,7 @@ async def ws_batch_analyze_wines(
                 errors += 1
                 continue
 
-            updates = _build_ai_updates(wine, result, currency, language)
+            updates = _build_ai_updates(wine, result, currency, language, reprice)
             had_changes = bool(updates)
 
             # The check is always recorded; the update timestamp only moves
@@ -1850,7 +1863,9 @@ async def ws_extract_wine_list(
         )
         return
 
-    result = await gemini.extract_wine_list(msg["image"], _get_metadata_language(hass))
+    result = await gemini.extract_wine_list(
+        msg["image"], _get_metadata_language(hass), _get_metadata_currency(hass)
+    )
 
     # Send result directly — on success it contains {wines, restaurant_name, currency}
     # On error it contains {error: "message"}
