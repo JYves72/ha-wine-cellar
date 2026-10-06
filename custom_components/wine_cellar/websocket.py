@@ -1399,16 +1399,17 @@ async def ws_refresh_wine(
     if cur_desc and any(kw in cur_desc.lower() for kw in bad_keywords):
         if "description" not in updates:
             updates["description"] = ""
-    # Always overwrite region/country — manual refresh means the user wants
-    # fresh Vivino data, unlike the fill-empty-only rule batch refresh still
-    # follows below. Type stays fill-empty-only: two different wines can
-    # share the same name (e.g. a producer's red and rosé of the same
-    # cuvée), so a refresh that matches the wrong one on Vivino must not
-    # flip a type the user already set correctly.
-    for key in ("region", "country"):
-        val = lookup.get(key)
-        if val:
-            updates[key] = val
+    # Country is always overwritten — a manual refresh means the user wants
+    # fresh Vivino data. Region is fill-empty-only: Vivino's region name is
+    # really the appellation ("Vacqueyras"), and overwriting would replace
+    # the broader region the user has ("Vallée du Rhône") with it. Type stays
+    # fill-empty-only too: two different wines can share the same name (e.g.
+    # a producer's red and rosé of the same cuvée), so a refresh that matches
+    # the wrong one on Vivino must not flip a type the user already set.
+    if lookup.get("country"):
+        updates["country"] = lookup["country"]
+    if not wine.get("region") and lookup.get("region"):
+        updates["region"] = lookup["region"]
     if not wine.get("type") and lookup.get("type"):
         updates["type"] = lookup["type"]
 
