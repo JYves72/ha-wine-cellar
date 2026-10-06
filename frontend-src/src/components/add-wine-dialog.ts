@@ -857,6 +857,24 @@ export class AddWineDialog extends LitElement {
     this._wineData = { ...this._wineData, [field]: value };
   }
 
+  // Same split as the wine-detail edit form: drink_by is the end year, the
+  // start year is read from / written back into the stored drink_window
+  // "YYYY-YYYY" string, so the two forms always agree on what it holds.
+  private _drinkFrom(): string {
+    const m = (this._wineData.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
+    return m ? m[0] : "";
+  }
+
+  private _updateDrinkWindowPart(part: "from" | "by", value: string) {
+    const from = (part === "from" ? value : this._drinkFrom()).trim();
+    const by = (part === "by" ? value : this._wineData.drink_by || "").trim();
+    this._wineData = {
+      ...this._wineData,
+      ...(part === "by" ? { drink_by: value } : {}),
+      drink_window: from && by ? `${from}-${by}` : from || by || "",
+    };
+  }
+
   private _zoneUsage(sr: StorageRow) {
     const cabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
     const container: Container = {
@@ -1322,6 +1340,29 @@ export class AddWineDialog extends LitElement {
 
         <div class="form-row">
           <div class="form-group">
+            <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
+              .value=${this._wineData.alcohol || ""}
+              @input=${(e: InputEvent) =>
+                this._updateField("alcohol", (e.target as HTMLInputElement).value)}
+            />
+          </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.servingTempLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.servingTempPlaceholder')}"
+              .value=${this._wineData.serving_temp || ""}
+              @input=${(e: InputEvent) =>
+                this._updateField("serving_temp", (e.target as HTMLInputElement).value)}
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
             <label>${this._t("ui.addWine.purchaseDateLabel")}</label>
             <input
               type="date"
@@ -1331,15 +1372,36 @@ export class AddWineDialog extends LitElement {
             />
           </div>
           <div class="form-group">
+            <label>${this._t("ui.wineDetail.drinkFromLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.drinkFromPlaceholder')}"
+              .value=${this._drinkFrom()}
+              @input=${(e: InputEvent) =>
+                this._updateDrinkWindowPart("from", (e.target as HTMLInputElement).value)}
+            />
+          </div>
+          <div class="form-group">
             <label>${this._t("ui.addWine.drinkByLabel")}</label>
             <input
               type="text"
               placeholder="${this._t('ui.addWine.drinkByPlaceholder')}"
               .value=${this._wineData.drink_by || ""}
               @input=${(e: InputEvent) =>
-                this._updateField("drink_by", (e.target as HTMLInputElement).value)}
+                this._updateDrinkWindowPart("by", (e.target as HTMLInputElement).value)}
             />
           </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.peakWindowLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.peakWindowPlaceholder')}"
+              .value=${this._wineData.peak_window || ""}
+              @input=${(e: InputEvent) =>
+                this._updateField("peak_window", (e.target as HTMLInputElement).value)}
+            />
+          </div>
+        </div>
         </div>
 
         <div class="form-group">

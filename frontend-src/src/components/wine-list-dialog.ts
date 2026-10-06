@@ -850,6 +850,7 @@ export class WineListDialog extends LitElement {
         .hass=${this.hass}
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
+        .currency=${this._currency}
         .mode=${"winelist"}
         @close=${() => (this._showDetail = false)}
       ></wine-detail-dialog>

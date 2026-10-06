@@ -2552,6 +2552,7 @@ export class InventoryDialog extends LitElement {
         .cabinets=${this.cabinets}
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
+        .currency=${this.currency}
         .mode=${"cellar"}
         @close=${() => (this._showDetail = false)}
         @wine-updated=${() => {
