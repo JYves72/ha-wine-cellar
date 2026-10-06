@@ -24,6 +24,8 @@ export interface Wine {
   price: number | null;
   retail_price: number | null;
   retail_price_currency: string | null;
+  /** When true, no AI/Vivino scan (single or batch) may change retail_price. */
+  price_locked?: boolean;
   purchase_date: string;
   drink_by: string;
   notes: string;

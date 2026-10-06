@@ -850,7 +850,7 @@ var ui$1 = {
 		runAiBatchTitle: "Run AI Batch Scan?",
 		runAiBatchBody: "This will run a full AI analysis on all {n} bottles. Identical bottles (same name, producer and vintage) are analysed only once, so {m} API calls are needed. This can take a while and use a significant amount of AI quota.",
 		runOnNWines: "Run on {n} Wines",
-		repriceOption: "Also re-estimate prices that are already set. Replaces prices you entered yourself.",
+		priceLockNote: "Retail prices are re-estimated, except for the {n} bottle(s) whose price is locked, which stay unchanged.",
 		aiBatchScanBtn: "🤖 AI Batch Scan",
 		aiScanning: "AI Scanning...",
 		vivinoBatchScanBtn: "🍇 Vivino Batch Scan",
@@ -1217,7 +1217,8 @@ var ui$1 = {
 		ratingsCountSuffix: " ({count} ratings)",
 		myRating: "My Rating",
 		aiScanBtn: "AI Scan",
-		repriceOption: "Also re-estimate the price (replaces the current value) when running the AI scan",
+		priceLockLabel: "Lock price",
+		priceLockTitle: "Locked: AI and Vivino scans (single or batch) never change this price.",
 		scanLabelBtn: "Scan Label",
 		scanLabelTitle: "Take a fresh photo of the label to update this bottle's photo and details",
 		resetAiContentBtn: "Reset text",
@@ -1626,7 +1627,7 @@ var ui = {
 		runAiBatchTitle: "Lancer l'analyse IA groupée ?",
 		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} bouteilles. Les bouteilles identiques (même nom, producteur et millésime) ne sont analysées qu'une fois : {m} appels API. Cela peut prendre du temps et consommer un quota IA important.",
 		runOnNWines: "Lancer sur {n} vins",
-		repriceOption: "Ré-estimer aussi les prix déjà renseignés. Remplace les prix que vous avez saisis vous-même.",
+		priceLockNote: "Les prix sont ré-estimés, sauf pour les {n} bouteille(s) dont le prix est bloqué, qui restent inchangées.",
 		aiBatchScanBtn: "🤖 Analyse IA groupée",
 		aiScanning: "Analyse IA en cours...",
 		vivinoBatchScanBtn: "🍇 Analyse Vivino groupée",
@@ -1993,7 +1994,8 @@ var ui = {
 		ratingsCountSuffix: " ({count} avis)",
 		myRating: "Ma note",
 		aiScanBtn: "Analyse IA",
-		repriceOption: "Ré-estimer aussi le prix (remplace la valeur actuelle) lors du scan IA",
+		priceLockLabel: "Bloquer le prix",
+		priceLockTitle: "Bloqué : les scans IA et Vivino (individuels ou groupés) ne modifient jamais ce prix.",
 		scanLabelBtn: "Scanner l'étiquette",
 		scanLabelTitle: "Prendre une nouvelle photo de l'étiquette pour mettre à jour la photo et les détails de cette bouteille",
 		resetAiContentBtn: "Réinitialiser",
@@ -5831,7 +5833,6 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._saving = false;
         this._refreshing = false;
         this._analyzing = false;
-        this._repriceOnAnalyze = false;
         this._resettingAiContent = false;
         this._scanningLabel = false;
         this._showLabelCamera = false;
@@ -6282,7 +6283,26 @@ let WineDetailDialog = class WineDetailDialog extends i {
             this._updatePhoto(thumbUrl, this._photoSide === "back" ? "back_image_url" : "image_url");
         }
     }
-    async _analyzeWithAI(reprice = false) {
+    async _togglePriceLock(e) {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        const locked = e.target.checked;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_wine",
+                wine_id: wineId,
+                updates: { price_locked: locked },
+            });
+            this._applyIfStillShowing(wineId, { price_locked: locked });
+            this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Price lock update failed", err);
+            e.target.checked = !locked;
+        }
+    }
+    async _analyzeWithAI() {
         const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
             return;
@@ -6291,7 +6311,6 @@ let WineDetailDialog = class WineDetailDialog extends i {
             const resp = await this.hass.callWS({
                 type: "wine_cellar/analyze_single_wine",
                 wine_id: this.wine.id,
-                reprice,
             });
             if (resp.error) {
                 alert(resp.error);
@@ -6705,7 +6724,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   </button>
                   ${this.hasGemini
                 ? b `<button class="btn btn-primary" style="background:#1565c0"
-                        ?disabled=${this._analyzing} @click=${() => this._analyzeWithAI(this._repriceOnAnalyze && !!this.wine?.retail_price)}>
+                        ?disabled=${this._analyzing} @click=${() => this._analyzeWithAI()}>
                         ${this._analyzing ? "..." : `🤖 ${this._t("ui.wineDetail.aiScanBtn")}`}
                       </button>
                       <button class="btn btn-primary" style="background:#2e7d32"
@@ -6731,13 +6750,6 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button class="btn btn-primary" style="background:#c62828"
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
-                ${this.hasGemini && wine.retail_price
-                ? b `<label style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.75em;color:var(--wc-text-secondary);margin:-4px 0 10px;cursor:pointer">
-                      <input type="checkbox" .checked=${this._repriceOnAnalyze}
-                        @change=${(e) => (this._repriceOnAnalyze = e.target.checked)} />
-                      ${this._t("ui.wineDetail.repriceOption")}
-                    </label>`
-                : A}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                 ? b `
                       <div style="text-align:center;font-size:0.68em;color:var(--wc-text-secondary);margin-top:-6px;padding-bottom:10px">
@@ -6845,7 +6857,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                 : A}
                   ${wine.retail_price
-                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:0.8em;font-weight:normal;cursor:pointer" title="${this._t("ui.wineDetail.priceLockTitle")}">
+                          <input type="checkbox" .checked=${!!wine.price_locked} @change=${this._togglePriceLock} />
+                          🔒 ${this._t("ui.wineDetail.priceLockLabel")}
+                        </label></span></div>`
                 : A}
                   ${wine.purchase_date && this.mode === "cellar"
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${this._formatDate(wine.purchase_date)}</span></div>`
@@ -7638,9 +7654,6 @@ __decorate([
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_analyzing", void 0);
-__decorate([
-    r()
-], WineDetailDialog.prototype, "_repriceOnAnalyze", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_resettingAiContent", void 0);
@@ -15450,7 +15463,6 @@ let WineCellarCard = class WineCellarCard extends i {
         this._batchVivino = false;
         this._showBatchVivinoConfirm = false;
         this._showBatchAiConfirm = false;
-        this._batchReprice = false;
         this._batchAiFallback = false;
         this._vivinoSyncing = false;
         this._toast = "";
@@ -16960,7 +16972,6 @@ let WineCellarCard = class WineCellarCard extends i {
     _batchAnalyzeWines() {
         // Always confirm: the dialog carries the re-estimate option, which would
         // be unreachable on a small cellar if it were skipped.
-        this._batchReprice = false;
         this._showBatchAiConfirm = true;
     }
     async _runBatchAnalyzeWines() {
@@ -16970,7 +16981,6 @@ let WineCellarCard = class WineCellarCard extends i {
         try {
             const result = await this.hass.callWS({
                 type: "wine_cellar/batch_analyze_wines",
-                reprice: this._batchReprice,
             });
             if (result.error) {
                 this._showToast(this._t("toast.aiBatchFailedError", { error: result.error }));
@@ -18019,14 +18029,9 @@ let WineCellarCard = class WineCellarCard extends i {
             m: new Set(this._wines.map((w) => `${w.name}|${w.winery}|${w.vintage ?? ""}`)).size,
         })}
               </p>
-              <label style="display:flex;align-items:flex-start;gap:6px;justify-content:center;text-align:left;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
-                <input
-                  type="checkbox"
-                  .checked=${this._batchReprice}
-                  @change=${(e) => (this._batchReprice = e.target.checked)}
-                />
-                <span>${this._t("ui.card.repriceOption")}</span>
-              </label>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                🔒 ${this._t("ui.card.priceLockNote", { n: this._wines.filter((w) => w.price_locked).length })}
+              </p>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
                   ${this._t("ui.card.runOnNWines", { n: this._wines.length })}
@@ -19212,9 +19217,6 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_showBatchAiConfirm", void 0);
-__decorate([
-    r()
-], WineCellarCard.prototype, "_batchReprice", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_batchAiFallback", void 0);

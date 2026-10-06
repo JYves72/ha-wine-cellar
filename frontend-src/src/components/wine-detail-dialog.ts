@@ -34,7 +34,6 @@ export class WineDetailDialog extends LitElement {
   @state() private _saving = false;
   @state() private _refreshing = false;
   @state() private _analyzing = false;
-  @state() private _repriceOnAnalyze = false;
   @state() private _resettingAiContent = false;
   @state() private _scanningLabel = false;
   @state() private _showLabelCamera = false;
@@ -1044,7 +1043,25 @@ export class WineDetailDialog extends LitElement {
     }
   }
 
-  private async _analyzeWithAI(reprice = false) {
+  private async _togglePriceLock(e: Event) {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    const locked = (e.target as HTMLInputElement).checked;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_wine",
+        wine_id: wineId,
+        updates: { price_locked: locked },
+      });
+      this._applyIfStillShowing(wineId, { price_locked: locked });
+      this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error("Price lock update failed", err);
+      (e.target as HTMLInputElement).checked = !locked;
+    }
+  }
+
+  private async _analyzeWithAI() {
     const wineId = this.wine?.id ?? "";
     if (!this.wine || !this.hass) return;
     this._analyzing = true;
@@ -1052,7 +1069,6 @@ export class WineDetailDialog extends LitElement {
       const resp = await this.hass.callWS({
         type: "wine_cellar/analyze_single_wine",
         wine_id: this.wine.id,
-        reprice,
       });
       if (resp.error) {
         alert(resp.error);
@@ -1452,7 +1468,7 @@ export class WineDetailDialog extends LitElement {
                   </button>
                   ${this.hasGemini
                     ? html`<button class="btn btn-primary" style="background:#1565c0"
-                        ?disabled=${this._analyzing} @click=${() => this._analyzeWithAI(this._repriceOnAnalyze && !!this.wine?.retail_price)}>
+                        ?disabled=${this._analyzing} @click=${() => this._analyzeWithAI()}>
                         ${this._analyzing ? "..." : `🤖 ${this._t("ui.wineDetail.aiScanBtn")}`}
                       </button>
                       <button class="btn btn-primary" style="background:#2e7d32"
@@ -1478,13 +1494,6 @@ export class WineDetailDialog extends LitElement {
                   <button class="btn btn-primary" style="background:#c62828"
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
-                ${this.hasGemini && wine.retail_price
-                  ? html`<label style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.75em;color:var(--wc-text-secondary);margin:-4px 0 10px;cursor:pointer">
-                      <input type="checkbox" .checked=${this._repriceOnAnalyze}
-                        @change=${(e: Event) => (this._repriceOnAnalyze = (e.target as HTMLInputElement).checked)} />
-                      ${this._t("ui.wineDetail.repriceOption")}
-                    </label>`
-                  : nothing}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                   ? html`
                       <div style="text-align:center;font-size:0.68em;color:var(--wc-text-secondary);margin-top:-6px;padding-bottom:10px">
@@ -1597,7 +1606,11 @@ export class WineDetailDialog extends LitElement {
                     ? html`<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                     : nothing}
                   ${wine.retail_price
-                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
+                    ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:0.8em;font-weight:normal;cursor:pointer" title="${this._t("ui.wineDetail.priceLockTitle")}">
+                          <input type="checkbox" .checked=${!!wine.price_locked} @change=${this._togglePriceLock} />
+                          🔒 ${this._t("ui.wineDetail.priceLockLabel")}
+                        </label></span></div>`
                     : nothing}
                   ${wine.purchase_date && this.mode === "cellar"
                     ? html`<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${this._formatDate(wine.purchase_date)}</span></div>`

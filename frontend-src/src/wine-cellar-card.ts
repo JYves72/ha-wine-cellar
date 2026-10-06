@@ -64,7 +64,6 @@ export class WineCellarCard extends LitElement {
   @state() private _batchVivino = false;
   @state() private _showBatchVivinoConfirm = false;
   @state() private _showBatchAiConfirm = false;
-  @state() private _batchReprice = false;
   @state() private _batchAiFallback = false;
   @state() private _vivinoSyncing = false;
   @state() private _toast = "";
@@ -2061,7 +2060,6 @@ export class WineCellarCard extends LitElement {
   private _batchAnalyzeWines() {
     // Always confirm: the dialog carries the re-estimate option, which would
     // be unreachable on a small cellar if it were skipped.
-    this._batchReprice = false;
     this._showBatchAiConfirm = true;
   }
 
@@ -2072,7 +2070,6 @@ export class WineCellarCard extends LitElement {
     try {
       const result = await this.hass.callWS({
         type: "wine_cellar/batch_analyze_wines",
-        reprice: this._batchReprice,
       });
       if (result.error) {
         this._showToast(this._t("toast.aiBatchFailedError", { error: result.error }));
@@ -3149,14 +3146,9 @@ export class WineCellarCard extends LitElement {
                   m: new Set(this._wines.map((w) => `${w.name}|${w.winery}|${w.vintage ?? ""}`)).size,
                 })}
               </p>
-              <label style="display:flex;align-items:flex-start;gap:6px;justify-content:center;text-align:left;font-size:0.8em;color:var(--wc-text-secondary);margin-bottom:16px;cursor:pointer">
-                <input
-                  type="checkbox"
-                  .checked=${this._batchReprice}
-                  @change=${(e: Event) => (this._batchReprice = (e.target as HTMLInputElement).checked)}
-                />
-                <span>${this._t("ui.card.repriceOption")}</span>
-              </label>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                🔒 ${this._t("ui.card.priceLockNote", { n: this._wines.filter((w) => w.price_locked).length })}
+              </p>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
                   ${this._t("ui.card.runOnNWines", { n: this._wines.length })}
