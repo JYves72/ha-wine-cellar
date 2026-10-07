@@ -766,7 +766,7 @@ export class WineListDialog extends LitElement {
                       : this._t("ui.wineList.alreadyScannedHintOne", { n: this._wines.length })}</div>`
                   : html`<div class="header-subtitle">${this._t("ui.wineList.captureSubtitle")}</div>`}
                 <div style="padding: 0 16px 16px">
-                  <label-camera .hass=${this.hass} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
+                  <label-camera .hass=${this.hass} .hint=${this._t("ui.wineList.pointAtList")} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
                 </div>
                 ${this._wines.length > 0
                   ? html`
@@ -850,6 +850,7 @@ export class WineListDialog extends LitElement {
         .hass=${this.hass}
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
+        .currency=${this._currency}
         .mode=${"winelist"}
         @close=${() => (this._showDetail = false)}
       ></wine-detail-dialog>

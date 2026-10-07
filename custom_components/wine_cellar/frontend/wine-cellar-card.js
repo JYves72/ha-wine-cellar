@@ -327,12 +327,17 @@ const sharedStyles = i$3 `
     .dialog {
       width: 100%;
       max-width: 100%;
-      max-height: 100vh;
+      /* Stay below the status bar / notch. In the Companion app the page runs
+         edge-to-edge, so a full-height dialog put its top-right close button
+         under the clock and battery, where touches never reach it. */
+      max-height: calc(100vh - env(safe-area-inset-top, 0px));
       border-radius: 12px 12px 0 0;
       margin-top: auto;
     }
     .dialog-overlay {
       align-items: flex-end;
+      padding-top: env(safe-area-inset-top, 0px);
+      box-sizing: border-box;
     }
     .dialog-header {
       padding: 16px 16px 10px;
@@ -843,8 +848,9 @@ var ui$1 = {
 		keepExistingPhotos: "Keep My Existing Photos",
 		replaceWithVivinoPhotos: "Replace With Vivino Photos",
 		runAiBatchTitle: "Run AI Batch Scan?",
-		runAiBatchBody: "This will run a full AI analysis on all {n} wines, one API call per bottle. It may take a while and use significant AI quota.",
+		runAiBatchBody: "This will run a full AI analysis on all {n} bottles. Identical bottles (same name, producer and vintage) are analysed only once, so {m} API calls are needed. This can take a while and use a significant amount of AI quota.",
 		runOnNWines: "Run on {n} Wines",
+		priceLockNote: "Retail prices are re-estimated, except for the {n} bottle(s) whose price is locked, which stay unchanged.",
 		aiBatchScanBtn: "🤖 AI Batch Scan",
 		aiScanning: "AI Scanning...",
 		vivinoBatchScanBtn: "🍇 Vivino Batch Scan",
@@ -1211,6 +1217,8 @@ var ui$1 = {
 		ratingsCountSuffix: " ({count} ratings)",
 		myRating: "My Rating",
 		aiScanBtn: "AI Scan",
+		priceLockLabel: "Lock price",
+		priceLockTitle: "Locked: AI and Vivino scans (single or batch) never change this price.",
 		scanLabelBtn: "Scan Label",
 		scanLabelTitle: "Take a fresh photo of the label to update this bottle's photo and details",
 		resetAiContentBtn: "Reset text",
@@ -1402,6 +1410,7 @@ var ui$1 = {
 		alreadyScannedHintMany: "{n} wines already scanned. Take another photo to add more.",
 		captureSubtitle: "Take a photo of a wine list or receipt to see ratings, scores, and value.",
 		backToResults: "Back to Results ({n})",
+		pointAtList: "Point the camera at the wine list or receipt",
 		analyzingList: "Analyzing list...",
 		geminiReading: "Gemini is reading wines and scoring them",
 		longListsHint: "Long lists may take up to 3 minutes",
@@ -1617,8 +1626,9 @@ var ui = {
 		keepExistingPhotos: "Garder mes photos actuelles",
 		replaceWithVivinoPhotos: "Remplacer par les photos Vivino",
 		runAiBatchTitle: "Lancer l'analyse IA groupée ?",
-		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} vins, un appel API par bouteille. Cela peut prendre du temps et consommer un quota IA important.",
+		runAiBatchBody: "Cela va lancer une analyse IA complète sur les {n} bouteilles. Les bouteilles identiques (même nom, producteur et millésime) ne sont analysées qu'une fois : {m} appels API. Cela peut prendre du temps et consommer un quota IA important.",
 		runOnNWines: "Lancer sur {n} vins",
+		priceLockNote: "Les prix sont ré-estimés, sauf pour les {n} bouteille(s) dont le prix est bloqué, qui restent inchangées.",
 		aiBatchScanBtn: "🤖 Analyse IA groupée",
 		aiScanning: "Analyse IA en cours...",
 		vivinoBatchScanBtn: "🍇 Analyse Vivino groupée",
@@ -1985,6 +1995,8 @@ var ui = {
 		ratingsCountSuffix: " ({count} avis)",
 		myRating: "Ma note",
 		aiScanBtn: "Analyse IA",
+		priceLockLabel: "Bloquer le prix",
+		priceLockTitle: "Bloqué : les scans IA et Vivino (individuels ou groupés) ne modifient jamais ce prix.",
 		scanLabelBtn: "Scanner l'étiquette",
 		scanLabelTitle: "Prendre une nouvelle photo de l'étiquette pour mettre à jour la photo et les détails de cette bouteille",
 		resetAiContentBtn: "Réinitialiser",
@@ -2176,6 +2188,7 @@ var ui = {
 		alreadyScannedHintMany: "{n} vins déjà scannés. Prenez une autre photo pour en ajouter d'autres.",
 		captureSubtitle: "Prenez en photo une carte des vins ou un reçu pour voir les notes et la valeur.",
 		backToResults: "Retour aux résultats ({n})",
+		pointAtList: "Pointez la caméra vers la carte des vins ou le reçu",
 		analyzingList: "Analyse de la liste...",
 		geminiReading: "Gemini lit les vins et les note",
 		longListsHint: "Les longues listes peuvent prendre jusqu'à 3 minutes",
@@ -4503,7 +4516,7 @@ let CabinetGrid = class CabinetGrid extends i {
           class="cabinet-name ${titleClickable ? "clickable" : ""}"
           @click=${titleClickable ? () => this._onRackClick() : A}
           title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
-        >${this.cabinet.name}${this._renderSensorBadge()}</div>
+        ><span>${this.cabinet.name}</span>${this._renderSensorBadge()}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) => storageRows.has(row)
             ? this._renderStorageZone(row)
@@ -4558,11 +4571,15 @@ CabinetGrid.styles = [
       }
 
       .cabinet-name {
-        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        text-align: left;
         color: #f5e6ca;
         font-size: 0.8em;
         font-weight: 600;
-        padding: 4px 0;
+        padding: 4px 6px;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
       }
 
@@ -4870,11 +4887,10 @@ CabinetGrid.styles = [
         text-align: center;
       }
 
+      /* Same size, weight and shadow as the zone name it sits beside. */
       .zone-sensor-badge {
-        display: block;
-        font-size: 0.75em;
-        font-weight: 400;
-        opacity: 0.85;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .zone-bottle {
@@ -5207,7 +5223,7 @@ CabinetGrid.styles = [
         }
         .cabinet-name {
           font-size: 0.75em;
-          padding: 3px 0;
+          padding: 3px 4px;
         }
         .grid-inner {
           padding: 4px;
@@ -5483,6 +5499,8 @@ let LabelCamera = class LabelCamera extends i {
     constructor() {
         super(...arguments);
         this.active = false;
+        // Overrides the default "point at the wine label" hint, e.g. for scanning a list.
+        this.hint = "";
         this._stream = null;
         this._error = "";
         this._captured = false;
@@ -5638,7 +5656,7 @@ let LabelCamera = class LabelCamera extends i {
             <div class="capture-btn-area">
               <button class="capture-btn" @click=${this._capture} title="${this._t('ui.camera.takePhotoTitle')}"></button>
             </div>
-            <div class="hint">${this._t("ui.camera.pointAtLabel")}</div>
+            <div class="hint">${this.hint || this._t("ui.camera.pointAtLabel")}</div>
           `}
 
       <div class="fallback-area">
@@ -5783,6 +5801,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], LabelCamera.prototype, "active", void 0);
+__decorate([
+    n({ type: String })
+], LabelCamera.prototype, "hint", void 0);
 __decorate([
     r()
 ], LabelCamera.prototype, "_stream", void 0);
@@ -6272,6 +6293,25 @@ let WineDetailDialog = class WineDetailDialog extends i {
             this._updatePhoto(thumbUrl, this._photoSide === "back" ? "back_image_url" : "image_url");
         }
     }
+    async _togglePriceLock(e) {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        const locked = e.target.checked;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_wine",
+                wine_id: wineId,
+                updates: { price_locked: locked },
+            });
+            this._applyIfStillShowing(wineId, { price_locked: locked });
+            this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Price lock update failed", err);
+            e.target.checked = !locked;
+        }
+    }
     async _analyzeWithAI() {
         const wineId = this.wine?.id ?? "";
         if (!this.wine || !this.hass)
@@ -6694,7 +6734,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   </button>
                   ${this.hasGemini
                 ? b `<button class="btn btn-primary" style="background:#1565c0"
-                        ?disabled=${this._analyzing} @click=${this._analyzeWithAI}>
+                        ?disabled=${this._analyzing} @click=${() => this._analyzeWithAI()}>
                         ${this._analyzing ? "..." : `🤖 ${this._t("ui.wineDetail.aiScanBtn")}`}
                       </button>
                       <button class="btn btn-primary" style="background:#2e7d32"
@@ -6827,7 +6867,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this.mode === "winelist" ? this._t("ui.wineDetail.priceLabel") : this._t("ui.wineDetail.purchasePriceLabel")}</span><span class="detail-value">${this.currency} ${wine.price.toFixed(2)}</span></div>`
                 : A}
                   ${wine.retail_price
-                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}</span></div>`
+                ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.currentValueLabel")}</span><span class="detail-value">${wine.retail_price_currency || this.currency} ${wine.retail_price.toFixed(2)}
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:0.8em;font-weight:normal;cursor:pointer" title="${this._t("ui.wineDetail.priceLockTitle")}">
+                          <input type="checkbox" .checked=${!!wine.price_locked} @change=${this._togglePriceLock} />
+                          🔒 ${this._t("ui.wineDetail.priceLockLabel")}
+                        </label></span></div>`
                 : A}
                   ${wine.purchase_date && this.mode === "cellar"
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.purchasedLabel")}</span><span class="detail-value">${this._formatDate(wine.purchase_date)}</span></div>`
@@ -8215,6 +8259,22 @@ let AddWineDialog = class AddWineDialog extends i {
     _updateField(field, value) {
         this._wineData = { ...this._wineData, [field]: value };
     }
+    // Same split as the wine-detail edit form: drink_by is the end year, the
+    // start year is read from / written back into the stored drink_window
+    // "YYYY-YYYY" string, so the two forms always agree on what it holds.
+    _drinkFrom() {
+        const m = (this._wineData.drink_window || "").match(/\b(?:19|20)\d{2}\b/);
+        return m ? m[0] : "";
+    }
+    _updateDrinkWindowPart(part, value) {
+        const from = (part === "from" ? value : this._drinkFrom()).trim();
+        const by = (part === "by" ? value : this._wineData.drink_by || "").trim();
+        this._wineData = {
+            ...this._wineData,
+            ...(part === "by" ? { drink_by: value } : {}),
+            drink_window: from && by ? `${from}-${by}` : from || by || "",
+        };
+    }
     _zoneUsage(sr) {
         const cabinet = this.cabinets.find((c) => c.id === this._wineData.cabinet_id);
         const container = {
@@ -8647,6 +8707,27 @@ let AddWineDialog = class AddWineDialog extends i {
 
         <div class="form-row">
           <div class="form-group">
+            <label>${this._t("ui.wineDetail.alcoholLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.alcoholPlaceholder')}"
+              .value=${this._wineData.alcohol || ""}
+              @input=${(e) => this._updateField("alcohol", e.target.value)}
+            />
+          </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.servingTempLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.servingTempPlaceholder')}"
+              .value=${this._wineData.serving_temp || ""}
+              @input=${(e) => this._updateField("serving_temp", e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
             <label>${this._t("ui.addWine.purchaseDateLabel")}</label>
             <input
               type="date"
@@ -8655,12 +8736,30 @@ let AddWineDialog = class AddWineDialog extends i {
             />
           </div>
           <div class="form-group">
+            <label>${this._t("ui.wineDetail.drinkFromLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.drinkFromPlaceholder')}"
+              .value=${this._drinkFrom()}
+              @input=${(e) => this._updateDrinkWindowPart("from", e.target.value)}
+            />
+          </div>
+          <div class="form-group">
             <label>${this._t("ui.addWine.drinkByLabel")}</label>
             <input
               type="text"
               placeholder="${this._t('ui.addWine.drinkByPlaceholder')}"
               .value=${this._wineData.drink_by || ""}
-              @input=${(e) => this._updateField("drink_by", e.target.value)}
+              @input=${(e) => this._updateDrinkWindowPart("by", e.target.value)}
+            />
+          </div>
+          <div class="form-group">
+            <label>${this._t("ui.wineDetail.peakWindowLabel")}</label>
+            <input
+              type="text"
+              placeholder="${this._t('ui.wineDetail.peakWindowPlaceholder')}"
+              .value=${this._wineData.peak_window || ""}
+              @input=${(e) => this._updateField("peak_window", e.target.value)}
             />
           </div>
         </div>
@@ -11956,7 +12055,7 @@ let WineListDialog = class WineListDialog extends i {
                     : this._t("ui.wineList.alreadyScannedHintOne", { n: this._wines.length })}</div>`
                 : b `<div class="header-subtitle">${this._t("ui.wineList.captureSubtitle")}</div>`}
                 <div style="padding: 0 16px 16px">
-                  <label-camera .hass=${this.hass} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
+                  <label-camera .hass=${this.hass} .hint=${this._t("ui.wineList.pointAtList")} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
                 </div>
                 ${this._wines.length > 0
                 ? b `
@@ -12040,6 +12139,7 @@ let WineListDialog = class WineListDialog extends i {
         .hass=${this.hass}
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
+        .currency=${this._currency}
         .mode=${"winelist"}
         @close=${() => (this._showDetail = false)}
       ></wine-detail-dialog>
@@ -12552,7 +12652,11 @@ let InventoryDialog = class InventoryDialog extends i {
         this.cabinets = [];
         this.hasGemini = false;
         this.enableWhisky = false;
+        this.aiFallbackAlways = false;
         this.currency = "USD";
+        this.chamberingRoomSensor = "";
+        this.chamberingTimeConstantMinutes = 75;
+        this.chamberingEquilibrationHours = 24;
         this._searchQuery = "";
         this._typeFilter = DEFAULT_FILTERS.typeFilter;
         this._dispositionFilter = DEFAULT_FILTERS.dispositionFilter;
@@ -14259,6 +14363,12 @@ let InventoryDialog = class InventoryDialog extends i {
         .cabinets=${this.cabinets}
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
+        .currency=${this.currency}
+        .enableWhisky=${this.enableWhisky}
+        .aiFallbackAlways=${this.aiFallbackAlways}
+        .chamberingRoomSensor=${this.chamberingRoomSensor}
+        .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
+        .chamberingEquilibrationHours=${this.chamberingEquilibrationHours}
         .mode=${"cellar"}
         @close=${() => (this._showDetail = false)}
         @wine-updated=${() => {
@@ -14970,8 +15080,20 @@ __decorate([
     n({ type: Boolean })
 ], InventoryDialog.prototype, "enableWhisky", void 0);
 __decorate([
+    n({ type: Boolean })
+], InventoryDialog.prototype, "aiFallbackAlways", void 0);
+__decorate([
     n({ type: String })
 ], InventoryDialog.prototype, "currency", void 0);
+__decorate([
+    n({ type: String })
+], InventoryDialog.prototype, "chamberingRoomSensor", void 0);
+__decorate([
+    n({ type: Number })
+], InventoryDialog.prototype, "chamberingTimeConstantMinutes", void 0);
+__decorate([
+    n({ type: Number })
+], InventoryDialog.prototype, "chamberingEquilibrationHours", void 0);
 __decorate([
     r()
 ], InventoryDialog.prototype, "_searchQuery", void 0);
@@ -16071,6 +16193,21 @@ let WineCellarCard = class WineCellarCard extends i {
         };
         this._showAddDialog = true;
     }
+    // An unassigned bottle dragged onto a rack/zone: same payload shape as the
+    // grid's own drags, with no location. Dropping it on an occupied slot swaps
+    // — the occupant goes back to Unassigned (see _onWineDrop).
+    _onUnassignedDragStart(e, wine) {
+        if (!e.dataTransfer)
+            return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", JSON.stringify({
+            wineId: wine.id,
+            cabinetId: "",
+            row: null,
+            col: null,
+            zone: "",
+        }));
+    }
     // --- Zone side panel: drag-to-reorder ---
     _onZonePanelDragStart(e, wine) {
         this._zonePanelDragWineId = wine.id;
@@ -16936,11 +17073,9 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Batch AI Analysis ---
     _batchAnalyzeWines() {
-        if (this._wines.length > 5) {
-            this._showBatchAiConfirm = true;
-            return;
-        }
-        this._runBatchAnalyzeWines();
+        // Always confirm: the dialog carries the re-estimate option, which would
+        // be unreachable on a small cellar if it were skipped.
+        this._showBatchAiConfirm = true;
     }
     async _runBatchAnalyzeWines() {
         this._showBatchAiConfirm = false;
@@ -17715,6 +17850,8 @@ let WineCellarCard = class WineCellarCard extends i {
                     return b `
                             <div
                               class="wine-list-item"
+                              draggable="true"
+                              @dragstart=${(e) => this._onUnassignedDragStart(e, wine)}
                               @click=${() => {
                         this._selectedWine = wine;
                         this._detailMode = "cellar";
@@ -17807,6 +17944,8 @@ let WineCellarCard = class WineCellarCard extends i {
                 return b `
                       <div
                         class="wine-list-item"
+                        draggable="true"
+                        @dragstart=${(e) => this._onUnassignedDragStart(e, wine)}
                         @click=${() => {
                     if (this._movingBuyListItem)
                         return;
@@ -17992,7 +18131,13 @@ let WineCellarCard = class WineCellarCard extends i {
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e) => e.stopPropagation()}>
               <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.runAiBatchTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
+                ${this._t("ui.card.runAiBatchBody", {
+            n: this._wines.length,
+            m: new Set(this._wines.map((w) => `${w.name}|${w.winery}|${w.vintage ?? ""}`)).size,
+        })}
+              </p>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                🔒 ${this._t("ui.card.priceLockNote", { n: this._wines.filter((w) => w.price_locked).length })}
               </p>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
@@ -18096,6 +18241,11 @@ let WineCellarCard = class WineCellarCard extends i {
           .hasGemini=${this._hasGemini}
           .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
+          .chamberingRoomSensor=${this._chamberingRoomSensor}
+          .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+          .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
+          .aiFallbackAlways=${this._aiFallbackAlways}
+          @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e) => {

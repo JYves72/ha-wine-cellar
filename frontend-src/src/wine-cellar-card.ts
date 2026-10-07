@@ -1163,6 +1163,21 @@ export class WineCellarCard extends LitElement {
     this._showAddDialog = true;
   }
 
+  // An unassigned bottle dragged onto a rack/zone: same payload shape as the
+  // grid's own drags, with no location. Dropping it on an occupied slot swaps
+  // — the occupant goes back to Unassigned (see _onWineDrop).
+  private _onUnassignedDragStart(e: DragEvent, wine: Wine) {
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", JSON.stringify({
+      wineId: wine.id,
+      cabinetId: "",
+      row: null,
+      col: null,
+      zone: "",
+    }));
+  }
+
   // --- Zone side panel: drag-to-reorder ---
   private _onZonePanelDragStart(e: DragEvent, wine: Wine) {
     this._zonePanelDragWineId = wine.id;
@@ -2058,11 +2073,9 @@ export class WineCellarCard extends LitElement {
 
   // --- Batch AI Analysis ---
   private _batchAnalyzeWines() {
-    if (this._wines.length > 5) {
-      this._showBatchAiConfirm = true;
-      return;
-    }
-    this._runBatchAnalyzeWines();
+    // Always confirm: the dialog carries the re-estimate option, which would
+    // be unreachable on a small cellar if it were skipped.
+    this._showBatchAiConfirm = true;
   }
 
   private async _runBatchAnalyzeWines() {
@@ -2858,6 +2871,8 @@ export class WineCellarCard extends LitElement {
                           return html`
                             <div
                               class="wine-list-item"
+                              draggable="true"
+                              @dragstart=${(e: DragEvent) => this._onUnassignedDragStart(e, wine)}
                               @click=${() => {
                                 this._selectedWine = wine;
                                 this._detailMode = "cellar";
@@ -2950,6 +2965,8 @@ export class WineCellarCard extends LitElement {
                     return html`
                       <div
                         class="wine-list-item"
+                        draggable="true"
+                        @dragstart=${(e: DragEvent) => this._onUnassignedDragStart(e, wine)}
                         @click=${() => {
                           if (this._movingBuyListItem) return;
                           this._selectedWine = wine;
@@ -3143,7 +3160,13 @@ export class WineCellarCard extends LitElement {
             <div class="dialog" style="max-width:340px;padding:24px;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
               <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.card.runAiBatchTitle")}</h3>
               <p style="margin:0 0 16px;font-size:0.85em;color:var(--wc-text-secondary)">
-                ${this._t("ui.card.runAiBatchBody", { n: this._wines.length })}
+                ${this._t("ui.card.runAiBatchBody", {
+                  n: this._wines.length,
+                  m: new Set(this._wines.map((w) => `${w.name}|${w.winery}|${w.vintage ?? ""}`)).size,
+                })}
+              </p>
+              <p style="margin:0 0 16px;font-size:0.8em;color:var(--wc-text-secondary)">
+                🔒 ${this._t("ui.card.priceLockNote", { n: this._wines.filter((w) => w.price_locked).length })}
               </p>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <button class="btn btn-primary" style="background:#1565c0" @click=${this._runBatchAnalyzeWines}>
@@ -3247,6 +3270,11 @@ export class WineCellarCard extends LitElement {
           .hasGemini=${this._hasGemini}
           .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
+          .chamberingRoomSensor=${this._chamberingRoomSensor}
+          .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+          .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
+          .aiFallbackAlways=${this._aiFallbackAlways}
+          @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e: CustomEvent) => {

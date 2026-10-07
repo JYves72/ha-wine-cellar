@@ -69,6 +69,15 @@ Home Assistant custom integration + Lovelace card for managing a wine cellar: ra
   - Gotchas hit: a leading `-?` in the serving-temp regex read the range hyphen in "16-18°C" as a minus (giving −18); `add_cabinet()`/`add_wine()` are explicit field whitelists, so new fields must be added there too.
   - The preview mock (`frontend/index.html`) now has a `states` object with fake `sensor.*` entities; `.claude/launch.json`'s `preview-server` uses `python` (not `python3`, the Microsoft Store stub on this machine).
 
+- **v2.23.0** (2026-10-07) — imports from `dobunzli` (credit to them: `d0f6b16`, `f74546e`, `d07b4a4`, adapted) plus user-driven follow-ups, tested OK by the user. `dobunzli`'s `grow_container` feature (v2.18.0) was reviewed and **declined** by the user. 
+  - AI label/wine-list prompts now ask for the price in the configured currency (they asked for US dollars and stored it under the configured currency); phone dialogs respect the top safe-area inset.
+  - **Per-bottle price lock** (`price_locked` on the wine, 🔒 checkbox beside "Current value"): AI and Vivino scans, single or batch, never change a locked `retail_price`, including via `_propagate_to_duplicates` (`respect_price_lock`; a manual edit passes False). Unlocked prices *are* re-estimated by AI scans — this replaced `dobunzli`'s opt-in `reprice` checkbox.
+  - Batch AI and batch Vivino scans analyse one representative per identical bottle (name+winery+vintage) and propagate; counters stay per bottle.
+  - Manual Vivino refresh no longer overwrites an existing `region` (Vivino's region is really the appellation) — this supersedes the "region/country always-overwrite" note under v2.16.2; country still overwrites.
+  - Detail dialogs opened from the inventory/scan list were missing props the card passes (currency, chambering settings, AI-fallback + its event, whisky) — **any `<wine-detail-dialog>` call site must pass the same props as the card's**.
+  - Unassigned bottles are now draggable onto racks (swap with an occupied slot sends the occupant back to Unassigned); add-wine form now has the same fields as the edit form (alcohol, serving temp, drink-from, peak window); zone sensor reading sits right-aligned on the zone title line.
+  - Gotcha: writing `` in a Python heredoc that edits TS source silently produces a backspace character — check regex edits with a read-back.
+
 ## Key technical findings from recent work (don't re-discover these)
 
 - **Vivino's `www.vivino.com/api/explore/explore` search API silently ignores the `q` param** for unauthenticated requests — returns the same generic "trending wines" list regardless of query (verified live, repeatedly). `search_wine()` in `vivino.py` now checks the top result for basic relevance before trusting it, falling back to HTML scraping (which *does* do real text search) when it looks wrong.
