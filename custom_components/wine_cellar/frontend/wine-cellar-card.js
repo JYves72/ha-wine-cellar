@@ -4516,7 +4516,7 @@ let CabinetGrid = class CabinetGrid extends i {
           class="cabinet-name ${titleClickable ? "clickable" : ""}"
           @click=${titleClickable ? () => this._onRackClick() : A}
           title=${titleClickable ? this._t("ui.card.reorderRackTitle") : ""}
-        >${this.cabinet.name}${this._renderSensorBadge()}</div>
+        ><span>${this.cabinet.name}</span>${this._renderSensorBadge()}</div>
         <div class="grid-inner">
           ${Array.from({ length: rows }, (_, row) => storageRows.has(row)
             ? this._renderStorageZone(row)
@@ -4571,11 +4571,15 @@ CabinetGrid.styles = [
       }
 
       .cabinet-name {
-        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        text-align: left;
         color: #f5e6ca;
         font-size: 0.8em;
         font-weight: 600;
-        padding: 4px 0;
+        padding: 4px 6px;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
       }
 
@@ -4883,11 +4887,10 @@ CabinetGrid.styles = [
         text-align: center;
       }
 
+      /* Same size, weight and shadow as the zone name it sits beside. */
       .zone-sensor-badge {
-        display: block;
-        font-size: 0.75em;
-        font-weight: 400;
-        opacity: 0.85;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .zone-bottle {
@@ -5220,7 +5223,7 @@ CabinetGrid.styles = [
         }
         .cabinet-name {
           font-size: 0.75em;
-          padding: 3px 0;
+          padding: 3px 4px;
         }
         .grid-inner {
           padding: 4px;
