@@ -1163,6 +1163,21 @@ export class WineCellarCard extends LitElement {
     this._showAddDialog = true;
   }
 
+  // An unassigned bottle dragged onto a rack/zone: same payload shape as the
+  // grid's own drags, with no location. Dropping it on an occupied slot swaps
+  // — the occupant goes back to Unassigned (see _onWineDrop).
+  private _onUnassignedDragStart(e: DragEvent, wine: Wine) {
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", JSON.stringify({
+      wineId: wine.id,
+      cabinetId: "",
+      row: null,
+      col: null,
+      zone: "",
+    }));
+  }
+
   // --- Zone side panel: drag-to-reorder ---
   private _onZonePanelDragStart(e: DragEvent, wine: Wine) {
     this._zonePanelDragWineId = wine.id;
@@ -2856,6 +2871,8 @@ export class WineCellarCard extends LitElement {
                           return html`
                             <div
                               class="wine-list-item"
+                              draggable="true"
+                              @dragstart=${(e: DragEvent) => this._onUnassignedDragStart(e, wine)}
                               @click=${() => {
                                 this._selectedWine = wine;
                                 this._detailMode = "cellar";
@@ -2948,6 +2965,8 @@ export class WineCellarCard extends LitElement {
                     return html`
                       <div
                         class="wine-list-item"
+                        draggable="true"
+                        @dragstart=${(e: DragEvent) => this._onUnassignedDragStart(e, wine)}
                         @click=${() => {
                           if (this._movingBuyListItem) return;
                           this._selectedWine = wine;
