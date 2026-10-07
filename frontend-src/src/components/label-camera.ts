@@ -8,6 +8,8 @@ import { t } from "../i18n";
 export class LabelCamera extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) active = false;
+  // Overrides the default "point at the wine label" hint, e.g. for scanning a list.
+  @property({ type: String }) hint = "";
 
   @state() private _stream: MediaStream | null = null;
   @state() private _error = "";
@@ -309,7 +311,7 @@ export class LabelCamera extends LitElement {
             <div class="capture-btn-area">
               <button class="capture-btn" @click=${this._capture} title="${this._t('ui.camera.takePhotoTitle')}"></button>
             </div>
-            <div class="hint">${this._t("ui.camera.pointAtLabel")}</div>
+            <div class="hint">${this.hint || this._t("ui.camera.pointAtLabel")}</div>
           `}
 
       <div class="fallback-area">

@@ -1410,6 +1410,7 @@ var ui$1 = {
 		alreadyScannedHintMany: "{n} wines already scanned. Take another photo to add more.",
 		captureSubtitle: "Take a photo of a wine list or receipt to see ratings, scores, and value.",
 		backToResults: "Back to Results ({n})",
+		pointAtList: "Point the camera at the wine list or receipt",
 		analyzingList: "Analyzing list...",
 		geminiReading: "Gemini is reading wines and scoring them",
 		longListsHint: "Long lists may take up to 3 minutes",
@@ -2187,6 +2188,7 @@ var ui = {
 		alreadyScannedHintMany: "{n} vins déjà scannés. Prenez une autre photo pour en ajouter d'autres.",
 		captureSubtitle: "Prenez en photo une carte des vins ou un reçu pour voir les notes et la valeur.",
 		backToResults: "Retour aux résultats ({n})",
+		pointAtList: "Pointez la caméra vers la carte des vins ou le reçu",
 		analyzingList: "Analyse de la liste...",
 		geminiReading: "Gemini lit les vins et les note",
 		longListsHint: "Les longues listes peuvent prendre jusqu'à 3 minutes",
@@ -5494,6 +5496,8 @@ let LabelCamera = class LabelCamera extends i {
     constructor() {
         super(...arguments);
         this.active = false;
+        // Overrides the default "point at the wine label" hint, e.g. for scanning a list.
+        this.hint = "";
         this._stream = null;
         this._error = "";
         this._captured = false;
@@ -5649,7 +5653,7 @@ let LabelCamera = class LabelCamera extends i {
             <div class="capture-btn-area">
               <button class="capture-btn" @click=${this._capture} title="${this._t('ui.camera.takePhotoTitle')}"></button>
             </div>
-            <div class="hint">${this._t("ui.camera.pointAtLabel")}</div>
+            <div class="hint">${this.hint || this._t("ui.camera.pointAtLabel")}</div>
           `}
 
       <div class="fallback-area">
@@ -5794,6 +5798,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], LabelCamera.prototype, "active", void 0);
+__decorate([
+    n({ type: String })
+], LabelCamera.prototype, "hint", void 0);
 __decorate([
     r()
 ], LabelCamera.prototype, "_stream", void 0);
@@ -12045,7 +12052,7 @@ let WineListDialog = class WineListDialog extends i {
                     : this._t("ui.wineList.alreadyScannedHintOne", { n: this._wines.length })}</div>`
                 : b `<div class="header-subtitle">${this._t("ui.wineList.captureSubtitle")}</div>`}
                 <div style="padding: 0 16px 16px">
-                  <label-camera .hass=${this.hass} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
+                  <label-camera .hass=${this.hass} .hint=${this._t("ui.wineList.pointAtList")} .active=${this._phase === "capture"} @photo-captured=${this._onPhotoCaptured}></label-camera>
                 </div>
                 ${this._wines.length > 0
                 ? b `

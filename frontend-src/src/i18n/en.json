@@ -664,6 +664,7 @@
       "alreadyScannedHintMany": "{n} wines already scanned. Take another photo to add more.",
       "captureSubtitle": "Take a photo of a wine list or receipt to see ratings, scores, and value.",
       "backToResults": "Back to Results ({n})",
+      "pointAtList": "Point the camera at the wine list or receipt",
       "analyzingList": "Analyzing list...",
       "geminiReading": "Gemini is reading wines and scoring them",
       "longListsHint": "Long lists may take up to 3 minutes",
