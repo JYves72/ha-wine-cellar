@@ -57,6 +57,7 @@ export class InventoryDialog extends LitElement {
   @property({ attribute: false }) cabinets: Cabinet[] = [];
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: String }) currency = "USD";
   @property({ type: String }) chamberingRoomSensor = "";
   @property({ type: Number }) chamberingTimeConstantMinutes = 75;
@@ -2557,6 +2558,7 @@ export class InventoryDialog extends LitElement {
         .hasGemini=${this.hasGemini}
         .currency=${this.currency}
         .enableWhisky=${this.enableWhisky}
+        .aiFallbackAlways=${this.aiFallbackAlways}
         .chamberingRoomSensor=${this.chamberingRoomSensor}
         .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
         .chamberingEquilibrationHours=${this.chamberingEquilibrationHours}

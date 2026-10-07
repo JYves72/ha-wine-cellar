@@ -12649,6 +12649,7 @@ let InventoryDialog = class InventoryDialog extends i {
         this.cabinets = [];
         this.hasGemini = false;
         this.enableWhisky = false;
+        this.aiFallbackAlways = false;
         this.currency = "USD";
         this.chamberingRoomSensor = "";
         this.chamberingTimeConstantMinutes = 75;
@@ -14361,6 +14362,7 @@ let InventoryDialog = class InventoryDialog extends i {
         .hasGemini=${this.hasGemini}
         .currency=${this.currency}
         .enableWhisky=${this.enableWhisky}
+        .aiFallbackAlways=${this.aiFallbackAlways}
         .chamberingRoomSensor=${this.chamberingRoomSensor}
         .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
         .chamberingEquilibrationHours=${this.chamberingEquilibrationHours}
@@ -15074,6 +15076,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], InventoryDialog.prototype, "enableWhisky", void 0);
+__decorate([
+    n({ type: Boolean })
+], InventoryDialog.prototype, "aiFallbackAlways", void 0);
 __decorate([
     n({ type: String })
 ], InventoryDialog.prototype, "currency", void 0);
@@ -18217,6 +18222,8 @@ let WineCellarCard = class WineCellarCard extends i {
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
+          .aiFallbackAlways=${this._aiFallbackAlways}
+          @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e) => {

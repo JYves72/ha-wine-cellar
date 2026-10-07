@@ -3254,6 +3254,8 @@ export class WineCellarCard extends LitElement {
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
+          .aiFallbackAlways=${this._aiFallbackAlways}
+          @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e: CustomEvent) => {
