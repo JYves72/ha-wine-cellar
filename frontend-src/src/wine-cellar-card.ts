@@ -3251,6 +3251,9 @@ export class WineCellarCard extends LitElement {
           .hasGemini=${this._hasGemini}
           .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
+          .chamberingRoomSensor=${this._chamberingRoomSensor}
+          .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+          .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e: CustomEvent) => {

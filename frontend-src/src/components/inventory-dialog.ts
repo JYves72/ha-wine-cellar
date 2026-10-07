@@ -58,6 +58,9 @@ export class InventoryDialog extends LitElement {
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) currency = "USD";
+  @property({ type: String }) chamberingRoomSensor = "";
+  @property({ type: Number }) chamberingTimeConstantMinutes = 75;
+  @property({ type: Number }) chamberingEquilibrationHours = 24;
 
   @state() private _searchQuery = "";
   @state() private _typeFilter = DEFAULT_FILTERS.typeFilter;
@@ -2553,6 +2556,10 @@ export class InventoryDialog extends LitElement {
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
         .currency=${this.currency}
+        .enableWhisky=${this.enableWhisky}
+        .chamberingRoomSensor=${this.chamberingRoomSensor}
+        .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
+        .chamberingEquilibrationHours=${this.chamberingEquilibrationHours}
         .mode=${"cellar"}
         @close=${() => (this._showDetail = false)}
         @wine-updated=${() => {

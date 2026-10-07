@@ -12650,6 +12650,9 @@ let InventoryDialog = class InventoryDialog extends i {
         this.hasGemini = false;
         this.enableWhisky = false;
         this.currency = "USD";
+        this.chamberingRoomSensor = "";
+        this.chamberingTimeConstantMinutes = 75;
+        this.chamberingEquilibrationHours = 24;
         this._searchQuery = "";
         this._typeFilter = DEFAULT_FILTERS.typeFilter;
         this._dispositionFilter = DEFAULT_FILTERS.dispositionFilter;
@@ -14357,6 +14360,10 @@ let InventoryDialog = class InventoryDialog extends i {
         .open=${this._showDetail}
         .hasGemini=${this.hasGemini}
         .currency=${this.currency}
+        .enableWhisky=${this.enableWhisky}
+        .chamberingRoomSensor=${this.chamberingRoomSensor}
+        .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
+        .chamberingEquilibrationHours=${this.chamberingEquilibrationHours}
         .mode=${"cellar"}
         @close=${() => (this._showDetail = false)}
         @wine-updated=${() => {
@@ -15070,6 +15077,15 @@ __decorate([
 __decorate([
     n({ type: String })
 ], InventoryDialog.prototype, "currency", void 0);
+__decorate([
+    n({ type: String })
+], InventoryDialog.prototype, "chamberingRoomSensor", void 0);
+__decorate([
+    n({ type: Number })
+], InventoryDialog.prototype, "chamberingTimeConstantMinutes", void 0);
+__decorate([
+    n({ type: Number })
+], InventoryDialog.prototype, "chamberingEquilibrationHours", void 0);
 __decorate([
     r()
 ], InventoryDialog.prototype, "_searchQuery", void 0);
@@ -18198,6 +18214,9 @@ let WineCellarCard = class WineCellarCard extends i {
           .hasGemini=${this._hasGemini}
           .enableWhisky=${this._enableWhisky}
           .currency=${this._metadataCurrency}
+          .chamberingRoomSensor=${this._chamberingRoomSensor}
+          .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+          .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e) => {
