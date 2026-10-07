@@ -8753,7 +8753,6 @@ let AddWineDialog = class AddWineDialog extends i {
             />
           </div>
         </div>
-        </div>
 
         <div class="form-group">
           <label>${this._t("ui.addWine.notesLabel")}</label>

@@ -1402,7 +1402,6 @@ export class AddWineDialog extends LitElement {
             />
           </div>
         </div>
-        </div>
 
         <div class="form-group">
           <label>${this._t("ui.addWine.notesLabel")}</label>
