@@ -2824,6 +2824,7 @@ export class WineCellarCard extends LitElement {
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
                           @rack-click=${this._onRackClick}
+                          @cabinet-updated=${() => this._loadData()}
                           @wine-drop=${this._onWineDrop}
                           @wine-longpress=${(e: CustomEvent) => {
                             this._movingWine = e.detail.wine;
@@ -2848,6 +2849,7 @@ export class WineCellarCard extends LitElement {
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
                             @rack-click=${this._onRackClick}
+                            @cabinet-updated=${() => this._loadData()}
                             @wine-drop=${this._onWineDrop}
                             @wine-longpress=${(e: CustomEvent) => {
                               this._activeTab = "all";

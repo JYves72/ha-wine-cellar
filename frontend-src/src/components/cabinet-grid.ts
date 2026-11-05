@@ -32,6 +32,9 @@ export class CabinetGrid extends LitElement {
   @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
 
   @state() private _dragOverCell: string | null = null;
+  @state() private _quickEdit = false;
+  @state() private _quickTemp = "";
+  @state() private _quickHumidity = "";
 
   static styles = [
     sharedStyles,
@@ -369,6 +372,75 @@ export class CabinetGrid extends LitElement {
       .zone-sensor-badge {
         flex-shrink: 0;
         white-space: nowrap;
+      }
+
+      .zone-sensor-badge.editable {
+        cursor: pointer;
+      }
+
+      .quick-edit-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .quick-edit {
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color, #222);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 240px;
+        max-width: 90vw;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-shadow: none;
+        font-weight: normal;
+      }
+
+      .quick-edit-title {
+        font-weight: 600;
+      }
+
+      .quick-edit label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .quick-edit input {
+        width: 80px;
+        padding: 6px;
+        font-size: 1em;
+        border: 1px solid var(--divider-color, #ccc);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+      }
+
+      .quick-edit-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .quick-edit-actions button {
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--divider-color, #ccc);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .quick-edit-actions button.primary {
+        background: var(--primary-color, #03a9f4);
+        color: #fff;
+        border-color: transparent;
       }
 
       .zone-bottle {
@@ -801,9 +873,82 @@ export class CabinetGrid extends LitElement {
         })
       : "";
     return html`
-      <span class="zone-sensor-badge" title=${manualTitle}>
+      <span
+        class="zone-sensor-badge ${stamps.length ? "editable" : ""}"
+        title=${manualTitle}
+        @click=${stamps.length ? this._openQuickEdit : nothing}
+      >
         ${temp !== null ? html`🌡️ ${temp}°C` : nothing}${temp !== null && humidity !== null ? " · " : nothing}${humidity !== null ? html`💧 ${humidity}%` : nothing}${stamps.length ? " ✍️" : nothing}
       </span>
+    `;
+  }
+
+  // Tapping a hand-typed reading opens a small editor so it can be refreshed
+  // without going through Manage Racks.
+  private _openQuickEdit = (e: Event) => {
+    e.stopPropagation(); // don't also trigger the rack-title click
+    this._quickTemp = this.cabinet.temp_manual_value?.toString() ?? "";
+    this._quickHumidity = this.cabinet.humidity_manual_value?.toString() ?? "";
+    this._quickEdit = true;
+  };
+
+  private async _saveQuickEdit() {
+    const toNumber = (raw: string) => {
+      const n = parseFloat(raw.replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    };
+    const updates: Record<string, number | null> = {};
+    if (this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR) {
+      updates.temp_manual_value = toNumber(this._quickTemp);
+    }
+    if (this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR) {
+      updates.humidity_manual_value = toNumber(this._quickHumidity);
+    }
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_cabinet",
+        cabinet_id: this.cabinet.id,
+        updates,
+      });
+      this._quickEdit = false;
+      this.dispatchEvent(new CustomEvent("cabinet-updated", { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error("Failed to update manual reading:", err);
+    }
+  }
+
+  private _renderQuickEdit() {
+    if (!this._quickEdit) return nothing;
+    const tempManual = this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR;
+    const humManual = this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR;
+    return html`
+      <div class="quick-edit-backdrop" @click=${() => (this._quickEdit = false)}>
+        <div class="quick-edit" @click=${(e: Event) => e.stopPropagation()}>
+          <div class="quick-edit-title">${this._t("ui.rack.quickEditTitle")} — ${this.cabinet.name}</div>
+          ${tempManual
+            ? html`<label>🌡️
+                <input
+                  type="number"
+                  step="0.5"
+                  .value=${this._quickTemp}
+                  @input=${(e: Event) => (this._quickTemp = (e.target as HTMLInputElement).value)}
+                />°C</label>`
+            : nothing}
+          ${humManual
+            ? html`<label>💧
+                <input
+                  type="number"
+                  step="1"
+                  .value=${this._quickHumidity}
+                  @input=${(e: Event) => (this._quickHumidity = (e.target as HTMLInputElement).value)}
+                />%</label>`
+            : nothing}
+          <div class="quick-edit-actions">
+            <button @click=${() => (this._quickEdit = false)}>${this._t("ui.common.cancel")}</button>
+            <button class="primary" @click=${() => this._saveQuickEdit()}>${this._t("ui.rack.quickEditSave")}</button>
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -1554,6 +1699,7 @@ export class CabinetGrid extends LitElement {
     const titleClickable = hasGridRows || hasShelfRows;
 
     return html`
+      ${this._renderQuickEdit()}
       <div class="cabinet">
         <div
           class="cabinet-name ${titleClickable ? "clickable" : ""}"

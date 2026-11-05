@@ -620,7 +620,9 @@
       "dialogTitleDeleteConfirm": "Supprimer le rack ?",
       "sensorManual": "Saisie manuelle",
       "manualLastEntry": "Dernière saisie : {date}",
-      "manualReadingTitle": "Relevé manuel, saisi le {date}"
+      "manualReadingTitle": "Relevé manuel, saisi le {date} — toucher pour mettre à jour",
+      "quickEditTitle": "Mettre à jour le relevé",
+      "quickEditSave": "Enregistrer"
     },
     "vivinoAiSettings": {
       "title": "Paramètres",

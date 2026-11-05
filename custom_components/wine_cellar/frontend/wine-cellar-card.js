@@ -1366,7 +1366,9 @@ var ui$1 = {
 		dialogTitleDeleteConfirm: "Delete Rack?",
 		sensorManual: "Manual entry",
 		manualLastEntry: "Last entered: {date}",
-		manualReadingTitle: "Manual reading, entered {date}"
+		manualReadingTitle: "Manual reading, entered {date} — tap to update",
+		quickEditTitle: "Update the reading",
+		quickEditSave: "Save"
 	},
 	vivinoAiSettings: {
 		title: "Settings",
@@ -2159,7 +2161,9 @@ var ui = {
 		dialogTitleDeleteConfirm: "Supprimer le rack ?",
 		sensorManual: "Saisie manuelle",
 		manualLastEntry: "Dernière saisie : {date}",
-		manualReadingTitle: "Relevé manuel, saisi le {date}"
+		manualReadingTitle: "Relevé manuel, saisi le {date} — toucher pour mettre à jour",
+		quickEditTitle: "Mettre à jour le relevé",
+		quickEditSave: "Enregistrer"
 	},
 	vivinoAiSettings: {
 		title: "Paramètres",
@@ -3873,6 +3877,17 @@ let CabinetGrid = class CabinetGrid extends i {
         // not per-bottle.
         this.dispositionDisplay = "letter";
         this._dragOverCell = null;
+        this._quickEdit = false;
+        this._quickTemp = "";
+        this._quickHumidity = "";
+        // Tapping a hand-typed reading opens a small editor so it can be refreshed
+        // without going through Manage Racks.
+        this._openQuickEdit = (e) => {
+            e.stopPropagation(); // don't also trigger the rack-title click
+            this._quickTemp = this.cabinet.temp_manual_value?.toString() ?? "";
+            this._quickHumidity = this.cabinet.humidity_manual_value?.toString() ?? "";
+            this._quickEdit = true;
+        };
         // --- Long press (mobile move) ---
         this._longPressTimer = null;
     }
@@ -3918,9 +3933,73 @@ let CabinetGrid = class CabinetGrid extends i {
             })
             : "";
         return b `
-      <span class="zone-sensor-badge" title=${manualTitle}>
+      <span
+        class="zone-sensor-badge ${stamps.length ? "editable" : ""}"
+        title=${manualTitle}
+        @click=${stamps.length ? this._openQuickEdit : A}
+      >
         ${temp !== null ? b `🌡️ ${temp}°C` : A}${temp !== null && humidity !== null ? " · " : A}${humidity !== null ? b `💧 ${humidity}%` : A}${stamps.length ? " ✍️" : A}
       </span>
+    `;
+    }
+    async _saveQuickEdit() {
+        const toNumber = (raw) => {
+            const n = parseFloat(raw.replace(",", "."));
+            return Number.isFinite(n) ? n : null;
+        };
+        const updates = {};
+        if (this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR) {
+            updates.temp_manual_value = toNumber(this._quickTemp);
+        }
+        if (this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR) {
+            updates.humidity_manual_value = toNumber(this._quickHumidity);
+        }
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_cabinet",
+                cabinet_id: this.cabinet.id,
+                updates,
+            });
+            this._quickEdit = false;
+            this.dispatchEvent(new CustomEvent("cabinet-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Failed to update manual reading:", err);
+        }
+    }
+    _renderQuickEdit() {
+        if (!this._quickEdit)
+            return A;
+        const tempManual = this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR;
+        const humManual = this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR;
+        return b `
+      <div class="quick-edit-backdrop" @click=${() => (this._quickEdit = false)}>
+        <div class="quick-edit" @click=${(e) => e.stopPropagation()}>
+          <div class="quick-edit-title">${this._t("ui.rack.quickEditTitle")} — ${this.cabinet.name}</div>
+          ${tempManual
+            ? b `<label>🌡️
+                <input
+                  type="number"
+                  step="0.5"
+                  .value=${this._quickTemp}
+                  @input=${(e) => (this._quickTemp = e.target.value)}
+                />°C</label>`
+            : A}
+          ${humManual
+            ? b `<label>💧
+                <input
+                  type="number"
+                  step="1"
+                  .value=${this._quickHumidity}
+                  @input=${(e) => (this._quickHumidity = e.target.value)}
+                />%</label>`
+            : A}
+          <div class="quick-edit-actions">
+            <button @click=${() => (this._quickEdit = false)}>${this._t("ui.common.cancel")}</button>
+            <button class="primary" @click=${() => this._saveQuickEdit()}>${this._t("ui.rack.quickEditSave")}</button>
+          </div>
+        </div>
+      </div>
     `;
     }
     _getStorageRowWines(row) {
@@ -4631,6 +4710,7 @@ let CabinetGrid = class CabinetGrid extends i {
         const hasShelfRows = (this.cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
         const titleClickable = hasGridRows || hasShelfRows;
         return b `
+      ${this._renderQuickEdit()}
       <div class="cabinet">
         <div
           class="cabinet-name ${titleClickable ? "clickable" : ""}"
@@ -5011,6 +5091,75 @@ CabinetGrid.styles = [
       .zone-sensor-badge {
         flex-shrink: 0;
         white-space: nowrap;
+      }
+
+      .zone-sensor-badge.editable {
+        cursor: pointer;
+      }
+
+      .quick-edit-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .quick-edit {
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color, #222);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 240px;
+        max-width: 90vw;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-shadow: none;
+        font-weight: normal;
+      }
+
+      .quick-edit-title {
+        font-weight: 600;
+      }
+
+      .quick-edit label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .quick-edit input {
+        width: 80px;
+        padding: 6px;
+        font-size: 1em;
+        border: 1px solid var(--divider-color, #ccc);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+      }
+
+      .quick-edit-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .quick-edit-actions button {
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--divider-color, #ccc);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .quick-edit-actions button.primary {
+        background: var(--primary-color, #03a9f4);
+        color: #fff;
+        border-color: transparent;
       }
 
       .zone-bottle {
@@ -5414,6 +5563,15 @@ __decorate([
 __decorate([
     r()
 ], CabinetGrid.prototype, "_dragOverCell", void 0);
+__decorate([
+    r()
+], CabinetGrid.prototype, "_quickEdit", void 0);
+__decorate([
+    r()
+], CabinetGrid.prototype, "_quickTemp", void 0);
+__decorate([
+    r()
+], CabinetGrid.prototype, "_quickHumidity", void 0);
 CabinetGrid = __decorate([
     t$1("cabinet-grid")
 ], CabinetGrid);
@@ -18006,6 +18164,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
                           @rack-click=${this._onRackClick}
+                          @cabinet-updated=${() => this._loadData()}
                           @wine-drop=${this._onWineDrop}
                           @wine-longpress=${(e) => {
                     this._movingWine = e.detail.wine;
@@ -18028,6 +18187,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
                             @rack-click=${this._onRackClick}
+                            @cabinet-updated=${() => this._loadData()}
                             @wine-drop=${this._onWineDrop}
                             @wine-longpress=${(e) => {
                     this._activeTab = "all";

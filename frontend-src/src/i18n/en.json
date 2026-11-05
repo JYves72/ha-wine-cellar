@@ -620,7 +620,9 @@
       "dialogTitleDeleteConfirm": "Delete Rack?",
       "sensorManual": "Manual entry",
       "manualLastEntry": "Last entered: {date}",
-      "manualReadingTitle": "Manual reading, entered {date}"
+      "manualReadingTitle": "Manual reading, entered {date} — tap to update",
+      "quickEditTitle": "Update the reading",
+      "quickEditSave": "Save"
     },
     "vivinoAiSettings": {
       "title": "Settings",
