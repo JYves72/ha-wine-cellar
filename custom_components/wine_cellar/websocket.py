@@ -46,6 +46,7 @@ from .const import (
 )
 from . import photos
 from .disposition import compute_disposition
+from .vivino import _search_significant_words
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,17 +54,9 @@ _LOGGER = logging.getLogger(__name__)
 # Generic wine-domain words carry no identifying signal on their own (two
 # completely unrelated wines can both be a "Chateau ... Rouge"), so they're
 # excluded before comparing name/winery word overlap.
-_GENERIC_WINE_WORDS = {
-    "chateau", "château", "domaine", "clos", "cave", "caves", "cellar", "cellars",
-    "winery", "wine", "wines", "vineyard", "vineyards", "estate", "vignoble",
-    "rouge", "blanc", "rose", "rosé", "red", "white", "sparkling", "nv",
-    "de", "du", "des", "la", "le", "les", "et", "the", "of", "and",
-    "grand", "cru", "premier",
-}
-
-
-def _significant_words(text: str) -> set[str]:
-    return {w for w in text.lower().split() if w not in _GENERIC_WINE_WORDS and len(w) > 2}
+# Shared with the Vivino search's own relevance check, so both fold accents and
+# punctuation and ignore the same generic words.
+_significant_words = _search_significant_words
 
 
 def _get_metadata_language(hass: HomeAssistant) -> str:
@@ -385,7 +378,19 @@ def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]
     if not subject_words or not lookup_words:
         return True
     overlap = len(subject_words & lookup_words) / len(subject_words | lookup_words)
-    return overlap >= 0.15
+    if overlap >= 0.15:
+        return True
+    # Vivino often appends the appellation to a wine's name ("Le Mourre de la
+    # Caille Vacqueyras"), which dilutes the overlap above. If the wine's own
+    # name is entirely found in the result and the winery shares a word with
+    # it, name and producer agree: it is the same wine.
+    name_words = _significant_words(subject.get("name", ""))
+    winery_words = _significant_words(subject.get("winery", ""))
+    return bool(
+        name_words
+        and name_words <= lookup_words
+        and (not winery_words or winery_words & lookup_words)
+    )
 
 
 def _apply_vivino_text_fields(

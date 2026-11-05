@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import re
+import unicodedata
 from html import unescape
 from typing import Any
 from urllib.parse import quote_plus
@@ -152,17 +153,34 @@ def _accept_language(language: str) -> str:
 
 # Generic wine-domain words carry no identifying signal on their own, so
 # they're excluded before comparing query/result word overlap.
+def _fold(text: str) -> str:
+    """Lower-case, strip accents and turn punctuation into spaces.
+
+    "Château de la Ligière", "chateau de la ligiere" and "CHÂTEAU-DE-LA-LIGIÈRE"
+    all fold to the same words, so how a wine was typed (or how Vivino spells
+    it — it often drops accents the label has) no longer decides whether two
+    names match. Vivino's own search ignores accents already; this keeps our
+    relevance checks from being stricter than the search itself.
+    """
+    text = unicodedata.normalize("NFKD", text or "")
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.sub(r"[\W_]+", " ", text.casefold()).strip()
+
+
 _GENERIC_SEARCH_WORDS = {
-    "chateau", "château", "domaine", "clos", "cave", "caves", "cellar", "cellars",
-    "winery", "wine", "wines", "vineyard", "vineyards", "estate", "vignoble",
-    "rouge", "blanc", "rose", "rosé", "red", "white", "sparkling", "nv",
-    "de", "du", "des", "la", "le", "les", "et", "the", "of", "and",
-    "grand", "cru", "premier",
+    _fold(w) for w in (
+        "chateau", "château", "domaine", "domaines", "clos", "cave", "caves", "cellar", "cellars",
+        "winery", "wine", "wines", "vineyard", "vineyards", "estate", "vignoble",
+        "azienda", "agricola", "agricole", "tenuta", "bodega", "bodegas", "weingut", "maison",
+        "rouge", "blanc", "rose", "rosé", "red", "white", "sparkling", "nv",
+        "de", "du", "des", "la", "le", "les", "et", "the", "of", "and",
+        "grand", "cru", "premier",
+    )
 }
 
 
 def _search_significant_words(text: str) -> set[str]:
-    return {w for w in text.lower().split() if w not in _GENERIC_SEARCH_WORDS and len(w) > 2}
+    return {w for w in _fold(text).split() if w not in _GENERIC_SEARCH_WORDS and len(w) > 2}
 
 
 def _explore_result_matches_query(query: str, result: dict[str, Any]) -> bool:
@@ -172,12 +190,21 @@ def _explore_result_matches_query(query: str, result: dict[str, Any]) -> bool:
     to the query instead of an empty/error response, so an empty result
     list isn't a reliable-enough signal on its own that the search failed.
     """
-    query_words = _search_significant_words(query)
+    # The vintage is part of the query but never of the result's winery/name,
+    # so it would only dilute the comparison.
+    query_words = {
+        w for w in _search_significant_words(query) if not re.fullmatch(r"(19|20)\d\d", w)
+    }
     result_words = _search_significant_words(f"{result.get('winery', '')} {result.get('name', '')}")
     if not query_words or not result_words:
         return True
-    overlap = len(query_words & result_words) / len(query_words | result_words)
-    return overlap >= 0.15
+    shared = query_words & result_words
+    if len(shared) / len(query_words | result_words) >= 0.15:
+        return True
+    # Vivino often adds the appellation to a wine's name ("Le Mourre de la
+    # Caille Vacqueyras"), or the query carries extra words: when almost
+    # everything on the shorter side is found on the other, it is the same wine.
+    return len(shared) >= 2 and len(shared) / min(len(query_words), len(result_words)) >= 0.75
 
 
 def _prefer_matching_type(
