@@ -1434,6 +1434,16 @@ var ui$1 = {
 		buyBtn: "🛒 Buy",
 		noWinesFoundImage: "No wines found in the image. Try a clearer photo.",
 		extractionFailed: "Extraction failed: {error}"
+	},
+	suggest: {
+		bottleOne: "{n} bottle",
+		bottleMany: "{n} bottles",
+		exactWine: "{bottles} of this exact wine already here",
+		wineYears: "{bottles} of this wine here ({years})",
+		wineAlready: "{bottles} of this wine already here",
+		thisWinery: "this winery",
+		fromWinery: "{bottles} from {winery} here",
+		ofKind: "{bottles} of {kind} here"
 	}
 };
 var toast$1 = {
@@ -2214,6 +2224,16 @@ var ui = {
 		buyBtn: "🛒 Acheter",
 		noWinesFoundImage: "Aucun vin trouvé dans l'image. Essayez une photo plus nette.",
 		extractionFailed: "Échec de l'extraction : {error}"
+	},
+	suggest: {
+		bottleOne: "{n} bouteille",
+		bottleMany: "{n} bouteilles",
+		exactWine: "{bottles} de ce vin exact déjà ici",
+		wineYears: "{bottles} de ce vin ici ({years})",
+		wineAlready: "{bottles} de ce vin déjà ici",
+		thisWinery: "ce domaine",
+		fromWinery: "{bottles} de {winery} ici",
+		ofKind: "{bottles} de {kind} ici"
 	}
 };
 var toast = {
@@ -2959,28 +2979,35 @@ function vintageList(wines) {
     const years = Array.from(new Set(wines.map((w) => w.vintage).filter((v) => typeof v === "number"))).sort((a, b) => a - b);
     return years.join(", ");
 }
-function reasonFor(tier, draft, matches) {
+function reasonFor(tier, draft, matches, language) {
     const n = matches.length;
-    const bottles = n === 1 ? "1 bottle" : `${n} bottles`;
+    const bottles = t(n === 1 ? "ui.suggest.bottleOne" : "ui.suggest.bottleMany", language, { n });
+    // Type names are nouns in the sentence ("de rouge"), not labels, so French
+    // wants them lower-cased; other languages keep the catalog's casing.
+    const typeName = (type) => {
+        const label = (type && getWineTypeLabels(language)[type]) || type || "";
+        return language?.startsWith("fr") ? label.toLocaleLowerCase(language) : label;
+    };
     if (tier === "same-wine") {
         const years = vintageList(matches);
         const sameYear = matches.every((w) => w.vintage === draft.vintage);
         if (sameYear)
-            return `${bottles} of this exact wine already here`;
-        return years ? `${bottles} of this wine here (${years})` : `${bottles} of this wine already here`;
+            return t("ui.suggest.exactWine", language, { bottles });
+        return years
+            ? t("ui.suggest.wineYears", language, { bottles, years })
+            : t("ui.suggest.wineAlready", language, { bottles });
     }
     if (tier === "same-winery") {
-        const winery = matches[0]?.winery || draft.winery || "this winery";
-        return `${bottles} from ${winery} here`;
+        const winery = matches[0]?.winery || draft.winery || t("ui.suggest.thisWinery", language);
+        return t("ui.suggest.fromWinery", language, { bottles, winery });
     }
     if (tier === "same-type") {
-        const type = WINE_TYPE_LABELS[draft.type] || draft.type || "";
-        return `${bottles} of ${type} here`;
+        return t("ui.suggest.ofKind", language, { bottles, kind: typeName(draft.type) });
     }
     const first = matches[0];
     const region = first?.region || draft.region || "";
-    const type = first ? WINE_TYPE_LABELS[first.type] || "" : "";
-    return `${bottles} of ${[region, type].filter(Boolean).join(" ")} here`.replace(/\s+/g, " ");
+    const kind = [region, first ? typeName(first.type) : ""].filter(Boolean).join(" ").replace(/\s+/g, " ");
+    return t("ui.suggest.ofKind", language, { bottles, kind });
 }
 // The best place to send the bottle instead, when the natural destination is
 // full: somewhere in the same cabinet with room, preferring a container that
@@ -3012,7 +3039,7 @@ function alternativeFor(full, cabinet, wines, matchIds) {
 }
 // Ranked destinations for a bottle about to be added. Empty when the cellar
 // holds nothing related — better to say nothing than to invent a reason.
-function suggestDestinations(draft, wines, cabinets, limit = 3) {
+function suggestDestinations(draft, wines, cabinets, limit = 3, language) {
     const byContainer = new Map();
     // Everything each live container holds, for the same-type fallback.
     const contents = new Map();
@@ -3087,7 +3114,7 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
             label: containerLabel(entry.container, cabinets),
             usage,
             tier: entry.tier,
-            reason: reasonFor(entry.tier, draft, entry.matches),
+            reason: reasonFor(entry.tier, draft, entry.matches, language),
             matches: entry.matches,
             alternative: usage.full && cabinet ? alternativeFor(entry.container, cabinet, wines, matchIds) : null,
         };
@@ -8868,7 +8895,7 @@ let AddWineDialog = class AddWineDialog extends i {
     // cellar has no declared zone rules, so its own layout is the only signal:
     // every suggestion says which bottles are already there and why they match.
     _renderSuggestions() {
-        const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3);
+        const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3, this.hass?.language);
         if (!suggestions.length)
             return A;
         const current = containerOf(this._wineData);

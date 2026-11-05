@@ -1454,7 +1454,7 @@ export class AddWineDialog extends LitElement {
   // cellar has no declared zone rules, so its own layout is the only signal:
   // every suggestion says which bottles are already there and why they match.
   private _renderSuggestions() {
-    const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3);
+    const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3, this.hass?.language);
     if (!suggestions.length) return nothing;
     const current = containerOf(this._wineData as Wine);
     // The same-type fallback only appears alone, so one tier says it all.

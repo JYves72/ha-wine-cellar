@@ -688,6 +688,16 @@
       "buyBtn": "🛒 Buy",
       "noWinesFoundImage": "No wines found in the image. Try a clearer photo.",
       "extractionFailed": "Extraction failed: {error}"
+    },
+    "suggest": {
+      "bottleOne": "{n} bottle",
+      "bottleMany": "{n} bottles",
+      "exactWine": "{bottles} of this exact wine already here",
+      "wineYears": "{bottles} of this wine here ({years})",
+      "wineAlready": "{bottles} of this wine already here",
+      "thisWinery": "this winery",
+      "fromWinery": "{bottles} from {winery} here",
+      "ofKind": "{bottles} of {kind} here"
     }
   },
   "toast": {

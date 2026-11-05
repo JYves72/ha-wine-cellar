@@ -1,4 +1,5 @@
-import { Cabinet, Wine, WINE_TYPE_LABELS } from "../models";
+import { Cabinet, Wine, getWineTypeLabels } from "../models";
+import { t } from "../i18n";
 import { normalizeText } from "./search";
 import {
   Container,
@@ -97,27 +98,34 @@ function vintageList(wines: Wine[]): string {
   return years.join(", ");
 }
 
-function reasonFor(tier: MatchTier, draft: Partial<Wine>, matches: Wine[]): string {
+function reasonFor(tier: MatchTier, draft: Partial<Wine>, matches: Wine[], language?: string): string {
   const n = matches.length;
-  const bottles = n === 1 ? "1 bottle" : `${n} bottles`;
+  const bottles = t(n === 1 ? "ui.suggest.bottleOne" : "ui.suggest.bottleMany", language, { n });
+  // Type names are nouns in the sentence ("de rouge"), not labels, so French
+  // wants them lower-cased; other languages keep the catalog's casing.
+  const typeName = (type: Wine["type"] | string | undefined) => {
+    const label = (type && getWineTypeLabels(language)[type as Wine["type"]]) || type || "";
+    return language?.startsWith("fr") ? label.toLocaleLowerCase(language) : label;
+  };
   if (tier === "same-wine") {
     const years = vintageList(matches);
     const sameYear = matches.every((w) => w.vintage === draft.vintage);
-    if (sameYear) return `${bottles} of this exact wine already here`;
-    return years ? `${bottles} of this wine here (${years})` : `${bottles} of this wine already here`;
+    if (sameYear) return t("ui.suggest.exactWine", language, { bottles });
+    return years
+      ? t("ui.suggest.wineYears", language, { bottles, years })
+      : t("ui.suggest.wineAlready", language, { bottles });
   }
   if (tier === "same-winery") {
-    const winery = matches[0]?.winery || draft.winery || "this winery";
-    return `${bottles} from ${winery} here`;
+    const winery = matches[0]?.winery || draft.winery || t("ui.suggest.thisWinery", language);
+    return t("ui.suggest.fromWinery", language, { bottles, winery });
   }
   if (tier === "same-type") {
-    const type = WINE_TYPE_LABELS[draft.type as Wine["type"]] || draft.type || "";
-    return `${bottles} of ${type} here`;
+    return t("ui.suggest.ofKind", language, { bottles, kind: typeName(draft.type) });
   }
   const first = matches[0];
   const region = first?.region || draft.region || "";
-  const type = first ? WINE_TYPE_LABELS[first.type] || "" : "";
-  return `${bottles} of ${[region, type].filter(Boolean).join(" ")} here`.replace(/\s+/g, " ");
+  const kind = [region, first ? typeName(first.type) : ""].filter(Boolean).join(" ").replace(/\s+/g, " ");
+  return t("ui.suggest.ofKind", language, { bottles, kind });
 }
 
 // The best place to send the bottle instead, when the natural destination is
@@ -162,7 +170,8 @@ export function suggestDestinations(
   draft: Partial<Wine>,
   wines: Wine[],
   cabinets: Cabinet[],
-  limit = 3
+  limit = 3,
+  language?: string
 ): Suggestion[] {
   const byContainer = new Map<string, { container: Container; tier: MatchTier; matches: Wine[] }>();
   // Everything each live container holds, for the same-type fallback.
@@ -236,7 +245,7 @@ export function suggestDestinations(
       label: containerLabel(entry.container, cabinets),
       usage,
       tier: entry.tier,
-      reason: reasonFor(entry.tier, draft, entry.matches),
+      reason: reasonFor(entry.tier, draft, entry.matches, language),
       matches: entry.matches,
       alternative:
         usage.full && cabinet ? alternativeFor(entry.container, cabinet, wines, matchIds) : null,
