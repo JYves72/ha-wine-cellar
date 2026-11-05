@@ -117,6 +117,11 @@ def _wine_storage_temp(hass: HomeAssistant, wine: dict[str, Any]) -> float | Non
         return None
 
 
+def _wine_storage_since(wine: dict[str, Any]) -> str | None:
+    """When the bottle entered its current rack (falls back to when it was added)."""
+    return wine.get("location_updated_at") or wine.get("added_at") or None
+
+
 def _get_vivino_mode(hass: HomeAssistant) -> str:
     """Return the configured Vivino mode (import/sync) from the config entry."""
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -1553,7 +1558,7 @@ async def ws_analyze_single_wine(
     currency = _get_metadata_currency(hass)
     language = _get_metadata_language(hass)
     result = await gemini.analyze_single_wine(
-        wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+        wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
     )
     if "error" in result:
         connection.send_result(msg["id"], {"error": result["error"]})
@@ -1665,7 +1670,7 @@ async def ws_batch_analyze_wines(
         n = len(members)
         try:
             result = await gemini.analyze_single_wine(
-                wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+                wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
             )
             if "error" in result:
                 _LOGGER.warning(
@@ -1823,7 +1828,7 @@ async def ws_batch_refresh_vivino(
                 if gemini:
                     try:
                         ai_result = await gemini.analyze_single_wine(
-                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
                         )
                         if "error" not in ai_result:
                             ai_updates = _build_ai_updates(wine, ai_result, currency, language)
@@ -1892,7 +1897,7 @@ async def ws_batch_refresh_vivino(
                 if gemini:
                     try:
                         ai_result = await gemini.analyze_single_wine(
-                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
                         )
                         ai_price = ai_result.get("estimated_price")
                         if ai_price:

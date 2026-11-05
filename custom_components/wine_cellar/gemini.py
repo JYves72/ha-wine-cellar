@@ -645,6 +645,7 @@ class BaseAIClient:
         language: str = "en",
         currency: str = "USD",
         storage_temp: float | None = None,
+        storage_since: str | None = None,
     ) -> dict[str, Any]:
         """Analyze a single wine with AI — disposition, drink dates, and ratings.
 
@@ -658,27 +659,51 @@ class BaseAIClient:
         `storage_temp` is the temperature (°C) of the rack the bottle sits
         in, when known: a warm cellar ages wine faster than the cool-cellar
         reference the aging guidelines assume, so it is passed along to
-        shift the drinking window accordingly.
+        shift the drinking window accordingly. `storage_since` is when the
+        bottle entered that rack (ISO date): earlier conditions are unknown.
 
         Returns enriched data or {"error": "..."}.
         """
         current_year = datetime.now().year
         next_year = current_year + 1
-        storage_line = (
-            f"Storage temperature: {storage_temp:g}°C (the temperature of the cellar this bottle is kept in)\n"
-            if storage_temp is not None
-            else ""
-        )
-        storage_rule = (
-            f"- STORAGE TEMPERATURE: the aging guidelines above assume a cool cellar of about 12-14°C. This bottle is kept at "
-            f"{storage_temp:g}°C. If that is clearly warmer than 15°C the wine evolves faster: bring drink_window and peak_window "
-            f"earlier (roughly one year earlier per 3°C above 14°C, for wines meant for short or medium ageing; less for very "
-            f"age-worthy ones). If it is clearly cooler than 11°C the wine evolves a little more slowly: move them slightly later. "
-            f"Between 11°C and 15°C make no adjustment. All the other rules still apply (peak inside the window, past-peak "
-            f"handling), and the answer must stay identical for the same wine at the same temperature.\n"
-            if storage_temp is not None
-            else ""
-        )
+        # How long the bottle has really been in this rack. Before that its
+        # conditions are unknown, so the AI is told to assume standard ones:
+        # the rack's temperature only bears on the time spent (and still to
+        # be spent) there, not on the wine's whole life.
+        months_in_rack: int | None = None
+        if storage_temp is not None and storage_since:
+            try:
+                since = datetime.fromisoformat(str(storage_since).replace("Z", "+00:00"))
+                now = datetime.now(since.tzinfo)
+                months_in_rack = max(0, (now.year - since.year) * 12 + now.month - since.month)
+            except ValueError:
+                months_in_rack = None
+        if storage_temp is not None:
+            since_txt = (
+                f"in this cellar for about {months_in_rack} month(s)"
+                if months_in_rack is not None
+                else "in this cellar for an unknown time"
+            )
+            storage_line = (
+                f"Storage temperature: {storage_temp:g}°C (the cellar this bottle is kept in now; it has been {since_txt}. "
+                f"Before that its storage conditions are unknown)\n"
+            )
+            storage_rule = (
+                f"- STORAGE TEMPERATURE: the aging guidelines above assume a cool cellar of about 12-14°C, and you must assume "
+                f"those standard conditions for the bottle's whole past, since where it was kept before reaching this cellar is "
+                f"unknown. The bottle is now kept at {storage_temp:g}°C ({since_txt}). That temperature only changes how fast the "
+                f"wine evolves from now on (plus the months already spent here), so it can only move the part of the window that "
+                f"is still ahead of us, never the years already elapsed, and the shift can never exceed the years remaining before "
+                f"the window starts. If it is clearly warmer than 15°C the wine evolves faster: bring drink_window and peak_window "
+                f"earlier (roughly one year earlier per 3°C above 14°C over several years of storage, less for very age-worthy wines "
+                f"and almost nothing for a bottle that has just arrived in a wine that is already close to or inside its window). "
+                f"If it is clearly cooler than 11°C it evolves a little more slowly: move them slightly later. Between 11°C and 15°C "
+                f"make no adjustment. All the other rules still apply (peak inside the window, past-peak handling), and the answer "
+                f"must stay identical for the same wine, temperature and time in the cellar.\n"
+            )
+        else:
+            storage_line = ""
+            storage_rule = ""
         vintage = wine.get("vintage") or "NV"
         wine_type = wine.get("type", "red")
         name = wine.get("name", "Unknown")
