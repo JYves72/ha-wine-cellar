@@ -44,6 +44,11 @@ export class WineDetailDialog extends LitElement {
   @state() private _photoSide: "front" | "back" = "front";
   private _photoSwipeStartX: number | null = null;
   @state() private _aiFallbackReason: "no_match" | "no_price" | null = null;
+  // Link-a-Vivino-page dialog
+  @state() private _linkOpen = false;
+  @state() private _linkUrl = "";
+  @state() private _linkError = "";
+  @state() private _linking = false;
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) enableWhisky = false;
@@ -966,6 +971,44 @@ export class WineDetailDialog extends LitElement {
     this._refreshing = false;
   }
 
+  private _openVivinoLink() {
+    this._aiFallbackReason = null;
+    this._linkUrl = "";
+    this._linkError = "";
+    this._linkOpen = true;
+  }
+
+  private async _submitVivinoLink() {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass || !this._linkUrl.trim()) return;
+    this._linking = true;
+    this._linkError = "";
+    try {
+      const resp = await this.hass.callWS({
+        type: "wine_cellar/refresh_wine",
+        wine_id: this.wine.id,
+        vivino_url: this._linkUrl.trim(),
+      });
+      if (resp.link_error === "invalid_url") {
+        this._linkError = this._t("ui.wineDetail.linkInvalid");
+      } else if (resp.link_error === "not_found") {
+        this._linkError = this._t("ui.wineDetail.linkNotFound");
+      } else if (resp.error || !resp.wine) {
+        this._linkError = this._t("ui.wineDetail.linkFailed");
+      } else {
+        this._linkOpen = false;
+        if (this._applyIfStillShowing(wineId, resp.wine)) {
+          this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+          if (resp.vivino_image_url) this._pendingVivinoImage = resp.vivino_image_url;
+        }
+      }
+    } catch (err) {
+      console.error("Vivino link failed", err);
+      this._linkError = this._t("ui.wineDetail.linkFailed");
+    }
+    this._linking = false;
+  }
+
   private async _confirmAiFallback(remember: boolean) {
     this._aiFallbackReason = null;
     if (remember) {
@@ -1494,6 +1537,13 @@ export class WineDetailDialog extends LitElement {
                   <button class="btn btn-primary" style="background:#c62828"
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
+                ${this.mode === "cellar"
+                  ? html`<div style="text-align:center;font-size:0.72em;margin:-6px 0 6px">
+                      <a href="#" style="color:var(--wc-text-secondary);text-decoration:underline"
+                        @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._openVivinoLink(); }}
+                      >🔗 ${wine.vivino_id ? this._t("ui.wineDetail.linkVivinoChange") : this._t("ui.wineDetail.linkVivinoBtn")}</a>
+                    </div>`
+                  : nothing}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                   ? html`
                       <div style="text-align:center;font-size:0.68em;color:var(--wc-text-secondary);margin-top:-6px;padding-bottom:10px">
@@ -1786,6 +1836,33 @@ export class WineDetailDialog extends LitElement {
               </div>
             </div>
           ` : nothing}
+          ${this._linkOpen ? html`
+            <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
+              <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:340px;width:90%" @click=${(e: Event) => e.stopPropagation()}>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.linkTitle")}</h3>
+                <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.linkBody")}</p>
+                <input
+                  type="url"
+                  style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--wc-border);border-radius:8px;background:transparent;color:var(--wc-text);font-size:0.9em"
+                  placeholder=${this._t("ui.wineDetail.linkPlaceholder")}
+                  .value=${this._linkUrl}
+                  @input=${(e: Event) => { this._linkUrl = (e.target as HTMLInputElement).value; this._linkError = ""; }}
+                  @keydown=${(e: KeyboardEvent) => { if (e.key === "Enter") this._submitVivinoLink(); }}
+                />
+                ${this._linkError ? html`<div style="margin-top:8px;font-size:0.8em;color:#c62828">${this._linkError}</div>` : nothing}
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                  <button
+                    style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
+                    @click=${() => (this._linkOpen = false)}
+                  >${this._t("ui.common.cancel")}</button>
+                  <button class="btn btn-primary" style="background:#7b1fa2"
+                    ?disabled=${this._linking || !this._linkUrl.trim()}
+                    @click=${() => this._submitVivinoLink()}
+                  >${this._linking ? "..." : this._t("ui.wineDetail.linkSubmit")}</button>
+                </div>
+              </div>
+            </div>
+          ` : nothing}
           ${this._aiFallbackReason ? html`
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e: Event) => e.stopPropagation()}>
@@ -1794,6 +1871,9 @@ export class WineDetailDialog extends LitElement {
                   ? this._t("ui.wineDetail.vivinoNoMatchBody")
                   : this._t("ui.wineDetail.vivinoNoPriceBody")}</p>
                 <div style="display:flex;flex-direction:column;gap:8px">
+                  ${this._aiFallbackReason === "no_match"
+                    ? html`<button class="btn btn-primary" style="background:#7b1fa2" @click=${() => this._openVivinoLink()}>🔗 ${this._t("ui.wineDetail.linkVivinoBtn")}</button>`
+                    : nothing}
                   <button class="btn btn-primary" style="background:#1565c0" @click=${() => this._confirmAiFallback(false)}>${this._t("ui.wineDetail.useAiOnceBtn")}</button>
                   <button
                     style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"

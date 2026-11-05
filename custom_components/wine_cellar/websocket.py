@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -296,6 +297,24 @@ def _propagate_to_duplicates(
                     storage.update_wine(other["id"], kept)
             else:
                 storage.update_wine(other["id"], shared)
+
+
+def _parse_vivino_url(raw: str) -> tuple[int, int | None] | None:
+    """Pull the wine id (and the vintage year, if any) out of a Vivino link.
+
+    Accepts a full page link such as
+    https://www.vivino.com/fr/piana-del-sole-primitivo/w/12054042?year=2024
+    or a bare numeric wine id. Returns None for anything else (short share
+    links, other sites, ...) so the caller can report an invalid link.
+    """
+    raw = (raw or "").strip()
+    if raw.isdigit():
+        return int(raw), None
+    match = re.search(r"vivino\.com/(?:[^?#\s]*/)?w/(\d+)", raw)
+    if not match:
+        return None
+    year_match = re.search(r"[?&]year=(\d{4})", raw)
+    return int(match.group(1)), int(year_match.group(1)) if year_match else None
 
 
 def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]) -> bool:
@@ -1251,6 +1270,9 @@ async def ws_analyze_wines(
     {
         vol.Required("type"): "wine_cellar/refresh_wine",
         vol.Required("wine_id"): str,
+        # A Vivino page link the user picked by hand. Becomes this wine's
+        # reference: the relevance guard is skipped, since the user chose it.
+        vol.Optional("vivino_url"): str,
     }
 )
 @websocket_api.async_response
@@ -1287,7 +1309,23 @@ async def ws_refresh_wine(
     # A whisky is never looked up: Vivino has no data for it, so it goes
     # straight to the no-match path and the AI offer below.
     lookup = None
-    if wine.get("vivino_id") and not _is_whisky(wine):
+    linking = False
+    if msg.get("vivino_url"):
+        parsed = _parse_vivino_url(msg["vivino_url"])
+        if not parsed:
+            connection.send_result(msg["id"], {"error": "Invalid Vivino link.", "link_error": "invalid_url"})
+            return
+        link_id, link_year = parsed
+        lookup = await vivino.get_wine_by_id(link_id, wine.get("vintage") or link_year, language)
+        if not lookup:
+            connection.send_result(msg["id"], {"error": "Vivino wine not found.", "link_error": "not_found"})
+            return
+        linking = True
+    elif wine.get("vivino_id") and wine.get("vivino_linked") and not _is_whisky(wine):
+        # Chosen by the user: no relevance check, and no text-search fallback
+        # that could replace it with a guess if Vivino is briefly unreachable.
+        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+    elif wine.get("vivino_id") and not _is_whisky(wine):
         lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
         if lookup and not _vivino_match_is_trustworthy(wine, lookup):
             # The stored vivino_id itself points at the wrong variant (e.g.
@@ -1301,7 +1339,7 @@ async def ws_refresh_wine(
             )
             lookup = None
 
-    if not lookup and not _is_whisky(wine):
+    if not lookup and not _is_whisky(wine) and not wine.get("vivino_linked"):
         if not query:
             connection.send_result(msg["id"], {"error": "No name/winery to search."})
             return
@@ -1427,6 +1465,8 @@ async def ws_refresh_wine(
         updates["vivino_updated_at"] = now
     if lookup.get("vivino_id"):
         updates["vivino_id"] = lookup["vivino_id"]
+    if linking:
+        updates["vivino_linked"] = True
     if ai_price_used:
         updates["ai_updated_at"] = now
         updates["ai_checked_at"] = now
@@ -1698,7 +1738,10 @@ async def ws_batch_refresh_vivino(
             # A whisky skips Vivino altogether and only gets the AI
             # fallback below, if the user opted into it for this run.
             lookup = None
-            if wine.get("vivino_id") and not _is_whisky(wine):
+            if wine.get("vivino_id") and wine.get("vivino_linked") and not _is_whisky(wine):
+                # User-chosen link: trusted as is, never re-searched.
+                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+            elif wine.get("vivino_id") and not _is_whisky(wine):
                 lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
                 if lookup and not _vivino_match_is_trustworthy(wine, lookup):
                     # Same guard as the single-wine refresh: a stored
@@ -1710,7 +1753,7 @@ async def ws_batch_refresh_vivino(
                     )
                     lookup = None
 
-            if not lookup and not _is_whisky(wine):
+            if not lookup and not _is_whisky(wine) and not wine.get("vivino_linked"):
                 if not query:
                     continue
 

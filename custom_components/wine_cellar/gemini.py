@@ -185,7 +185,7 @@ def _extract_base64_from_data_url(value: str | None) -> str | None:
 LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognition expert. The current year is {current_year}. Analyze this label image, identify the wine (or whisky), and provide a full assessment. Return ONLY a JSON object with these exact fields:
 
 {{
-  "name": "the full wine name including style (e.g. Crémant Demi-Sec, Cabernet Sauvignon Reserve)",
+  "name": "the wine's own name only, without winery, grape, colour, region or vintage (see the naming rule below)",
   "winery": "the producer/winery/domaine/château name",
   "vintage": 2020,
   "type": "red",
@@ -209,7 +209,7 @@ LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognitio
 }}
 
 Label reading rules:
-- "name" should include the wine name AND style/designation (Brut, Demi-Sec, Reserve, Grand Cru, etc.) but NOT the winery name
+- "name" is ONLY the wine's own name (the cuvée / brand name, e.g. "Piana del Sole", "Bronzinelle"), plus a designation that is truly part of its identity (Reserva, Riserva, Brut, Demi-Sec, Grand Cru, Cuvée X, Vieilles Vignes). Do NOT repeat in "name" anything that has its own field: not the winery, not the grape variety (Primitivo, Merlot...), not the colour/type word (Rosso, Rouge, Blanc, Red...), not the region, appellation or classification (Puglia, IGT, DOC, AOC, Bordeaux Supérieur...), not the vintage. Example: a label reading "Piana del Sole - Primitivo - Puglia IGT - Rosso" gives name "Piana del Sole", grape_variety "Primitivo", region "Puglia", type "red". Only when the label has no cuvée name at all (the producer's name plus an appellation or grape is all there is), use that appellation or grape as the name.
 - "vintage" must be a 4-digit year as an integer, or null if not visible (NV wines = null) — check both front and back label if two images are provided, since the vintage is often only on the back
 - "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - For "type", infer from visual cues (bottle color, label text like "Blanc", "Rosé", "Brut") if not explicitly stated
@@ -258,7 +258,7 @@ Return ONLY a JSON object with this structure:
 {{
   "wines": [
     {{
-      "name": "the wine name (grape/style/designation, NOT the winery)",
+      "name": "the wine's own name only, without winery, grape, colour, region or vintage",
       "winery": "the producer/winery/domaine/chateau",
       "vintage": 2020,
       "type": "red",
@@ -287,7 +287,7 @@ Extraction rules:
 - Extract ALL wines visible on the menu or receipt, including by-the-glass options
 - Also extract whiskies (Scotch, bourbon, rye, Irish, Japanese, etc.) with type "whisky": "winery" is the distillery, "name" the expression with its age statement, "grape_variety" the cask info if given, "vintage" null unless a distillation year is printed. Skip other spirits.
 - For receipts: extract wine and whisky items only (skip non-wine items like food, tax, tips, etc.)
-- "name" should include the wine name and style but NOT the winery/producer name
+- "name" is ONLY the wine's own name (the cuvée / brand name, e.g. "Piana del Sole", "Bronzinelle"), plus a designation that is truly part of its identity (Reserva, Riserva, Brut, Demi-Sec, Grand Cru, Cuvée X, Vieilles Vignes). Do NOT repeat in "name" anything that has its own field: not the winery, not the grape variety (Primitivo, Merlot...), not the colour/type word (Rosso, Rouge, Blanc, Red...), not the region, appellation or classification (Puglia, IGT, DOC, AOC, Bordeaux Supérieur...), not the vintage. Example: a label reading "Piana del Sole - Primitivo - Puglia IGT - Rosso" gives name "Piana del Sole", grape_variety "Primitivo", region "Puglia", type "red". Only when the label has no cuvée name at all (the producer's name plus an appellation or grape is all there is), use that appellation or grape as the name.
 - "vintage" must be a 4-digit year as an integer, or null if NV or not shown
 - "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - "list_price" is the price as a number (e.g. 65.00). Use null only if truly unreadable.

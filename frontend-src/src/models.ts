@@ -70,6 +70,8 @@ export interface Wine {
   ai_updated_at: string | null;
   ai_checked_at: string | null;
   vivino_id: number | null;
+  // True when the user picked the Vivino page by hand: never re-searched or second-guessed.
+  vivino_linked?: boolean;
   // When cabinet_id/row/col/zone last actually changed — what a zone's
   // temp/humidity sensor is checked against before it's trusted as this
   // bottle's own temperature (see utils/chambering.ts).
