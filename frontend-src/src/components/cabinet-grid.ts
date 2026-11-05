@@ -3,7 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
-import { readSensorValue } from "../utils/chambering";
+import { MANUAL_SENSOR, readCabinetHumidity, readCabinetTemp } from "../utils/chambering";
 
 @customElement("cabinet-grid")
 export class CabinetGrid extends LitElement {
@@ -783,12 +783,26 @@ export class CabinetGrid extends LitElement {
 
   // Live temperature/humidity of the zone, shown in its title banner.
   private _renderSensorBadge() {
-    const temp = readSensorValue(this.hass, this.cabinet.temp_sensor_entity_id || "");
-    const humidity = readSensorValue(this.hass, this.cabinet.humidity_sensor_entity_id || "");
+    const temp = readCabinetTemp(this.hass, this.cabinet);
+    const humidity = readCabinetHumidity(this.hass, this.cabinet);
     if (temp === null && humidity === null) return nothing;
+    // A hand-typed reading says so and when it was entered, since unlike a
+    // live sensor it can silently go stale.
+    const stamps = [
+      this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this.cabinet.temp_manual_at : null,
+      this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this.cabinet.humidity_manual_at : null,
+    ].filter((s): s is string => !!s);
+    const manualTitle = stamps.length
+      ? this._t("ui.rack.manualReadingTitle", {
+          date: new Date(stamps.sort().reverse()[0]).toLocaleString(this.hass?.language, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        })
+      : "";
     return html`
-      <span class="zone-sensor-badge">
-        ${temp !== null ? html`🌡️ ${temp}°C` : nothing}${temp !== null && humidity !== null ? " · " : nothing}${humidity !== null ? html`💧 ${humidity}%` : nothing}
+      <span class="zone-sensor-badge" title=${manualTitle}>
+        ${temp !== null ? html`🌡️ ${temp}°C` : nothing}${temp !== null && humidity !== null ? " · " : nothing}${humidity !== null ? html`💧 ${humidity}%` : nothing}${stamps.length ? " ✍️" : nothing}
       </span>
     `;
   }

@@ -617,7 +617,10 @@
       "dialogTitleManage": "Gérer les racks",
       "dialogTitleAdd": "Ajouter un rack",
       "dialogTitleEdit": "Modifier le rack",
-      "dialogTitleDeleteConfirm": "Supprimer le rack ?"
+      "dialogTitleDeleteConfirm": "Supprimer le rack ?",
+      "sensorManual": "Saisie manuelle",
+      "manualLastEntry": "Dernière saisie : {date}",
+      "manualReadingTitle": "Relevé manuel, saisi le {date}"
     },
     "vivinoAiSettings": {
       "title": "Paramètres",

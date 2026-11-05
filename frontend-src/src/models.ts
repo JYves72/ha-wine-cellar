@@ -187,6 +187,12 @@ export interface Cabinet {
   // (see utils/chambering.ts).
   temp_sensor_entity_id: string;
   humidity_sensor_entity_id: string;
+  // For a rack whose thermometer isn't connected: set the matching sensor id
+  // to MANUAL_SENSOR and type the reading in by hand. *_at is when it was typed.
+  temp_manual_value?: number | null;
+  temp_manual_at?: string | null;
+  humidity_manual_value?: number | null;
+  humidity_manual_at?: string | null;
 }
 
 export interface CellarStats {

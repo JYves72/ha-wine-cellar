@@ -1363,7 +1363,10 @@ var ui$1 = {
 		dialogTitleManage: "Manage Racks",
 		dialogTitleAdd: "Add Rack",
 		dialogTitleEdit: "Edit Rack",
-		dialogTitleDeleteConfirm: "Delete Rack?"
+		dialogTitleDeleteConfirm: "Delete Rack?",
+		sensorManual: "Manual entry",
+		manualLastEntry: "Last entered: {date}",
+		manualReadingTitle: "Manual reading, entered {date}"
 	},
 	vivinoAiSettings: {
 		title: "Settings",
@@ -2153,7 +2156,10 @@ var ui = {
 		dialogTitleManage: "Gérer les racks",
 		dialogTitleAdd: "Ajouter un rack",
 		dialogTitleEdit: "Modifier le rack",
-		dialogTitleDeleteConfirm: "Supprimer le rack ?"
+		dialogTitleDeleteConfirm: "Supprimer le rack ?",
+		sensorManual: "Saisie manuelle",
+		manualLastEntry: "Dernière saisie : {date}",
+		manualReadingTitle: "Relevé manuel, saisi le {date}"
 	},
 	vivinoAiSettings: {
 		title: "Paramètres",
@@ -3751,6 +3757,23 @@ ArrangementDialog = __decorate([
 // wine's serving_temp, and the chambering room's sensor into simple, honest
 // advice. A "zone" here is a whole rack card (a Cabinet) — sensors are set
 // per rack, not per shelf or bin inside it.
+// Sentinel stored in a cabinet's sensor id when its reading is typed by hand.
+// Not a valid entity id (those always contain a dot), so it can't collide.
+const MANUAL_SENSOR = "manual";
+function readCabinetTemp(hass, cabinet) {
+    if (!cabinet)
+        return null;
+    if (cabinet.temp_sensor_entity_id === MANUAL_SENSOR)
+        return cabinet.temp_manual_value ?? null;
+    return readSensorValue(hass, cabinet.temp_sensor_entity_id || "");
+}
+function readCabinetHumidity(hass, cabinet) {
+    if (!cabinet)
+        return null;
+    if (cabinet.humidity_sensor_entity_id === MANUAL_SENSOR)
+        return cabinet.humidity_manual_value ?? null;
+    return readSensorValue(hass, cabinet.humidity_sensor_entity_id || "");
+}
 function readSensorValue(hass, entityId) {
     if (!entityId || !hass?.states)
         return null;
@@ -3779,7 +3802,7 @@ function getChamberingAdvice(wine, cabinet, hass, roomSensorEntityId, timeConsta
     const range = parseServingTemp(wine.serving_temp);
     if (!range)
         return null;
-    const cellarTemp = readSensorValue(hass, cabinet?.temp_sensor_entity_id || "");
+    const cellarTemp = readCabinetTemp(hass, cabinet);
     if (cellarTemp === null)
         return null;
     if (wine.location_updated_at) {
@@ -3876,13 +3899,27 @@ let CabinetGrid = class CabinetGrid extends i {
     }
     // Live temperature/humidity of the zone, shown in its title banner.
     _renderSensorBadge() {
-        const temp = readSensorValue(this.hass, this.cabinet.temp_sensor_entity_id || "");
-        const humidity = readSensorValue(this.hass, this.cabinet.humidity_sensor_entity_id || "");
+        const temp = readCabinetTemp(this.hass, this.cabinet);
+        const humidity = readCabinetHumidity(this.hass, this.cabinet);
         if (temp === null && humidity === null)
             return A;
+        // A hand-typed reading says so and when it was entered, since unlike a
+        // live sensor it can silently go stale.
+        const stamps = [
+            this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this.cabinet.temp_manual_at : null,
+            this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this.cabinet.humidity_manual_at : null,
+        ].filter((s) => !!s);
+        const manualTitle = stamps.length
+            ? this._t("ui.rack.manualReadingTitle", {
+                date: new Date(stamps.sort().reverse()[0]).toLocaleString(this.hass?.language, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                }),
+            })
+            : "";
         return b `
-      <span class="zone-sensor-badge">
-        ${temp !== null ? b `🌡️ ${temp}°C` : A}${temp !== null && humidity !== null ? " · " : A}${humidity !== null ? b `💧 ${humidity}%` : A}
+      <span class="zone-sensor-badge" title=${manualTitle}>
+        ${temp !== null ? b `🌡️ ${temp}°C` : A}${temp !== null && humidity !== null ? " · " : A}${humidity !== null ? b `💧 ${humidity}%` : A}${stamps.length ? " ✍️" : A}
       </span>
     `;
     }
@@ -10122,34 +10159,90 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             .filter((id) => id.startsWith("sensor.") && states[id]?.attributes?.device_class === deviceClass)
             .sort((a, b) => (states[a].attributes.friendly_name || a).localeCompare(states[b].attributes.friendly_name || b));
     }
-    _renderSensorPickers(tempValue, humidityValue, onTemp, onHumidity) {
+    _renderSensorPickers() {
         const states = this.hass?.states || {};
         const friendlyName = (id) => states[id]?.attributes?.friendly_name || id;
+        const cab = this._editCabinet;
+        const tempValue = cab.temp_sensor_entity_id || "";
+        const humidityValue = cab.humidity_sensor_entity_id || "";
         const tempIds = this._sensorEntityIds("temperature");
         const humidityIds = this._sensorEntityIds("humidity");
+        const toNumber = (raw) => {
+            const n = parseFloat(raw.replace(",", "."));
+            return Number.isFinite(n) ? n : null;
+        };
+        const lastEntry = [
+            tempValue === MANUAL_SENSOR ? cab.temp_manual_at : null,
+            humidityValue === MANUAL_SENSOR ? cab.humidity_manual_at : null,
+        ]
+            .filter((x) => !!x)
+            .sort()
+            .reverse()[0];
         return b `
       <div class="sensor-picker-row">
         <div class="sensor-picker-wrap">
           <span>🌡️</span>
           <select
             class="sensor-select"
-            @change=${(e) => onTemp(e.target.value)}
+            @change=${(e) => (this._editCabinet = {
+            ...this._editCabinet,
+            temp_sensor_entity_id: e.target.value,
+        })}
           >
             <option value="" ?selected=${!tempValue}>${this._t("ui.rack.sensorNone")}</option>
+            <option value=${MANUAL_SENSOR} ?selected=${tempValue === MANUAL_SENSOR}>✍️ ${this._t("ui.rack.sensorManual")}</option>
             ${tempIds.map((id) => b `<option value=${id} ?selected=${tempValue === id}>${friendlyName(id)}</option>`)}
           </select>
+          ${tempValue === MANUAL_SENSOR
+            ? b `<input
+                  class="sensor-manual-input"
+                  type="number"
+                  step="0.5"
+                  .value=${cab.temp_manual_value?.toString() ?? ""}
+                  @input=${(e) => (this._editCabinet = {
+                ...this._editCabinet,
+                temp_manual_value: toNumber(e.target.value),
+            })}
+                />°C`
+            : A}
         </div>
         <div class="sensor-picker-wrap">
           <span>💧</span>
           <select
             class="sensor-select"
-            @change=${(e) => onHumidity(e.target.value)}
+            @change=${(e) => (this._editCabinet = {
+            ...this._editCabinet,
+            humidity_sensor_entity_id: e.target.value,
+        })}
           >
             <option value="" ?selected=${!humidityValue}>${this._t("ui.rack.sensorNone")}</option>
+            <option value=${MANUAL_SENSOR} ?selected=${humidityValue === MANUAL_SENSOR}>✍️ ${this._t("ui.rack.sensorManual")}</option>
             ${humidityIds.map((id) => b `<option value=${id} ?selected=${humidityValue === id}>${friendlyName(id)}</option>`)}
           </select>
+          ${humidityValue === MANUAL_SENSOR
+            ? b `<input
+                  class="sensor-manual-input"
+                  type="number"
+                  step="1"
+                  .value=${cab.humidity_manual_value?.toString() ?? ""}
+                  @input=${(e) => (this._editCabinet = {
+                ...this._editCabinet,
+                humidity_manual_value: toNumber(e.target.value),
+            })}
+                />%`
+            : A}
         </div>
       </div>
+      ${lastEntry
+            ? b `<div class="sensor-manual-note">
+            ${this._t("ui.rack.manualLastEntry", {
+                date: new Date(lastEntry).toLocaleString(this.hass?.language, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                }),
+            })}
+          </div>`
+            : A}
     `;
     }
     _styleFor(slot) {
@@ -10622,6 +10715,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     orientation: "vertical",
                     temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
                     humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
+                    temp_manual_value: this._editCabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.temp_manual_value ?? null : null,
+                    humidity_manual_value: this._editCabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.humidity_manual_value ?? null : null,
                 },
             });
             this._notifyUpdate();
@@ -10654,6 +10749,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     orientation: "vertical",
                     temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
                     humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
+                    temp_manual_value: this._editCabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.temp_manual_value ?? null : null,
+                    humidity_manual_value: this._editCabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.humidity_manual_value ?? null : null,
                 },
             });
             for (const wine of displaced) {
@@ -11049,7 +11146,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
              the fallback for any zone below that doesn't set its own. -->
         <div class="form-group">
           <label>${this._t("ui.rack.cabinetSensorsLabel")}</label>
-          ${this._renderSensorPickers(this._editCabinet.temp_sensor_entity_id || "", this._editCabinet.humidity_sensor_entity_id || "", (value) => (this._editCabinet = { ...this._editCabinet, temp_sensor_entity_id: value }), (value) => (this._editCabinet = { ...this._editCabinet, humidity_sensor_entity_id: value }))}
+          ${this._renderSensorPickers()}
         </div>
 
         <!-- Primary style: exactly one of these five, chosen once -->
@@ -11573,6 +11670,22 @@ RackSettingsDialog.styles = [
         gap: 4px;
         font-size: 0.75em;
         color: var(--wc-text-secondary);
+      }
+
+      .sensor-manual-input {
+        width: 60px;
+        padding: 2px 4px;
+        border: 1px solid var(--wc-border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        background: var(--wc-bg);
+        color: var(--wc-text);
+      }
+
+      .sensor-manual-note {
+        font-size: 0.7em;
+        color: var(--wc-text-secondary);
+        margin: -4px 0 8px;
       }
 
       .sensor-select {

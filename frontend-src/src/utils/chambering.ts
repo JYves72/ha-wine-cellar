@@ -6,6 +6,22 @@ import { Cabinet, Wine } from "../models";
 // advice. A "zone" here is a whole rack card (a Cabinet) — sensors are set
 // per rack, not per shelf or bin inside it.
 
+// Sentinel stored in a cabinet's sensor id when its reading is typed by hand.
+// Not a valid entity id (those always contain a dot), so it can't collide.
+export const MANUAL_SENSOR = "manual";
+
+export function readCabinetTemp(hass: any, cabinet: Cabinet | undefined): number | null {
+  if (!cabinet) return null;
+  if (cabinet.temp_sensor_entity_id === MANUAL_SENSOR) return cabinet.temp_manual_value ?? null;
+  return readSensorValue(hass, cabinet.temp_sensor_entity_id || "");
+}
+
+export function readCabinetHumidity(hass: any, cabinet: Cabinet | undefined): number | null {
+  if (!cabinet) return null;
+  if (cabinet.humidity_sensor_entity_id === MANUAL_SENSOR) return cabinet.humidity_manual_value ?? null;
+  return readSensorValue(hass, cabinet.humidity_sensor_entity_id || "");
+}
+
 export function readSensorValue(hass: any, entityId: string): number | null {
   if (!entityId || !hass?.states) return null;
   const state = hass.states[entityId];
@@ -52,7 +68,7 @@ export function getChamberingAdvice(
   const range = parseServingTemp(wine.serving_temp);
   if (!range) return null;
 
-  const cellarTemp = readSensorValue(hass, cabinet?.temp_sensor_entity_id || "");
+  const cellarTemp = readCabinetTemp(hass, cabinet);
   if (cellarTemp === null) return null;
 
   if (wine.location_updated_at) {

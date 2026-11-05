@@ -617,7 +617,10 @@
       "dialogTitleManage": "Manage Racks",
       "dialogTitleAdd": "Add Rack",
       "dialogTitleEdit": "Edit Rack",
-      "dialogTitleDeleteConfirm": "Delete Rack?"
+      "dialogTitleDeleteConfirm": "Delete Rack?",
+      "sensorManual": "Manual entry",
+      "manualLastEntry": "Last entered: {date}",
+      "manualReadingTitle": "Manual reading, entered {date}"
     },
     "vivinoAiSettings": {
       "title": "Settings",

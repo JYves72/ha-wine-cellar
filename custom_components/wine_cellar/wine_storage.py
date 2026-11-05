@@ -125,6 +125,10 @@ class WineCellarStorage:
             for key in ("temp_sensor_entity_id", "humidity_sensor_entity_id"):
                 if key not in cab:
                     cab[key] = ""
+            # Manual readings, for racks whose thermometer isn't connected
+            # (sensor id "manual"); *_at records when the value was typed.
+            for key in ("temp_manual_value", "temp_manual_at", "humidity_manual_value", "humidity_manual_at"):
+                cab.setdefault(key, None)
             # Migrate storage rows to include type and capacity
             for sr in cab.get("storage_rows", []):
                 if "type" not in sr:
@@ -352,6 +356,7 @@ class WineCellarStorage:
 
     def add_cabinet(self, cabinet_data: dict[str, Any]) -> dict[str, Any]:
         """Add a new cabinet."""
+        now = datetime.now(timezone.utc).isoformat()
         cabinet = {
             "id": cabinet_data.get("id", f"cabinet-{uuid.uuid4().hex[:8]}"),
             "name": cabinet_data.get("name", "New Cabinet"),
@@ -365,6 +370,10 @@ class WineCellarStorage:
             "order": cabinet_data.get("order", len(self.cabinets)),
             "temp_sensor_entity_id": cabinet_data.get("temp_sensor_entity_id", ""),
             "humidity_sensor_entity_id": cabinet_data.get("humidity_sensor_entity_id", ""),
+            "temp_manual_value": cabinet_data.get("temp_manual_value"),
+            "temp_manual_at": now if cabinet_data.get("temp_manual_value") is not None else None,
+            "humidity_manual_value": cabinet_data.get("humidity_manual_value"),
+            "humidity_manual_at": now if cabinet_data.get("humidity_manual_value") is not None else None,
         }
         self._data[CONF_CABINETS].append(cabinet)
         return cabinet
@@ -373,8 +382,14 @@ class WineCellarStorage:
         """Update a cabinet's configuration."""
         for cabinet in self._data[CONF_CABINETS]:
             if cabinet["id"] == cabinet_id:
+                now = datetime.now(timezone.utc).isoformat()
+                for kind in ("temp", "humidity"):
+                    # Stamp a manual reading only when it actually changed.
+                    value_key = f"{kind}_manual_value"
+                    if value_key in updates and updates[value_key] != cabinet.get(value_key):
+                        cabinet[f"{kind}_manual_at"] = now if updates[value_key] is not None else None
                 for key, value in updates.items():
-                    if key != "id":
+                    if key != "id" and not key.endswith("_manual_at"):
                         cabinet[key] = value
                 return cabinet
         return None
