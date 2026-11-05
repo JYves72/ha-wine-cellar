@@ -78,6 +78,45 @@ def _get_metadata_currency(hass: HomeAssistant) -> str:
     return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
 
 
+def _wine_storage_temp(hass: HomeAssistant, wine: dict[str, Any]) -> float | None:
+    """Temperature (°C) of the rack a bottle sits in, if that rack has a reading.
+
+    A hand-typed value or a live sensor, same as the card's badge. Rounded to
+    a whole degree so a sensor wobbling by tenths doesn't make the AI's answer
+    for the same wine drift from one analysis to the next. None when the
+    bottle is unassigned, the rack has no temperature source, or the sensor
+    is unavailable.
+    """
+    storage = hass.data[DOMAIN]["storage"]
+    cabinet_id = wine.get("cabinet_id")
+    if not cabinet_id:
+        return None
+    cabinet = next((c for c in storage.cabinets if c.get("id") == cabinet_id), None)
+    if not cabinet:
+        return None
+    source = cabinet.get("temp_sensor_entity_id") or ""
+    if source == "manual":
+        raw = cabinet.get("temp_manual_value")
+    elif source:
+        state = hass.states.get(source)
+        if state is None:
+            return None
+        raw = state.state
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        if state.attributes.get("unit_of_measurement") == "°F":
+            value = (value - 32) * 5 / 9
+        return float(round(value))
+    else:
+        return None
+    try:
+        return float(round(float(raw)))
+    except (TypeError, ValueError):
+        return None
+
+
 def _get_vivino_mode(hass: HomeAssistant) -> str:
     """Return the configured Vivino mode (import/sync) from the config entry."""
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -1513,7 +1552,9 @@ async def ws_analyze_single_wine(
 
     currency = _get_metadata_currency(hass)
     language = _get_metadata_language(hass)
-    result = await gemini.analyze_single_wine(wine, language, currency)
+    result = await gemini.analyze_single_wine(
+        wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+    )
     if "error" in result:
         connection.send_result(msg["id"], {"error": result["error"]})
         return
@@ -1623,7 +1664,9 @@ async def ws_batch_analyze_wines(
         wine = members[0]
         n = len(members)
         try:
-            result = await gemini.analyze_single_wine(wine, language, currency)
+            result = await gemini.analyze_single_wine(
+                wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+            )
             if "error" in result:
                 _LOGGER.warning(
                     "Batch AI: error for wine %s: %s",
@@ -1779,7 +1822,9 @@ async def ws_batch_refresh_vivino(
                 gemini = hass.data[DOMAIN].get("gemini") if ai_fallback_mode == "use" else None
                 if gemini:
                     try:
-                        ai_result = await gemini.analyze_single_wine(wine, language, currency)
+                        ai_result = await gemini.analyze_single_wine(
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+                        )
                         if "error" not in ai_result:
                             ai_updates = _build_ai_updates(wine, ai_result, currency, language)
                             had_ai_changes = bool(ai_updates)
@@ -1846,7 +1891,9 @@ async def ws_batch_refresh_vivino(
                 gemini = hass.data[DOMAIN].get("gemini")
                 if gemini:
                     try:
-                        ai_result = await gemini.analyze_single_wine(wine, language, currency)
+                        ai_result = await gemini.analyze_single_wine(
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine)
+                        )
                         ai_price = ai_result.get("estimated_price")
                         if ai_price:
                             _LOGGER.debug(

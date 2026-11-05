@@ -640,7 +640,11 @@ class BaseAIClient:
         }
 
     async def analyze_single_wine(
-        self, wine: dict[str, Any], language: str = "en", currency: str = "USD"
+        self,
+        wine: dict[str, Any],
+        language: str = "en",
+        currency: str = "USD",
+        storage_temp: float | None = None,
     ) -> dict[str, Any]:
         """Analyze a single wine with AI — disposition, drink dates, and ratings.
 
@@ -651,10 +655,30 @@ class BaseAIClient:
         has the appellation, grape, alcohol %, and sometimes a printed
         tasting note.
 
+        `storage_temp` is the temperature (°C) of the rack the bottle sits
+        in, when known: a warm cellar ages wine faster than the cool-cellar
+        reference the aging guidelines assume, so it is passed along to
+        shift the drinking window accordingly.
+
         Returns enriched data or {"error": "..."}.
         """
         current_year = datetime.now().year
         next_year = current_year + 1
+        storage_line = (
+            f"Storage temperature: {storage_temp:g}°C (the temperature of the cellar this bottle is kept in)\n"
+            if storage_temp is not None
+            else ""
+        )
+        storage_rule = (
+            f"- STORAGE TEMPERATURE: the aging guidelines above assume a cool cellar of about 12-14°C. This bottle is kept at "
+            f"{storage_temp:g}°C. If that is clearly warmer than 15°C the wine evolves faster: bring drink_window and peak_window "
+            f"earlier (roughly one year earlier per 3°C above 14°C, for wines meant for short or medium ageing; less for very "
+            f"age-worthy ones). If it is clearly cooler than 11°C the wine evolves a little more slowly: move them slightly later. "
+            f"Between 11°C and 15°C make no adjustment. All the other rules still apply (peak inside the window, past-peak "
+            f"handling), and the answer must stay identical for the same wine at the same temperature.\n"
+            if storage_temp is not None
+            else ""
+        )
         vintage = wine.get("vintage") or "NV"
         wine_type = wine.get("type", "red")
         name = wine.get("name", "Unknown")
@@ -679,7 +703,7 @@ Region: {region}
 Country: {country}
 Grape: {grape}
 Current drink_by: {drink_by}
-
+{storage_line}
 Return ONLY a JSON object with these fields:
 {{
   "disposition": "D or H or P",
@@ -719,7 +743,7 @@ Rules:
   - Dessert wines (Sauternes, Port): drink 10-20+ years, peak ~10 years in. "H".
   - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}", disposition "D".
 - When in doubt, consult the stored current drink_by date: it is a prior assessment and should not be ignored without strong reason.
-- CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
+{storage_rule}- CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
 - CRITICAL: If the wine is already past its intended drinking window (current year {current_year} is AFTER the drink_by year you would normally assign), the drink_window MUST end in a year BEFORE {current_year}, and disposition MUST be "P" (Past Peak). Do not backdate the window to a future year just because it seems safer to drink it now — if the vintage has already aged past its prime, show that honestly.
 - "description": Write a professional tasting-style description of what this wine is known for. If you know the wine, describe its character. If not, describe what to expect based on grape, region, and vintage.
 - "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this, based on standard sommelier pairing knowledge for the grape/style even if you don't know the specific wine.
