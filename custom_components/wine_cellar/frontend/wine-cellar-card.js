@@ -1157,6 +1157,8 @@ var ui$1 = {
 		oneFree: "1 free",
 		nFree: "{n} free",
 		noRoomSplit: "No room left there — split the series into",
+		suggestedTitleByType: "Suggested — where this type is kept",
+		noRoomPutIn: "No room left there — put it in",
 		orFreeSlotFirst: ", or free a slot first.",
 		chooseLocation: "Choose Location",
 		selectCabinetHint: "Select a cabinet and position for this bottle",
@@ -1275,6 +1277,15 @@ var ui$1 = {
 		currentPhotoLabel: "Current",
 		keepMyPhotoBtn: "Keep My Photo",
 		useVivinoPhotoBtn: "Use Vivino's",
+		linkVivinoBtn: "Link a Vivino page",
+		linkVivinoChange: "Change the Vivino link",
+		linkTitle: "Link a Vivino page",
+		linkBody: "Find the wine on vivino.com and paste the address of its page here. It becomes this wine's reference for future updates.",
+		linkPlaceholder: "https://www.vivino.com/…/w/12345678",
+		linkSubmit: "Link",
+		linkInvalid: "This isn't a Vivino wine page link (it should contain /w/ followed by a number).",
+		linkNotFound: "Vivino has no wine with this id.",
+		linkFailed: "The link could not be applied. Try again.",
 		noVivinoMatchTitle: "No Vivino Match",
 		noPriceFoundTitle: "No Price Found",
 		vivinoNoMatchBody: "Vivino couldn't find a confident match for this wine. Try AI instead?",
@@ -1361,7 +1372,12 @@ var ui$1 = {
 		dialogTitleManage: "Manage Racks",
 		dialogTitleAdd: "Add Rack",
 		dialogTitleEdit: "Edit Rack",
-		dialogTitleDeleteConfirm: "Delete Rack?"
+		dialogTitleDeleteConfirm: "Delete Rack?",
+		sensorManual: "Manual entry",
+		manualLastEntry: "Last entered: {date}",
+		manualReadingTitle: "Manual reading, entered {date} — tap to update",
+		quickEditTitle: "Update the reading",
+		quickEditSave: "Save"
 	},
 	vivinoAiSettings: {
 		title: "Settings",
@@ -1432,6 +1448,16 @@ var ui$1 = {
 		buyBtn: "🛒 Buy",
 		noWinesFoundImage: "No wines found in the image. Try a clearer photo.",
 		extractionFailed: "Extraction failed: {error}"
+	},
+	suggest: {
+		bottleOne: "{n} bottle",
+		bottleMany: "{n} bottles",
+		exactWine: "{bottles} of this exact wine already here",
+		wineYears: "{bottles} of this wine here ({years})",
+		wineAlready: "{bottles} of this wine already here",
+		thisWinery: "this winery",
+		fromWinery: "{bottles} from {winery} here",
+		ofKind: "{bottles} of {kind} here"
 	}
 };
 var toast$1 = {
@@ -1935,6 +1961,8 @@ var ui = {
 		oneFree: "1 libre",
 		nFree: "{n} libres",
 		noRoomSplit: "Plus de place là-bas — répartissez la série dans",
+		suggestedTitleByType: "Suggéré — là où ce type est rangé",
+		noRoomPutIn: "Plus de place là-bas — mettez-la dans",
 		orFreeSlotFirst: ", ou libérez d'abord un emplacement.",
 		chooseLocation: "Choisir un emplacement",
 		selectCabinetHint: "Choisissez un rack et une position pour cette bouteille",
@@ -2053,6 +2081,15 @@ var ui = {
 		currentPhotoLabel: "Actuelle",
 		keepMyPhotoBtn: "Garder ma photo",
 		useVivinoPhotoBtn: "Utiliser celle de Vivino",
+		linkVivinoBtn: "Lier une fiche Vivino",
+		linkVivinoChange: "Modifier le lien Vivino",
+		linkTitle: "Lier une fiche Vivino",
+		linkBody: "Retrouvez le vin sur vivino.com et collez ici l'adresse de sa page. Elle devient la référence de ce vin pour les prochaines mises à jour.",
+		linkPlaceholder: "https://www.vivino.com/…/w/12345678",
+		linkSubmit: "Lier",
+		linkInvalid: "Ce n'est pas un lien vers une fiche de vin Vivino (il doit contenir /w/ suivi d'un nombre).",
+		linkNotFound: "Vivino ne connaît aucun vin avec cet identifiant.",
+		linkFailed: "Le lien n'a pas pu être appliqué. Réessayez.",
 		noVivinoMatchTitle: "Aucune correspondance Vivino",
 		noPriceFoundTitle: "Aucun prix trouvé",
 		vivinoNoMatchBody: "Vivino n'a pas trouvé de correspondance fiable pour ce vin. Essayer avec l'IA ?",
@@ -2139,7 +2176,12 @@ var ui = {
 		dialogTitleManage: "Gérer les racks",
 		dialogTitleAdd: "Ajouter un rack",
 		dialogTitleEdit: "Modifier le rack",
-		dialogTitleDeleteConfirm: "Supprimer le rack ?"
+		dialogTitleDeleteConfirm: "Supprimer le rack ?",
+		sensorManual: "Saisie manuelle",
+		manualLastEntry: "Dernière saisie : {date}",
+		manualReadingTitle: "Relevé manuel, saisi le {date} — toucher pour mettre à jour",
+		quickEditTitle: "Mettre à jour le relevé",
+		quickEditSave: "Enregistrer"
 	},
 	vivinoAiSettings: {
 		title: "Paramètres",
@@ -2210,6 +2252,16 @@ var ui = {
 		buyBtn: "🛒 Acheter",
 		noWinesFoundImage: "Aucun vin trouvé dans l'image. Essayez une photo plus nette.",
 		extractionFailed: "Échec de l'extraction : {error}"
+	},
+	suggest: {
+		bottleOne: "{n} bouteille",
+		bottleMany: "{n} bouteilles",
+		exactWine: "{bottles} de ce vin exact déjà ici",
+		wineYears: "{bottles} de ce vin ici ({years})",
+		wineAlready: "{bottles} de ce vin déjà ici",
+		thisWinery: "ce domaine",
+		fromWinery: "{bottles} de {winery} ici",
+		ofKind: "{bottles} de {kind} ici"
 	}
 };
 var toast = {
@@ -2884,6 +2936,26 @@ function freeAt(target, cabinets, wines) {
     const used = wines.filter((w) => w.cabinet_id === cabinet.id && w.row !== null && w.col !== null).length;
     return Math.max(0, total - used);
 }
+// The share of one type above which a container reads as "the sparkling bin",
+// even though nothing declares it so. The arrangement report uses it to spot
+// intruders, the add dialog to point a bottle at its type's usual home.
+const TYPE_DOMINANCE = 0.75;
+function dominantType(bottles) {
+    const counts = new Map();
+    for (const w of bottles)
+        counts.set(w.type, (counts.get(w.type) || 0) + 1);
+    let best = null;
+    let bestCount = 0;
+    for (const [type, count] of counts) {
+        if (count > bestCount) {
+            best = type;
+            bestCount = count;
+        }
+    }
+    if (best === null)
+        return null;
+    return { type: best, count: bestCount, share: bestCount / bottles.length };
+}
 
 const TIER_ORDER = ["same-wine", "same-winery", "same-family"];
 const key = (value) => normalizeText(value).trim();
@@ -2898,6 +2970,24 @@ function cuveeKey(value) {
         .replace(/[^a-z0-9]+/g, " ")
         .trim();
 }
+const words = (value) => key(value).replace(/[^a-z0-9]+/g, " ").trim();
+// Regions are free text from three sources (the AI, Vivino, the user), so the
+// same place arrives as "Champagne", "Champagne, France" or "Champagne Grand
+// Cru". One containing the other as whole words is the same family; a bare
+// country ("France" against "Champagne, France") is not a region and would
+// make every bottle from that country a relative.
+function sameRegion(draft, wine) {
+    const a = words(draft.region);
+    const b = words(wine.region);
+    if (!a || !b)
+        return false;
+    if (a === b)
+        return true;
+    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+    if (!` ${longer} `.includes(` ${shorter} `))
+        return false;
+    return shorter !== words(draft.country) && shorter !== words(wine.country);
+}
 function tierOf(draft, wine) {
     const dName = cuveeKey(draft.name);
     const dWinery = key(draft.winery);
@@ -2909,34 +2999,43 @@ function tierOf(draft, wine) {
         return "same-wine";
     if (dWinery && dWinery === wWinery)
         return "same-winery";
-    const dRegion = key(draft.region);
-    if (dRegion && dRegion === key(wine.region) && draft.type && draft.type === wine.type) {
+    if (draft.type && draft.type === wine.type && sameRegion(draft, wine))
         return "same-family";
-    }
     return null;
 }
 function vintageList(wines) {
     const years = Array.from(new Set(wines.map((w) => w.vintage).filter((v) => typeof v === "number"))).sort((a, b) => a - b);
     return years.join(", ");
 }
-function reasonFor(tier, draft, matches) {
+function reasonFor(tier, draft, matches, language) {
     const n = matches.length;
-    const bottles = n === 1 ? "1 bottle" : `${n} bottles`;
+    const bottles = t(n === 1 ? "ui.suggest.bottleOne" : "ui.suggest.bottleMany", language, { n });
+    // Type names are nouns in the sentence ("de rouge"), not labels, so French
+    // wants them lower-cased; other languages keep the catalog's casing.
+    const typeName = (type) => {
+        const label = (type && getWineTypeLabels(language)[type]) || type || "";
+        return language?.startsWith("fr") ? label.toLocaleLowerCase(language) : label;
+    };
     if (tier === "same-wine") {
         const years = vintageList(matches);
         const sameYear = matches.every((w) => w.vintage === draft.vintage);
         if (sameYear)
-            return `${bottles} of this exact wine already here`;
-        return years ? `${bottles} of this wine here (${years})` : `${bottles} of this wine already here`;
+            return t("ui.suggest.exactWine", language, { bottles });
+        return years
+            ? t("ui.suggest.wineYears", language, { bottles, years })
+            : t("ui.suggest.wineAlready", language, { bottles });
     }
     if (tier === "same-winery") {
-        const winery = matches[0]?.winery || draft.winery || "this winery";
-        return `${bottles} from ${winery} here`;
+        const winery = matches[0]?.winery || draft.winery || t("ui.suggest.thisWinery", language);
+        return t("ui.suggest.fromWinery", language, { bottles, winery });
+    }
+    if (tier === "same-type") {
+        return t("ui.suggest.ofKind", language, { bottles, kind: typeName(draft.type) });
     }
     const first = matches[0];
     const region = first?.region || draft.region || "";
-    const type = first ? WINE_TYPE_LABELS[first.type] || "" : "";
-    return `${bottles} of ${[region, type].filter(Boolean).join(" ")} here`.replace(/\s+/g, " ");
+    const kind = [region, first ? typeName(first.type) : ""].filter(Boolean).join(" ").replace(/\s+/g, " ");
+    return t("ui.suggest.ofKind", language, { bottles, kind });
 }
 // The best place to send the bottle instead, when the natural destination is
 // full: somewhere in the same cabinet with room, preferring a container that
@@ -2968,8 +3067,10 @@ function alternativeFor(full, cabinet, wines, matchIds) {
 }
 // Ranked destinations for a bottle about to be added. Empty when the cellar
 // holds nothing related — better to say nothing than to invent a reason.
-function suggestDestinations(draft, wines, cabinets, limit = 3) {
+function suggestDestinations(draft, wines, cabinets, limit = 3, language) {
     const byContainer = new Map();
+    // Everything each live container holds, for the same-type fallback.
+    const contents = new Map();
     for (const wine of wines) {
         const container = containerOf(wine);
         if (!container)
@@ -2984,6 +3085,12 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
             continue;
         if (container.kind === "bottom" && !cabinet.has_bottom_zone)
             continue;
+        const ck = containerKey(container);
+        const held = contents.get(ck);
+        if (held)
+            held.bottles.push(wine);
+        else
+            contents.set(ck, { container, bottles: [wine] });
         const tier = tierOf(draft, wine);
         if (!tier)
             continue;
@@ -3004,7 +3111,28 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
             bestPerContainer.set(k, entry);
         }
     }
-    const ranked = Array.from(bestPerContainer.values()).sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || b.matches.length - a.matches.length);
+    let ranked = Array.from(bestPerContainer.values()).sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || b.matches.length - a.matches.length);
+    // No relative anywhere: fall back on the containers this type has made its
+    // own, by the same measure the arrangement report uses. Those with room come
+    // first — unlike a relative's bin, a type's home is interchangeable with the
+    // next one, so a full one is the least useful of them.
+    if (!ranked.length && draft.type) {
+        ranked = Array.from(contents.values())
+            .map(({ container, bottles }) => {
+            const dom = dominantType(bottles);
+            if (!dom || dom.type !== draft.type || dom.share < TYPE_DOMINANCE)
+                return null;
+            const cabinet = cabinets.find((c) => c.id === container.cabinetId);
+            return {
+                container,
+                tier: "same-type",
+                matches: bottles.filter((w) => w.type === draft.type),
+                full: containerUsage(container, cabinet, wines).full,
+            };
+        })
+            .filter((x) => x !== null)
+            .sort((a, b) => Number(a.full) - Number(b.full) || b.matches.length - a.matches.length);
+    }
     return ranked.slice(0, limit).map((entry) => {
         const cabinet = cabinets.find((c) => c.id === entry.container.cabinetId);
         const usage = containerUsage(entry.container, cabinet, wines);
@@ -3014,7 +3142,7 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
             label: containerLabel(entry.container, cabinets),
             usage,
             tier: entry.tier,
-            reason: reasonFor(entry.tier, draft, entry.matches),
+            reason: reasonFor(entry.tier, draft, entry.matches, language),
             matches: entry.matches,
             alternative: usage.full && cabinet ? alternativeFor(entry.container, cabinet, wines, matchIds) : null,
         };
@@ -3023,7 +3151,6 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
 
 const MIN_GROUP_BOTTLES = 3;
 const MIN_CONTAINER_BOTTLES = 4;
-const DOMINANCE = 0.75;
 const MAX_INTRUDERS = 2;
 const groupKey = (w) => `${cuveeKey(w.name)}|${normalizeText(w.winery).trim()}`.replace(/^\||\|$/g, "");
 // A bottle whose window is closing: explicitly marked drink/past, or carrying a
@@ -3054,22 +3181,6 @@ function placedWines(wines, live) {
     return wines
         .map((wine) => ({ wine, container: containerOf(wine) }))
         .filter((x) => x.container !== null && live.has(containerKey(x.container)));
-}
-function dominantType(bottles) {
-    const counts = new Map();
-    for (const w of bottles)
-        counts.set(w.type, (counts.get(w.type) || 0) + 1);
-    let best = null;
-    let bestCount = 0;
-    for (const [type, count] of counts) {
-        if (count > bestCount) {
-            best = type;
-            bestCount = count;
-        }
-    }
-    if (best === null)
-        return null;
-    return { type: best, share: bestCount / bottles.length };
 }
 // Bottles of one wine scattered across several places. The fix is real work,
 // so only worth raising for a series big enough to be worth gathering.
@@ -3171,7 +3282,7 @@ function findOutliers(placed, live, cabinets, wines, language) {
     const homes = new Map();
     for (const [ck, bottles] of byContainer) {
         const dom = dominantType(bottles);
-        if (!dom || dom.share < DOMINANCE)
+        if (!dom || dom.share < TYPE_DOMINANCE)
             continue;
         const entry = live.get(ck);
         const list = homes.get(dom.type) || [];
@@ -3183,7 +3294,7 @@ function findOutliers(placed, live, cabinets, wines, language) {
         if (bottles.length < MIN_CONTAINER_BOTTLES)
             continue;
         const dom = dominantType(bottles);
-        if (!dom || dom.share < DOMINANCE)
+        if (!dom || dom.share < TYPE_DOMINANCE)
             continue;
         const intruders = bottles.filter((w) => w.type !== dom.type);
         if (!intruders.length || intruders.length > MAX_INTRUDERS)
@@ -3668,6 +3779,23 @@ ArrangementDialog = __decorate([
 // wine's serving_temp, and the chambering room's sensor into simple, honest
 // advice. A "zone" here is a whole rack card (a Cabinet) — sensors are set
 // per rack, not per shelf or bin inside it.
+// Sentinel stored in a cabinet's sensor id when its reading is typed by hand.
+// Not a valid entity id (those always contain a dot), so it can't collide.
+const MANUAL_SENSOR = "manual";
+function readCabinetTemp(hass, cabinet) {
+    if (!cabinet)
+        return null;
+    if (cabinet.temp_sensor_entity_id === MANUAL_SENSOR)
+        return cabinet.temp_manual_value ?? null;
+    return readSensorValue(hass, cabinet.temp_sensor_entity_id || "");
+}
+function readCabinetHumidity(hass, cabinet) {
+    if (!cabinet)
+        return null;
+    if (cabinet.humidity_sensor_entity_id === MANUAL_SENSOR)
+        return cabinet.humidity_manual_value ?? null;
+    return readSensorValue(hass, cabinet.humidity_sensor_entity_id || "");
+}
 function readSensorValue(hass, entityId) {
     if (!entityId || !hass?.states)
         return null;
@@ -3696,7 +3824,7 @@ function getChamberingAdvice(wine, cabinet, hass, roomSensorEntityId, timeConsta
     const range = parseServingTemp(wine.serving_temp);
     if (!range)
         return null;
-    const cellarTemp = readSensorValue(hass, cabinet?.temp_sensor_entity_id || "");
+    const cellarTemp = readCabinetTemp(hass, cabinet);
     if (cellarTemp === null)
         return null;
     if (wine.location_updated_at) {
@@ -3767,6 +3895,17 @@ let CabinetGrid = class CabinetGrid extends i {
         // not per-bottle.
         this.dispositionDisplay = "letter";
         this._dragOverCell = null;
+        this._quickEdit = false;
+        this._quickTemp = "";
+        this._quickHumidity = "";
+        // Tapping a hand-typed reading opens a small editor so it can be refreshed
+        // without going through Manage Racks.
+        this._openQuickEdit = (e) => {
+            e.stopPropagation(); // don't also trigger the rack-title click
+            this._quickTemp = this.cabinet.temp_manual_value?.toString() ?? "";
+            this._quickHumidity = this.cabinet.humidity_manual_value?.toString() ?? "";
+            this._quickEdit = true;
+        };
         // --- Long press (mobile move) ---
         this._longPressTimer = null;
     }
@@ -3793,14 +3932,92 @@ let CabinetGrid = class CabinetGrid extends i {
     }
     // Live temperature/humidity of the zone, shown in its title banner.
     _renderSensorBadge() {
-        const temp = readSensorValue(this.hass, this.cabinet.temp_sensor_entity_id || "");
-        const humidity = readSensorValue(this.hass, this.cabinet.humidity_sensor_entity_id || "");
+        const temp = readCabinetTemp(this.hass, this.cabinet);
+        const humidity = readCabinetHumidity(this.hass, this.cabinet);
         if (temp === null && humidity === null)
             return A;
+        // A hand-typed reading says so and when it was entered, since unlike a
+        // live sensor it can silently go stale.
+        const stamps = [
+            this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this.cabinet.temp_manual_at : null,
+            this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this.cabinet.humidity_manual_at : null,
+        ].filter((s) => !!s);
+        const manualTitle = stamps.length
+            ? this._t("ui.rack.manualReadingTitle", {
+                date: new Date(stamps.sort().reverse()[0]).toLocaleString(this.hass?.language, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                }),
+            })
+            : "";
         return b `
-      <span class="zone-sensor-badge">
-        ${temp !== null ? b `🌡️ ${temp}°C` : A}${temp !== null && humidity !== null ? " · " : A}${humidity !== null ? b `💧 ${humidity}%` : A}
+      <span
+        class="zone-sensor-badge ${stamps.length ? "editable" : ""}"
+        title=${manualTitle}
+        @click=${stamps.length ? this._openQuickEdit : A}
+      >
+        ${temp !== null ? b `🌡️ ${temp}°C` : A}${temp !== null && humidity !== null ? " · " : A}${humidity !== null ? b `💧 ${humidity}%` : A}${stamps.length ? " ✍️" : A}
       </span>
+    `;
+    }
+    async _saveQuickEdit() {
+        const toNumber = (raw) => {
+            const n = parseFloat(raw.replace(",", "."));
+            return Number.isFinite(n) ? n : null;
+        };
+        const updates = {};
+        if (this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR) {
+            updates.temp_manual_value = toNumber(this._quickTemp);
+        }
+        if (this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR) {
+            updates.humidity_manual_value = toNumber(this._quickHumidity);
+        }
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_cabinet",
+                cabinet_id: this.cabinet.id,
+                updates,
+            });
+            this._quickEdit = false;
+            this.dispatchEvent(new CustomEvent("cabinet-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Failed to update manual reading:", err);
+        }
+    }
+    _renderQuickEdit() {
+        if (!this._quickEdit)
+            return A;
+        const tempManual = this.cabinet.temp_sensor_entity_id === MANUAL_SENSOR;
+        const humManual = this.cabinet.humidity_sensor_entity_id === MANUAL_SENSOR;
+        return b `
+      <div class="quick-edit-backdrop" @click=${() => (this._quickEdit = false)}>
+        <div class="quick-edit" @click=${(e) => e.stopPropagation()}>
+          <div class="quick-edit-title">${this._t("ui.rack.quickEditTitle")} — ${this.cabinet.name}</div>
+          ${tempManual
+            ? b `<label>🌡️
+                <input
+                  type="number"
+                  step="0.5"
+                  .value=${this._quickTemp}
+                  @input=${(e) => (this._quickTemp = e.target.value)}
+                />°C</label>`
+            : A}
+          ${humManual
+            ? b `<label>💧
+                <input
+                  type="number"
+                  step="1"
+                  .value=${this._quickHumidity}
+                  @input=${(e) => (this._quickHumidity = e.target.value)}
+                />%</label>`
+            : A}
+          <div class="quick-edit-actions">
+            <button @click=${() => (this._quickEdit = false)}>${this._t("ui.common.cancel")}</button>
+            <button class="primary" @click=${() => this._saveQuickEdit()}>${this._t("ui.rack.quickEditSave")}</button>
+          </div>
+        </div>
+      </div>
     `;
     }
     _getStorageRowWines(row) {
@@ -4511,6 +4728,7 @@ let CabinetGrid = class CabinetGrid extends i {
         const hasShelfRows = (this.cabinet.storage_rows || []).some((sr) => sr.type === "shelf");
         const titleClickable = hasGridRows || hasShelfRows;
         return b `
+      ${this._renderQuickEdit()}
       <div class="cabinet">
         <div
           class="cabinet-name ${titleClickable ? "clickable" : ""}"
@@ -4891,6 +5109,75 @@ CabinetGrid.styles = [
       .zone-sensor-badge {
         flex-shrink: 0;
         white-space: nowrap;
+      }
+
+      .zone-sensor-badge.editable {
+        cursor: pointer;
+      }
+
+      .quick-edit-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .quick-edit {
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color, #222);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 240px;
+        max-width: 90vw;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-shadow: none;
+        font-weight: normal;
+      }
+
+      .quick-edit-title {
+        font-weight: 600;
+      }
+
+      .quick-edit label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .quick-edit input {
+        width: 80px;
+        padding: 6px;
+        font-size: 1em;
+        border: 1px solid var(--divider-color, #ccc);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+      }
+
+      .quick-edit-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .quick-edit-actions button {
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--divider-color, #ccc);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .quick-edit-actions button.primary {
+        background: var(--primary-color, #03a9f4);
+        color: #fff;
+        border-color: transparent;
       }
 
       .zone-bottle {
@@ -5294,6 +5581,15 @@ __decorate([
 __decorate([
     r()
 ], CabinetGrid.prototype, "_dragOverCell", void 0);
+__decorate([
+    r()
+], CabinetGrid.prototype, "_quickEdit", void 0);
+__decorate([
+    r()
+], CabinetGrid.prototype, "_quickTemp", void 0);
+__decorate([
+    r()
+], CabinetGrid.prototype, "_quickHumidity", void 0);
 CabinetGrid = __decorate([
     t$1("cabinet-grid")
 ], CabinetGrid);
@@ -5853,6 +6149,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._photoSide = "front";
         this._photoSwipeStartX = null;
         this._aiFallbackReason = null;
+        // Link-a-Vivino-page dialog
+        this._linkOpen = false;
+        this._linkUrl = "";
+        this._linkError = "";
+        this._linking = false;
         this.hasGemini = false;
         this.aiFallbackAlways = false;
         this.enableWhisky = false;
@@ -6215,6 +6516,48 @@ let WineDetailDialog = class WineDetailDialog extends i {
             console.error("Vivino refresh failed", err);
         }
         this._refreshing = false;
+    }
+    _openVivinoLink() {
+        this._aiFallbackReason = null;
+        this._linkUrl = "";
+        this._linkError = "";
+        this._linkOpen = true;
+    }
+    async _submitVivinoLink() {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass || !this._linkUrl.trim())
+            return;
+        this._linking = true;
+        this._linkError = "";
+        try {
+            const resp = await this.hass.callWS({
+                type: "wine_cellar/refresh_wine",
+                wine_id: this.wine.id,
+                vivino_url: this._linkUrl.trim(),
+            });
+            if (resp.link_error === "invalid_url") {
+                this._linkError = this._t("ui.wineDetail.linkInvalid");
+            }
+            else if (resp.link_error === "not_found") {
+                this._linkError = this._t("ui.wineDetail.linkNotFound");
+            }
+            else if (resp.error || !resp.wine) {
+                this._linkError = this._t("ui.wineDetail.linkFailed");
+            }
+            else {
+                this._linkOpen = false;
+                if (this._applyIfStillShowing(wineId, resp.wine)) {
+                    this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+                    if (resp.vivino_image_url)
+                        this._pendingVivinoImage = resp.vivino_image_url;
+                }
+            }
+        }
+        catch (err) {
+            console.error("Vivino link failed", err);
+            this._linkError = this._t("ui.wineDetail.linkFailed");
+        }
+        this._linking = false;
     }
     async _confirmAiFallback(remember) {
         this._aiFallbackReason = null;
@@ -6760,6 +7103,13 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button class="btn btn-primary" style="background:#c62828"
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
+                ${this.mode === "cellar"
+                ? b `<div style="text-align:center;font-size:0.72em;margin:-6px 0 6px">
+                      <a href="#" style="color:var(--wc-text-secondary);text-decoration:underline"
+                        @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._openVivinoLink(); }}
+                      >🔗 ${wine.vivino_id ? this._t("ui.wineDetail.linkVivinoChange") : this._t("ui.wineDetail.linkVivinoBtn")}</a>
+                    </div>`
+                : A}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
                 ? b `
                       <div style="text-align:center;font-size:0.68em;color:var(--wc-text-secondary);margin-top:-6px;padding-bottom:10px">
@@ -7046,6 +7396,34 @@ let WineDetailDialog = class WineDetailDialog extends i {
               </div>
             </div>
           ` : A}
+          ${this._linkOpen ? b `
+            <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
+              <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:340px;width:90%" @click=${(e) => e.stopPropagation()}>
+                <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.linkTitle")}</h3>
+                <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.linkBody")}</p>
+                <input
+                  type="url"
+                  style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--wc-border);border-radius:8px;background:transparent;color:var(--wc-text);font-size:0.9em"
+                  placeholder=${this._t("ui.wineDetail.linkPlaceholder")}
+                  .value=${this._linkUrl}
+                  @input=${(e) => { this._linkUrl = e.target.value; this._linkError = ""; }}
+                  @keydown=${(e) => { if (e.key === "Enter")
+            this._submitVivinoLink(); }}
+                />
+                ${this._linkError ? b `<div style="margin-top:8px;font-size:0.8em;color:#c62828">${this._linkError}</div>` : A}
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                  <button
+                    style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
+                    @click=${() => (this._linkOpen = false)}
+                  >${this._t("ui.common.cancel")}</button>
+                  <button class="btn btn-primary" style="background:#7b1fa2"
+                    ?disabled=${this._linking || !this._linkUrl.trim()}
+                    @click=${() => this._submitVivinoLink()}
+                  >${this._linking ? "..." : this._t("ui.wineDetail.linkSubmit")}</button>
+                </div>
+              </div>
+            </div>
+          ` : A}
           ${this._aiFallbackReason ? b `
             <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10;border-radius:16px">
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:320px;width:90%;text-align:center" @click=${(e) => e.stopPropagation()}>
@@ -7054,6 +7432,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
             ? this._t("ui.wineDetail.vivinoNoMatchBody")
             : this._t("ui.wineDetail.vivinoNoPriceBody")}</p>
                 <div style="display:flex;flex-direction:column;gap:8px">
+                  ${this._aiFallbackReason === "no_match"
+            ? b `<button class="btn btn-primary" style="background:#7b1fa2" @click=${() => this._openVivinoLink()}>🔗 ${this._t("ui.wineDetail.linkVivinoBtn")}</button>`
+            : A}
                   <button class="btn btn-primary" style="background:#1565c0" @click=${() => this._confirmAiFallback(false)}>${this._t("ui.wineDetail.useAiOnceBtn")}</button>
                   <button
                     style="padding:8px 16px;border-radius:20px;border:1px solid var(--wc-border);background:transparent;color:var(--wc-text);cursor:pointer;font-size:0.85em"
@@ -7691,6 +8072,18 @@ __decorate([
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_aiFallbackReason", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_linkOpen", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_linkUrl", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_linkError", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_linking", void 0);
 __decorate([
     n({ type: Boolean })
 ], WineDetailDialog.prototype, "hasGemini", void 0);
@@ -8812,10 +9205,12 @@ let AddWineDialog = class AddWineDialog extends i {
     // cellar has no declared zone rules, so its own layout is the only signal:
     // every suggestion says which bottles are already there and why they match.
     _renderSuggestions() {
-        const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3);
+        const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3, this.hass?.language);
         if (!suggestions.length)
             return A;
         const current = containerOf(this._wineData);
+        // The same-type fallback only appears alone, so one tier says it all.
+        const byType = suggestions[0].tier === "same-type";
         const spaceText = (s) => {
             if (s.usage.full)
                 return this._t("ui.addWine.fullUsage", { used: s.usage.used, capacity: s.usage.capacity });
@@ -8825,7 +9220,9 @@ let AddWineDialog = class AddWineDialog extends i {
         };
         return b `
       <div class="suggest-strip">
-        <div class="suggest-title">${this._t("ui.addWine.suggestedTitle")}</div>
+        <div class="suggest-title">
+          ${byType ? this._t("ui.addWine.suggestedTitleByType") : this._t("ui.addWine.suggestedTitle")}
+        </div>
         ${suggestions.map((s) => {
             const selected = !!current && sameContainer(current, s.container);
             return b `
@@ -8843,7 +9240,7 @@ let AddWineDialog = class AddWineDialog extends i {
             ${s.alternative
                 ? b `
                   <div class="suggest-alt">
-                    ${this._t("ui.addWine.noRoomSplit")}
+                    ${byType ? this._t("ui.addWine.noRoomPutIn") : this._t("ui.addWine.noRoomSplit")}
                     <button @click=${() => this._applyContainer(s.alternative.container)}>
                       ${s.alternative.label}
                     </button>
@@ -10035,34 +10432,90 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             .filter((id) => id.startsWith("sensor.") && states[id]?.attributes?.device_class === deviceClass)
             .sort((a, b) => (states[a].attributes.friendly_name || a).localeCompare(states[b].attributes.friendly_name || b));
     }
-    _renderSensorPickers(tempValue, humidityValue, onTemp, onHumidity) {
+    _renderSensorPickers() {
         const states = this.hass?.states || {};
         const friendlyName = (id) => states[id]?.attributes?.friendly_name || id;
+        const cab = this._editCabinet;
+        const tempValue = cab.temp_sensor_entity_id || "";
+        const humidityValue = cab.humidity_sensor_entity_id || "";
         const tempIds = this._sensorEntityIds("temperature");
         const humidityIds = this._sensorEntityIds("humidity");
+        const toNumber = (raw) => {
+            const n = parseFloat(raw.replace(",", "."));
+            return Number.isFinite(n) ? n : null;
+        };
+        const lastEntry = [
+            tempValue === MANUAL_SENSOR ? cab.temp_manual_at : null,
+            humidityValue === MANUAL_SENSOR ? cab.humidity_manual_at : null,
+        ]
+            .filter((x) => !!x)
+            .sort()
+            .reverse()[0];
         return b `
       <div class="sensor-picker-row">
         <div class="sensor-picker-wrap">
           <span>🌡️</span>
           <select
             class="sensor-select"
-            @change=${(e) => onTemp(e.target.value)}
+            @change=${(e) => (this._editCabinet = {
+            ...this._editCabinet,
+            temp_sensor_entity_id: e.target.value,
+        })}
           >
             <option value="" ?selected=${!tempValue}>${this._t("ui.rack.sensorNone")}</option>
+            <option value=${MANUAL_SENSOR} ?selected=${tempValue === MANUAL_SENSOR}>✍️ ${this._t("ui.rack.sensorManual")}</option>
             ${tempIds.map((id) => b `<option value=${id} ?selected=${tempValue === id}>${friendlyName(id)}</option>`)}
           </select>
+          ${tempValue === MANUAL_SENSOR
+            ? b `<input
+                  class="sensor-manual-input"
+                  type="number"
+                  step="0.5"
+                  .value=${cab.temp_manual_value?.toString() ?? ""}
+                  @input=${(e) => (this._editCabinet = {
+                ...this._editCabinet,
+                temp_manual_value: toNumber(e.target.value),
+            })}
+                />°C`
+            : A}
         </div>
         <div class="sensor-picker-wrap">
           <span>💧</span>
           <select
             class="sensor-select"
-            @change=${(e) => onHumidity(e.target.value)}
+            @change=${(e) => (this._editCabinet = {
+            ...this._editCabinet,
+            humidity_sensor_entity_id: e.target.value,
+        })}
           >
             <option value="" ?selected=${!humidityValue}>${this._t("ui.rack.sensorNone")}</option>
+            <option value=${MANUAL_SENSOR} ?selected=${humidityValue === MANUAL_SENSOR}>✍️ ${this._t("ui.rack.sensorManual")}</option>
             ${humidityIds.map((id) => b `<option value=${id} ?selected=${humidityValue === id}>${friendlyName(id)}</option>`)}
           </select>
+          ${humidityValue === MANUAL_SENSOR
+            ? b `<input
+                  class="sensor-manual-input"
+                  type="number"
+                  step="1"
+                  .value=${cab.humidity_manual_value?.toString() ?? ""}
+                  @input=${(e) => (this._editCabinet = {
+                ...this._editCabinet,
+                humidity_manual_value: toNumber(e.target.value),
+            })}
+                />%`
+            : A}
         </div>
       </div>
+      ${lastEntry
+            ? b `<div class="sensor-manual-note">
+            ${this._t("ui.rack.manualLastEntry", {
+                date: new Date(lastEntry).toLocaleString(this.hass?.language, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                }),
+            })}
+          </div>`
+            : A}
     `;
     }
     _styleFor(slot) {
@@ -10535,6 +10988,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     orientation: "vertical",
                     temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
                     humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
+                    temp_manual_value: this._editCabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.temp_manual_value ?? null : null,
+                    humidity_manual_value: this._editCabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.humidity_manual_value ?? null : null,
                 },
             });
             this._notifyUpdate();
@@ -10567,6 +11022,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     orientation: "vertical",
                     temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
                     humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
+                    temp_manual_value: this._editCabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.temp_manual_value ?? null : null,
+                    humidity_manual_value: this._editCabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.humidity_manual_value ?? null : null,
                 },
             });
             for (const wine of displaced) {
@@ -10962,7 +11419,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
              the fallback for any zone below that doesn't set its own. -->
         <div class="form-group">
           <label>${this._t("ui.rack.cabinetSensorsLabel")}</label>
-          ${this._renderSensorPickers(this._editCabinet.temp_sensor_entity_id || "", this._editCabinet.humidity_sensor_entity_id || "", (value) => (this._editCabinet = { ...this._editCabinet, temp_sensor_entity_id: value }), (value) => (this._editCabinet = { ...this._editCabinet, humidity_sensor_entity_id: value }))}
+          ${this._renderSensorPickers()}
         </div>
 
         <!-- Primary style: exactly one of these five, chosen once -->
@@ -11486,6 +11943,22 @@ RackSettingsDialog.styles = [
         gap: 4px;
         font-size: 0.75em;
         color: var(--wc-text-secondary);
+      }
+
+      .sensor-manual-input {
+        width: 60px;
+        padding: 2px 4px;
+        border: 1px solid var(--wc-border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        background: var(--wc-bg);
+        color: var(--wc-text);
+      }
+
+      .sensor-manual-note {
+        font-size: 0.7em;
+        color: var(--wc-text-secondary);
+        margin: -4px 0 8px;
       }
 
       .sensor-select {
@@ -17806,6 +18279,7 @@ let WineCellarCard = class WineCellarCard extends i {
                           @zone-click=${this._onZoneClick}
                           @zone-container-click=${this._onZoneContainerClick}
                           @rack-click=${this._onRackClick}
+                          @cabinet-updated=${() => this._loadData()}
                           @wine-drop=${this._onWineDrop}
                           @wine-longpress=${(e) => {
                     this._movingWine = e.detail.wine;
@@ -17828,6 +18302,7 @@ let WineCellarCard = class WineCellarCard extends i {
                             @zone-click=${this._onZoneClick}
                             @zone-container-click=${this._onZoneContainerClick}
                             @rack-click=${this._onRackClick}
+                            @cabinet-updated=${() => this._loadData()}
                             @wine-drop=${this._onWineDrop}
                             @wine-longpress=${(e) => {
                     this._activeTab = "all";

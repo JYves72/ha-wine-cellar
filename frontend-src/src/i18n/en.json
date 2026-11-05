@@ -411,6 +411,8 @@
       "oneFree": "1 free",
       "nFree": "{n} free",
       "noRoomSplit": "No room left there — split the series into",
+      "suggestedTitleByType": "Suggested — where this type is kept",
+      "noRoomPutIn": "No room left there — put it in",
       "orFreeSlotFirst": ", or free a slot first.",
       "chooseLocation": "Choose Location",
       "selectCabinetHint": "Select a cabinet and position for this bottle",
@@ -529,6 +531,15 @@
       "currentPhotoLabel": "Current",
       "keepMyPhotoBtn": "Keep My Photo",
       "useVivinoPhotoBtn": "Use Vivino's",
+      "linkVivinoBtn": "Link a Vivino page",
+      "linkVivinoChange": "Change the Vivino link",
+      "linkTitle": "Link a Vivino page",
+      "linkBody": "Find the wine on vivino.com and paste the address of its page here. It becomes this wine's reference for future updates.",
+      "linkPlaceholder": "https://www.vivino.com/…/w/12345678",
+      "linkSubmit": "Link",
+      "linkInvalid": "This isn't a Vivino wine page link (it should contain /w/ followed by a number).",
+      "linkNotFound": "Vivino has no wine with this id.",
+      "linkFailed": "The link could not be applied. Try again.",
       "noVivinoMatchTitle": "No Vivino Match",
       "noPriceFoundTitle": "No Price Found",
       "vivinoNoMatchBody": "Vivino couldn't find a confident match for this wine. Try AI instead?",
@@ -615,7 +626,12 @@
       "dialogTitleManage": "Manage Racks",
       "dialogTitleAdd": "Add Rack",
       "dialogTitleEdit": "Edit Rack",
-      "dialogTitleDeleteConfirm": "Delete Rack?"
+      "dialogTitleDeleteConfirm": "Delete Rack?",
+      "sensorManual": "Manual entry",
+      "manualLastEntry": "Last entered: {date}",
+      "manualReadingTitle": "Manual reading, entered {date} — tap to update",
+      "quickEditTitle": "Update the reading",
+      "quickEditSave": "Save"
     },
     "vivinoAiSettings": {
       "title": "Settings",
@@ -686,6 +702,16 @@
       "buyBtn": "🛒 Buy",
       "noWinesFoundImage": "No wines found in the image. Try a clearer photo.",
       "extractionFailed": "Extraction failed: {error}"
+    },
+    "suggest": {
+      "bottleOne": "{n} bottle",
+      "bottleMany": "{n} bottles",
+      "exactWine": "{bottles} of this exact wine already here",
+      "wineYears": "{bottles} of this wine here ({years})",
+      "wineAlready": "{bottles} of this wine already here",
+      "thisWinery": "this winery",
+      "fromWinery": "{bottles} from {winery} here",
+      "ofKind": "{bottles} of {kind} here"
     }
   },
   "toast": {

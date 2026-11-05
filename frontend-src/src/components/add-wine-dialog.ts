@@ -1454,9 +1454,11 @@ export class AddWineDialog extends LitElement {
   // cellar has no declared zone rules, so its own layout is the only signal:
   // every suggestion says which bottles are already there and why they match.
   private _renderSuggestions() {
-    const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3);
+    const suggestions = suggestDestinations(this._wineData, this.wines, this.cabinets, 3, this.hass?.language);
     if (!suggestions.length) return nothing;
     const current = containerOf(this._wineData as Wine);
+    // The same-type fallback only appears alone, so one tier says it all.
+    const byType = suggestions[0].tier === "same-type";
 
     const spaceText = (s: Suggestion) => {
       if (s.usage.full) return this._t("ui.addWine.fullUsage", { used: s.usage.used, capacity: s.usage.capacity });
@@ -1466,7 +1468,9 @@ export class AddWineDialog extends LitElement {
 
     return html`
       <div class="suggest-strip">
-        <div class="suggest-title">${this._t("ui.addWine.suggestedTitle")}</div>
+        <div class="suggest-title">
+          ${byType ? this._t("ui.addWine.suggestedTitleByType") : this._t("ui.addWine.suggestedTitle")}
+        </div>
         ${suggestions.map((s) => {
           const selected = !!current && sameContainer(current, s.container);
           return html`
@@ -1484,7 +1488,7 @@ export class AddWineDialog extends LitElement {
             ${s.alternative
               ? html`
                   <div class="suggest-alt">
-                    ${this._t("ui.addWine.noRoomSplit")}
+                    ${byType ? this._t("ui.addWine.noRoomPutIn") : this._t("ui.addWine.noRoomSplit")}
                     <button @click=${() => this._applyContainer(s.alternative!.container)}>
                       ${s.alternative.label}
                     </button>

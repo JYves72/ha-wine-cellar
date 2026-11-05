@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES, getSteppedLevels } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
+import { MANUAL_SENSOR } from "../utils/chambering";
 
 type Mode = "list" | "add" | "edit" | "delete-confirm";
 type RackStyle = "grid" | "shelf" | "bulk" | "box" | "stepped";
@@ -417,6 +418,22 @@ export class RackSettingsDialog extends LitElement {
         color: var(--wc-text-secondary);
       }
 
+      .sensor-manual-input {
+        width: 60px;
+        padding: 2px 4px;
+        border: 1px solid var(--wc-border);
+        border-radius: 4px;
+        font-size: 0.85em;
+        background: var(--wc-bg);
+        color: var(--wc-text);
+      }
+
+      .sensor-manual-note {
+        font-size: 0.7em;
+        color: var(--wc-text-secondary);
+        margin: -4px 0 8px;
+      }
+
       .sensor-select {
         max-width: 220px;
         padding: 2px 4px;
@@ -588,43 +605,98 @@ export class RackSettingsDialog extends LitElement {
       );
   }
 
-  private _renderSensorPickers(
-    tempValue: string,
-    humidityValue: string,
-    onTemp: (value: string) => void,
-    onHumidity: (value: string) => void
-  ) {
+  private _renderSensorPickers() {
     const states = this.hass?.states || {};
     const friendlyName = (id: string) => states[id]?.attributes?.friendly_name || id;
+    const cab = this._editCabinet;
+    const tempValue = cab.temp_sensor_entity_id || "";
+    const humidityValue = cab.humidity_sensor_entity_id || "";
     const tempIds = this._sensorEntityIds("temperature");
     const humidityIds = this._sensorEntityIds("humidity");
+    const toNumber = (raw: string) => {
+      const n = parseFloat(raw.replace(",", "."));
+      return Number.isFinite(n) ? n : null;
+    };
+    const lastEntry = [
+      tempValue === MANUAL_SENSOR ? cab.temp_manual_at : null,
+      humidityValue === MANUAL_SENSOR ? cab.humidity_manual_at : null,
+    ]
+      .filter((x): x is string => !!x)
+      .sort()
+      .reverse()[0];
     return html`
       <div class="sensor-picker-row">
         <div class="sensor-picker-wrap">
           <span>🌡️</span>
           <select
             class="sensor-select"
-            @change=${(e: Event) => onTemp((e.target as HTMLSelectElement).value)}
+            @change=${(e: Event) =>
+              (this._editCabinet = {
+                ...this._editCabinet,
+                temp_sensor_entity_id: (e.target as HTMLSelectElement).value,
+              })}
           >
             <option value="" ?selected=${!tempValue}>${this._t("ui.rack.sensorNone")}</option>
+            <option value=${MANUAL_SENSOR} ?selected=${tempValue === MANUAL_SENSOR}>✍️ ${this._t("ui.rack.sensorManual")}</option>
             ${tempIds.map(
               (id) => html`<option value=${id} ?selected=${tempValue === id}>${friendlyName(id)}</option>`
             )}
           </select>
+          ${tempValue === MANUAL_SENSOR
+            ? html`<input
+                  class="sensor-manual-input"
+                  type="number"
+                  step="0.5"
+                  .value=${cab.temp_manual_value?.toString() ?? ""}
+                  @input=${(e: Event) =>
+                    (this._editCabinet = {
+                      ...this._editCabinet,
+                      temp_manual_value: toNumber((e.target as HTMLInputElement).value),
+                    })}
+                />°C`
+            : nothing}
         </div>
         <div class="sensor-picker-wrap">
           <span>💧</span>
           <select
             class="sensor-select"
-            @change=${(e: Event) => onHumidity((e.target as HTMLSelectElement).value)}
+            @change=${(e: Event) =>
+              (this._editCabinet = {
+                ...this._editCabinet,
+                humidity_sensor_entity_id: (e.target as HTMLSelectElement).value,
+              })}
           >
             <option value="" ?selected=${!humidityValue}>${this._t("ui.rack.sensorNone")}</option>
+            <option value=${MANUAL_SENSOR} ?selected=${humidityValue === MANUAL_SENSOR}>✍️ ${this._t("ui.rack.sensorManual")}</option>
             ${humidityIds.map(
               (id) => html`<option value=${id} ?selected=${humidityValue === id}>${friendlyName(id)}</option>`
             )}
           </select>
+          ${humidityValue === MANUAL_SENSOR
+            ? html`<input
+                  class="sensor-manual-input"
+                  type="number"
+                  step="1"
+                  .value=${cab.humidity_manual_value?.toString() ?? ""}
+                  @input=${(e: Event) =>
+                    (this._editCabinet = {
+                      ...this._editCabinet,
+                      humidity_manual_value: toNumber((e.target as HTMLInputElement).value),
+                    })}
+                />%`
+            : nothing}
         </div>
       </div>
+      ${lastEntry
+        ? html`<div class="sensor-manual-note">
+            ${this._t("ui.rack.manualLastEntry", {
+              date: new Date(lastEntry).toLocaleString(this.hass?.language, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
+            })}
+          </div>`
+        : nothing}
     `;
   }
 
@@ -1109,6 +1181,10 @@ export class RackSettingsDialog extends LitElement {
           orientation: "vertical",
           temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
           humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
+          temp_manual_value:
+            this._editCabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.temp_manual_value ?? null : null,
+          humidity_manual_value:
+            this._editCabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.humidity_manual_value ?? null : null,
         },
       });
       this._notifyUpdate();
@@ -1143,6 +1219,10 @@ export class RackSettingsDialog extends LitElement {
           orientation: "vertical",
           temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
           humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
+          temp_manual_value:
+            this._editCabinet.temp_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.temp_manual_value ?? null : null,
+          humidity_manual_value:
+            this._editCabinet.humidity_sensor_entity_id === MANUAL_SENSOR ? this._editCabinet.humidity_manual_value ?? null : null,
         },
       });
 
@@ -1550,12 +1630,7 @@ export class RackSettingsDialog extends LitElement {
              the fallback for any zone below that doesn't set its own. -->
         <div class="form-group">
           <label>${this._t("ui.rack.cabinetSensorsLabel")}</label>
-          ${this._renderSensorPickers(
-            this._editCabinet.temp_sensor_entity_id || "",
-            this._editCabinet.humidity_sensor_entity_id || "",
-            (value) => (this._editCabinet = { ...this._editCabinet, temp_sensor_entity_id: value }),
-            (value) => (this._editCabinet = { ...this._editCabinet, humidity_sensor_entity_id: value })
-          )}
+          ${this._renderSensorPickers()}
         </div>
 
         <!-- Primary style: exactly one of these five, chosen once -->

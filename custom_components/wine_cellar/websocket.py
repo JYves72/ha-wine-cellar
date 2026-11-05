@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -45,6 +46,7 @@ from .const import (
 )
 from . import photos
 from .disposition import compute_disposition
+from .vivino import _search_significant_words
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,17 +54,9 @@ _LOGGER = logging.getLogger(__name__)
 # Generic wine-domain words carry no identifying signal on their own (two
 # completely unrelated wines can both be a "Chateau ... Rouge"), so they're
 # excluded before comparing name/winery word overlap.
-_GENERIC_WINE_WORDS = {
-    "chateau", "château", "domaine", "clos", "cave", "caves", "cellar", "cellars",
-    "winery", "wine", "wines", "vineyard", "vineyards", "estate", "vignoble",
-    "rouge", "blanc", "rose", "rosé", "red", "white", "sparkling", "nv",
-    "de", "du", "des", "la", "le", "les", "et", "the", "of", "and",
-    "grand", "cru", "premier",
-}
-
-
-def _significant_words(text: str) -> set[str]:
-    return {w for w in text.lower().split() if w not in _GENERIC_WINE_WORDS and len(w) > 2}
+# Shared with the Vivino search's own relevance check, so both fold accents and
+# punctuation and ignore the same generic words.
+_significant_words = _search_significant_words
 
 
 def _get_metadata_language(hass: HomeAssistant) -> str:
@@ -75,6 +69,50 @@ def _get_metadata_currency(hass: HomeAssistant) -> str:
     """Return the user's chosen currency for Vivino/AI price data."""
     storage = hass.data[DOMAIN]["storage"]
     return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
+
+
+def _wine_storage_temp(hass: HomeAssistant, wine: dict[str, Any]) -> float | None:
+    """Temperature (°C) of the rack a bottle sits in, if that rack has a reading.
+
+    A hand-typed value or a live sensor, same as the card's badge. Rounded to
+    a whole degree so a sensor wobbling by tenths doesn't make the AI's answer
+    for the same wine drift from one analysis to the next. None when the
+    bottle is unassigned, the rack has no temperature source, or the sensor
+    is unavailable.
+    """
+    storage = hass.data[DOMAIN]["storage"]
+    cabinet_id = wine.get("cabinet_id")
+    if not cabinet_id:
+        return None
+    cabinet = next((c for c in storage.cabinets if c.get("id") == cabinet_id), None)
+    if not cabinet:
+        return None
+    source = cabinet.get("temp_sensor_entity_id") or ""
+    if source == "manual":
+        raw = cabinet.get("temp_manual_value")
+    elif source:
+        state = hass.states.get(source)
+        if state is None:
+            return None
+        raw = state.state
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        if state.attributes.get("unit_of_measurement") == "°F":
+            value = (value - 32) * 5 / 9
+        return float(round(value))
+    else:
+        return None
+    try:
+        return float(round(float(raw)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _wine_storage_since(wine: dict[str, Any]) -> str | None:
+    """When the bottle entered its current rack (falls back to when it was added)."""
+    return wine.get("location_updated_at") or wine.get("added_at") or None
 
 
 def _get_vivino_mode(hass: HomeAssistant) -> str:
@@ -298,6 +336,24 @@ def _propagate_to_duplicates(
                 storage.update_wine(other["id"], shared)
 
 
+def _parse_vivino_url(raw: str) -> tuple[int, int | None] | None:
+    """Pull the wine id (and the vintage year, if any) out of a Vivino link.
+
+    Accepts a full page link such as
+    https://www.vivino.com/fr/piana-del-sole-primitivo/w/12054042?year=2024
+    or a bare numeric wine id. Returns None for anything else (short share
+    links, other sites, ...) so the caller can report an invalid link.
+    """
+    raw = (raw or "").strip()
+    if raw.isdigit():
+        return int(raw), None
+    match = re.search(r"vivino\.com/(?:[^?#\s]*/)?w/(\d+)", raw)
+    if not match:
+        return None
+    year_match = re.search(r"[?&]year=(\d{4})", raw)
+    return int(match.group(1)), int(year_match.group(1)) if year_match else None
+
+
 def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]) -> bool:
     """Guard against Vivino's fuzzy search returning an unrelated wine.
 
@@ -322,7 +378,19 @@ def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]
     if not subject_words or not lookup_words:
         return True
     overlap = len(subject_words & lookup_words) / len(subject_words | lookup_words)
-    return overlap >= 0.15
+    if overlap >= 0.15:
+        return True
+    # Vivino often appends the appellation to a wine's name ("Le Mourre de la
+    # Caille Vacqueyras"), which dilutes the overlap above. If the wine's own
+    # name is entirely found in the result and the winery shares a word with
+    # it, name and producer agree: it is the same wine.
+    name_words = _significant_words(subject.get("name", ""))
+    winery_words = _significant_words(subject.get("winery", ""))
+    return bool(
+        name_words
+        and name_words <= lookup_words
+        and (not winery_words or winery_words & lookup_words)
+    )
 
 
 def _apply_vivino_text_fields(
@@ -1251,6 +1319,9 @@ async def ws_analyze_wines(
     {
         vol.Required("type"): "wine_cellar/refresh_wine",
         vol.Required("wine_id"): str,
+        # A Vivino page link the user picked by hand. Becomes this wine's
+        # reference: the relevance guard is skipped, since the user chose it.
+        vol.Optional("vivino_url"): str,
     }
 )
 @websocket_api.async_response
@@ -1287,7 +1358,23 @@ async def ws_refresh_wine(
     # A whisky is never looked up: Vivino has no data for it, so it goes
     # straight to the no-match path and the AI offer below.
     lookup = None
-    if wine.get("vivino_id") and not _is_whisky(wine):
+    linking = False
+    if msg.get("vivino_url"):
+        parsed = _parse_vivino_url(msg["vivino_url"])
+        if not parsed:
+            connection.send_result(msg["id"], {"error": "Invalid Vivino link.", "link_error": "invalid_url"})
+            return
+        link_id, link_year = parsed
+        lookup = await vivino.get_wine_by_id(link_id, wine.get("vintage") or link_year, language)
+        if not lookup:
+            connection.send_result(msg["id"], {"error": "Vivino wine not found.", "link_error": "not_found"})
+            return
+        linking = True
+    elif wine.get("vivino_id") and wine.get("vivino_linked") and not _is_whisky(wine):
+        # Chosen by the user: no relevance check, and no text-search fallback
+        # that could replace it with a guess if Vivino is briefly unreachable.
+        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+    elif wine.get("vivino_id") and not _is_whisky(wine):
         lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
         if lookup and not _vivino_match_is_trustworthy(wine, lookup):
             # The stored vivino_id itself points at the wrong variant (e.g.
@@ -1301,7 +1388,7 @@ async def ws_refresh_wine(
             )
             lookup = None
 
-    if not lookup and not _is_whisky(wine):
+    if not lookup and not _is_whisky(wine) and not wine.get("vivino_linked"):
         if not query:
             connection.send_result(msg["id"], {"error": "No name/winery to search."})
             return
@@ -1427,6 +1514,8 @@ async def ws_refresh_wine(
         updates["vivino_updated_at"] = now
     if lookup.get("vivino_id"):
         updates["vivino_id"] = lookup["vivino_id"]
+    if linking:
+        updates["vivino_linked"] = True
     if ai_price_used:
         updates["ai_updated_at"] = now
         updates["ai_checked_at"] = now
@@ -1473,7 +1562,9 @@ async def ws_analyze_single_wine(
 
     currency = _get_metadata_currency(hass)
     language = _get_metadata_language(hass)
-    result = await gemini.analyze_single_wine(wine, language, currency)
+    result = await gemini.analyze_single_wine(
+        wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+    )
     if "error" in result:
         connection.send_result(msg["id"], {"error": result["error"]})
         return
@@ -1583,7 +1674,9 @@ async def ws_batch_analyze_wines(
         wine = members[0]
         n = len(members)
         try:
-            result = await gemini.analyze_single_wine(wine, language, currency)
+            result = await gemini.analyze_single_wine(
+                wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+            )
             if "error" in result:
                 _LOGGER.warning(
                     "Batch AI: error for wine %s: %s",
@@ -1698,7 +1791,10 @@ async def ws_batch_refresh_vivino(
             # A whisky skips Vivino altogether and only gets the AI
             # fallback below, if the user opted into it for this run.
             lookup = None
-            if wine.get("vivino_id") and not _is_whisky(wine):
+            if wine.get("vivino_id") and wine.get("vivino_linked") and not _is_whisky(wine):
+                # User-chosen link: trusted as is, never re-searched.
+                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
+            elif wine.get("vivino_id") and not _is_whisky(wine):
                 lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
                 if lookup and not _vivino_match_is_trustworthy(wine, lookup):
                     # Same guard as the single-wine refresh: a stored
@@ -1710,7 +1806,7 @@ async def ws_batch_refresh_vivino(
                     )
                     lookup = None
 
-            if not lookup and not _is_whisky(wine):
+            if not lookup and not _is_whisky(wine) and not wine.get("vivino_linked"):
                 if not query:
                     continue
 
@@ -1736,7 +1832,9 @@ async def ws_batch_refresh_vivino(
                 gemini = hass.data[DOMAIN].get("gemini") if ai_fallback_mode == "use" else None
                 if gemini:
                     try:
-                        ai_result = await gemini.analyze_single_wine(wine, language, currency)
+                        ai_result = await gemini.analyze_single_wine(
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+                        )
                         if "error" not in ai_result:
                             ai_updates = _build_ai_updates(wine, ai_result, currency, language)
                             had_ai_changes = bool(ai_updates)
@@ -1803,7 +1901,9 @@ async def ws_batch_refresh_vivino(
                 gemini = hass.data[DOMAIN].get("gemini")
                 if gemini:
                     try:
-                        ai_result = await gemini.analyze_single_wine(wine, language, currency)
+                        ai_result = await gemini.analyze_single_wine(
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+                        )
                         ai_price = ai_result.get("estimated_price")
                         if ai_price:
                             _LOGGER.debug(

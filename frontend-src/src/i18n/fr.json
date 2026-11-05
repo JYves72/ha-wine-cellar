@@ -411,6 +411,8 @@
       "oneFree": "1 libre",
       "nFree": "{n} libres",
       "noRoomSplit": "Plus de place là-bas — répartissez la série dans",
+      "suggestedTitleByType": "Suggéré — là où ce type est rangé",
+      "noRoomPutIn": "Plus de place là-bas — mettez-la dans",
       "orFreeSlotFirst": ", ou libérez d'abord un emplacement.",
       "chooseLocation": "Choisir un emplacement",
       "selectCabinetHint": "Choisissez un rack et une position pour cette bouteille",
@@ -529,6 +531,15 @@
       "currentPhotoLabel": "Actuelle",
       "keepMyPhotoBtn": "Garder ma photo",
       "useVivinoPhotoBtn": "Utiliser celle de Vivino",
+      "linkVivinoBtn": "Lier une fiche Vivino",
+      "linkVivinoChange": "Modifier le lien Vivino",
+      "linkTitle": "Lier une fiche Vivino",
+      "linkBody": "Retrouvez le vin sur vivino.com et collez ici l'adresse de sa page. Elle devient la référence de ce vin pour les prochaines mises à jour.",
+      "linkPlaceholder": "https://www.vivino.com/…/w/12345678",
+      "linkSubmit": "Lier",
+      "linkInvalid": "Ce n'est pas un lien vers une fiche de vin Vivino (il doit contenir /w/ suivi d'un nombre).",
+      "linkNotFound": "Vivino ne connaît aucun vin avec cet identifiant.",
+      "linkFailed": "Le lien n'a pas pu être appliqué. Réessayez.",
       "noVivinoMatchTitle": "Aucune correspondance Vivino",
       "noPriceFoundTitle": "Aucun prix trouvé",
       "vivinoNoMatchBody": "Vivino n'a pas trouvé de correspondance fiable pour ce vin. Essayer avec l'IA ?",
@@ -615,7 +626,12 @@
       "dialogTitleManage": "Gérer les racks",
       "dialogTitleAdd": "Ajouter un rack",
       "dialogTitleEdit": "Modifier le rack",
-      "dialogTitleDeleteConfirm": "Supprimer le rack ?"
+      "dialogTitleDeleteConfirm": "Supprimer le rack ?",
+      "sensorManual": "Saisie manuelle",
+      "manualLastEntry": "Dernière saisie : {date}",
+      "manualReadingTitle": "Relevé manuel, saisi le {date} — toucher pour mettre à jour",
+      "quickEditTitle": "Mettre à jour le relevé",
+      "quickEditSave": "Enregistrer"
     },
     "vivinoAiSettings": {
       "title": "Paramètres",
@@ -686,6 +702,16 @@
       "buyBtn": "🛒 Acheter",
       "noWinesFoundImage": "Aucun vin trouvé dans l'image. Essayez une photo plus nette.",
       "extractionFailed": "Échec de l'extraction : {error}"
+    },
+    "suggest": {
+      "bottleOne": "{n} bouteille",
+      "bottleMany": "{n} bouteilles",
+      "exactWine": "{bottles} de ce vin exact déjà ici",
+      "wineYears": "{bottles} de ce vin ici ({years})",
+      "wineAlready": "{bottles} de ce vin déjà ici",
+      "thisWinery": "ce domaine",
+      "fromWinery": "{bottles} de {winery} ici",
+      "ofKind": "{bottles} de {kind} ici"
     }
   },
   "toast": {

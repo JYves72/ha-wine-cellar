@@ -9,6 +9,7 @@ Supports two transports behind a shared prompt/validation layer:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -25,6 +26,28 @@ from .const import WINE_TYPES
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+
+# Gemini answers 5xx when a model is overloaded ("high demand"). These spikes
+# are short, so a couple of retries inside the caller's timeout budget turn
+# most of them into a normal answer instead of a failed scan.
+GEMINI_RETRY_STATUSES = {500, 502, 503, 504}
+GEMINI_RETRY_DELAYS_S = (2, 5)
+# Don't start a retry with less time than this left before the deadline.
+GEMINI_MIN_ATTEMPT_S = 10
+
+
+def gemini_thinking_config(model: str) -> dict[str, str] | None:
+    """Thinking settings for the model, or None to use the model's default.
+
+    Gemini 3 and later think before answering by default, which can push a
+    label read past the 45 s timeout. Every call here is reading or
+    classifying, so low thinking is enough and 2-3x faster. Older models
+    don't accept `thinkingLevel`, so they get nothing.
+    """
+    match = re.match(r"gemini-(\d+)", model.strip())
+    if match and int(match.group(1)) >= 3:
+        return {"thinkingLevel": "low"}
+    return None
 
 
 def build_gemini_api_url(model: str = DEFAULT_GEMINI_MODEL) -> str:
@@ -162,7 +185,7 @@ def _extract_base64_from_data_url(value: str | None) -> str | None:
 LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognition expert. The current year is {current_year}. Analyze this label image, identify the wine (or whisky), and provide a full assessment. Return ONLY a JSON object with these exact fields:
 
 {{
-  "name": "the full wine name including style (e.g. Crémant Demi-Sec, Cabernet Sauvignon Reserve)",
+  "name": "the wine's own name only, without winery, grape, colour, region or vintage (see the naming rule below)",
   "winery": "the producer/winery/domaine/château name",
   "vintage": 2020,
   "type": "red",
@@ -186,7 +209,7 @@ LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognitio
 }}
 
 Label reading rules:
-- "name" should include the wine name AND style/designation (Brut, Demi-Sec, Reserve, Grand Cru, etc.) but NOT the winery name
+- "name" is ONLY the wine's own name (the cuvée / brand name, e.g. "Piana del Sole", "Bronzinelle"), plus a designation that is truly part of its identity (Reserva, Riserva, Brut, Demi-Sec, Grand Cru, Cuvée X, Vieilles Vignes). Do NOT repeat in "name" anything that has its own field: not the winery, not the grape variety (Primitivo, Merlot...), not the colour/type word (Rosso, Rouge, Blanc, Red...), not the region, appellation or classification (Puglia, IGT, DOC, AOC, Bordeaux Supérieur...), not the vintage. Example: a label reading "Piana del Sole - Primitivo - Puglia IGT - Rosso" gives name "Piana del Sole", grape_variety "Primitivo", region "Puglia", type "red". Only when the label has no cuvée name at all (the producer's name plus an appellation or grape is all there is), use that appellation or grape as the name.
 - "vintage" must be a 4-digit year as an integer, or null if not visible (NV wines = null) — check both front and back label if two images are provided, since the vintage is often only on the back
 - "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - For "type", infer from visual cues (bottle color, label text like "Blanc", "Rosé", "Brut") if not explicitly stated
@@ -235,7 +258,7 @@ Return ONLY a JSON object with this structure:
 {{
   "wines": [
     {{
-      "name": "the wine name (grape/style/designation, NOT the winery)",
+      "name": "the wine's own name only, without winery, grape, colour, region or vintage",
       "winery": "the producer/winery/domaine/chateau",
       "vintage": 2020,
       "type": "red",
@@ -264,7 +287,7 @@ Extraction rules:
 - Extract ALL wines visible on the menu or receipt, including by-the-glass options
 - Also extract whiskies (Scotch, bourbon, rye, Irish, Japanese, etc.) with type "whisky": "winery" is the distillery, "name" the expression with its age statement, "grape_variety" the cask info if given, "vintage" null unless a distillation year is printed. Skip other spirits.
 - For receipts: extract wine and whisky items only (skip non-wine items like food, tax, tips, etc.)
-- "name" should include the wine name and style but NOT the winery/producer name
+- "name" is ONLY the wine's own name (the cuvée / brand name, e.g. "Piana del Sole", "Bronzinelle"), plus a designation that is truly part of its identity (Reserva, Riserva, Brut, Demi-Sec, Grand Cru, Cuvée X, Vieilles Vignes). Do NOT repeat in "name" anything that has its own field: not the winery, not the grape variety (Primitivo, Merlot...), not the colour/type word (Rosso, Rouge, Blanc, Red...), not the region, appellation or classification (Puglia, IGT, DOC, AOC, Bordeaux Supérieur...), not the vintage. Example: a label reading "Piana del Sole - Primitivo - Puglia IGT - Rosso" gives name "Piana del Sole", grape_variety "Primitivo", region "Puglia", type "red". Only when the label has no cuvée name at all (the producer's name plus an appellation or grape is all there is), use that appellation or grape as the name.
 - "vintage" must be a 4-digit year as an integer, or null if NV or not shown
 - "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
 - "list_price" is the price as a number (e.g. 65.00). Use null only if truly unreadable.
@@ -617,7 +640,12 @@ class BaseAIClient:
         }
 
     async def analyze_single_wine(
-        self, wine: dict[str, Any], language: str = "en", currency: str = "USD"
+        self,
+        wine: dict[str, Any],
+        language: str = "en",
+        currency: str = "USD",
+        storage_temp: float | None = None,
+        storage_since: str | None = None,
     ) -> dict[str, Any]:
         """Analyze a single wine with AI — disposition, drink dates, and ratings.
 
@@ -628,10 +656,54 @@ class BaseAIClient:
         has the appellation, grape, alcohol %, and sometimes a printed
         tasting note.
 
+        `storage_temp` is the temperature (°C) of the rack the bottle sits
+        in, when known: a warm cellar ages wine faster than the cool-cellar
+        reference the aging guidelines assume, so it is passed along to
+        shift the drinking window accordingly. `storage_since` is when the
+        bottle entered that rack (ISO date): earlier conditions are unknown.
+
         Returns enriched data or {"error": "..."}.
         """
         current_year = datetime.now().year
         next_year = current_year + 1
+        # How long the bottle has really been in this rack. Before that its
+        # conditions are unknown, so the AI is told to assume standard ones:
+        # the rack's temperature only bears on the time spent (and still to
+        # be spent) there, not on the wine's whole life.
+        months_in_rack: int | None = None
+        if storage_temp is not None and storage_since:
+            try:
+                since = datetime.fromisoformat(str(storage_since).replace("Z", "+00:00"))
+                now = datetime.now(since.tzinfo)
+                months_in_rack = max(0, (now.year - since.year) * 12 + now.month - since.month)
+            except ValueError:
+                months_in_rack = None
+        if storage_temp is not None:
+            since_txt = (
+                f"in this cellar for about {months_in_rack} month(s)"
+                if months_in_rack is not None
+                else "in this cellar for an unknown time"
+            )
+            storage_line = (
+                f"Storage temperature: {storage_temp:g}°C (the cellar this bottle is kept in now; it has been {since_txt}. "
+                f"Before that its storage conditions are unknown)\n"
+            )
+            storage_rule = (
+                f"- STORAGE TEMPERATURE: the aging guidelines above assume a cool cellar of about 12-14°C, and you must assume "
+                f"those standard conditions for the bottle's whole past, since where it was kept before reaching this cellar is "
+                f"unknown. The bottle is now kept at {storage_temp:g}°C ({since_txt}). That temperature only changes how fast the "
+                f"wine evolves from now on (plus the months already spent here), so it can only move the part of the window that "
+                f"is still ahead of us, never the years already elapsed, and the shift can never exceed the years remaining before "
+                f"the window starts. If it is clearly warmer than 15°C the wine evolves faster: bring drink_window and peak_window "
+                f"earlier (roughly one year earlier per 3°C above 14°C over several years of storage, less for very age-worthy wines "
+                f"and almost nothing for a bottle that has just arrived in a wine that is already close to or inside its window). "
+                f"If it is clearly cooler than 11°C it evolves a little more slowly: move them slightly later. Between 11°C and 15°C "
+                f"make no adjustment. All the other rules still apply (peak inside the window, past-peak handling), and the answer "
+                f"must stay identical for the same wine, temperature and time in the cellar.\n"
+            )
+        else:
+            storage_line = ""
+            storage_rule = ""
         vintage = wine.get("vintage") or "NV"
         wine_type = wine.get("type", "red")
         name = wine.get("name", "Unknown")
@@ -656,7 +728,7 @@ Region: {region}
 Country: {country}
 Grape: {grape}
 Current drink_by: {drink_by}
-
+{storage_line}
 Return ONLY a JSON object with these fields:
 {{
   "disposition": "D or H or P",
@@ -696,7 +768,7 @@ Rules:
   - Dessert wines (Sauternes, Port): drink 10-20+ years, peak ~10 years in. "H".
   - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}", disposition "D".
 - When in doubt, consult the stored current drink_by date: it is a prior assessment and should not be ignored without strong reason.
-- CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
+{storage_rule}- CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
 - CRITICAL: If the wine is already past its intended drinking window (current year {current_year} is AFTER the drink_by year you would normally assign), the drink_window MUST end in a year BEFORE {current_year}, and disposition MUST be "P" (Past Peak). Do not backdate the window to a future year just because it seems safer to drink it now — if the vintage has already aged past its prime, show that honestly.
 - "description": Write a professional tasting-style description of what this wine is known for. If you know the wine, describe its character. If not, describe what to expect based on grape, region, and vintage.
 - "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this, based on standard sommelier pairing knowledge for the grape/style even if you don't know the specific wine.
@@ -843,6 +915,7 @@ class GeminiVisionClient(BaseAIClient):
         """Initialize the client."""
         super().__init__(hass)
         self._api_key = api_key
+        self._model = model
         self._api_url = build_gemini_api_url(model)
 
     async def _call_ai(
@@ -863,58 +936,90 @@ class GeminiVisionClient(BaseAIClient):
         if extra_image_base64:
             parts.append({"inlineData": {"mimeType": "image/jpeg", "data": extra_image_base64}})
 
-        body = {
-            "contents": [{"parts": parts}],
-            "generationConfig": {
-                "responseMimeType": "application/json",
-                "temperature": temperature,
-            },
+        generation_config: dict[str, Any] = {
+            "responseMimeType": "application/json",
+            "temperature": temperature,
         }
+        thinking_config = gemini_thinking_config(self._model)
+        if thinking_config:
+            generation_config["thinkingConfig"] = thinking_config
+        body = {"contents": [{"parts": parts}], "generationConfig": generation_config}
 
         candidates: list[Any] = []
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_s
         try:
-            timeout = aiohttp.ClientTimeout(total=timeout_s)
-            async with session.post(
-                self._api_url,
-                headers={"x-goog-api-key": self._api_key},
-                json=body,
-                timeout=timeout,
-            ) as resp:
-                resp_text = await resp.text()
+            attempt = 0
+            while True:
+                timeout = aiohttp.ClientTimeout(total=max(deadline - loop.time(), 1))
+                async with session.post(
+                    self._api_url,
+                    headers={"x-goog-api-key": self._api_key},
+                    json=body,
+                    timeout=timeout,
+                ) as resp:
+                    status = resp.status
+                    resp_text = await resp.text()
 
-                if resp.status in (401, 403):
-                    _LOGGER.error("Gemini API authentication failed (status %s)", resp.status)
-                    return {"error": f"Gemini API key is invalid (HTTP {resp.status})"}
+                if status not in GEMINI_RETRY_STATUSES or attempt >= len(GEMINI_RETRY_DELAYS_S):
+                    break
+                delay = GEMINI_RETRY_DELAYS_S[attempt]
+                if deadline - loop.time() < delay + GEMINI_MIN_ATTEMPT_S:
+                    break
+                _LOGGER.warning(
+                    "Gemini API returned status %s, retrying in %ss (attempt %s)",
+                    status, delay, attempt + 2,
+                )
+                await asyncio.sleep(delay)
+                attempt += 1
 
-                if resp.status == 429:
-                    _LOGGER.error("Gemini API quota exhausted: %s", resp_text[:300])
-                    return {
-                        "error": "Gemini API free tier quota exhausted. "
-                        "Enable billing at console.cloud.google.com or "
-                        "create a new API key at aistudio.google.com/apikey"
-                    }
+            if status in (401, 403):
+                _LOGGER.error("Gemini API authentication failed (status %s)", status)
+                return {"error": f"Gemini API key is invalid (HTTP {status})"}
 
-                if resp.status != 200:
-                    _LOGGER.error(
-                        "Gemini API returned status %s: %s", resp.status, resp_text[:500]
-                    )
-                    return {"error": f"Gemini API error (HTTP {resp.status})"}
+            if status == 429:
+                _LOGGER.error("Gemini API quota exhausted: %s", resp_text[:300])
+                return {
+                    "error": "Gemini API free tier quota exhausted. "
+                    "Enable billing at console.cloud.google.com or "
+                    "create a new API key at aistudio.google.com/apikey"
+                }
 
-                data = json.loads(resp_text)
-                candidates = data.get("candidates", [])
-                if not candidates:
-                    _LOGGER.warning("Gemini returned no candidates: %s", resp_text[:500])
-                    return {"error": "Gemini returned no results"}
+            if status == 404:
+                _LOGGER.error("Gemini model not found: %s", resp_text[:500])
+                return {
+                    "error": "Gemini model not found (HTTP 404). Google may have retired it; "
+                    "pick a current model in the integration settings"
+                }
 
-                content = candidates[0].get("content", {})
-                parts_out = content.get("parts", [])
-                if not parts_out:
-                    _LOGGER.warning("Gemini response has no parts")
-                    return {"error": "Gemini returned empty response"}
+            if status in GEMINI_RETRY_STATUSES:
+                _LOGGER.error(
+                    "Gemini API still returned status %s after retries: %s", status, resp_text[:500]
+                )
+                return {
+                    "error": f"Gemini is overloaded right now (HTTP {status}). "
+                    "Try again in a minute"
+                }
 
-                text = parts_out[0].get("text", "")
-                _LOGGER.debug("Gemini raw response: %s", text[:500])
-                return parse_json_response(text)
+            if status != 200:
+                _LOGGER.error("Gemini API returned status %s: %s", status, resp_text[:500])
+                return {"error": f"Gemini API error (HTTP {status})"}
+
+            data = json.loads(resp_text)
+            candidates = data.get("candidates", [])
+            if not candidates:
+                _LOGGER.warning("Gemini returned no candidates: %s", resp_text[:500])
+                return {"error": "Gemini returned no results"}
+
+            content = candidates[0].get("content", {})
+            parts_out = content.get("parts", [])
+            if not parts_out:
+                _LOGGER.warning("Gemini response has no parts")
+                return {"error": "Gemini returned empty response"}
+
+            text = parts_out[0].get("text", "")
+            _LOGGER.debug("Gemini raw response: %s", text[:500])
+            return parse_json_response(text)
 
         except json.JSONDecodeError as err:
             finish_reason = candidates[0].get("finishReason") if candidates else None

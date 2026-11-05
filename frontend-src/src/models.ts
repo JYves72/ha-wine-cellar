@@ -70,6 +70,8 @@ export interface Wine {
   ai_updated_at: string | null;
   ai_checked_at: string | null;
   vivino_id: number | null;
+  // True when the user picked the Vivino page by hand: never re-searched or second-guessed.
+  vivino_linked?: boolean;
   // When cabinet_id/row/col/zone last actually changed — what a zone's
   // temp/humidity sensor is checked against before it's trusted as this
   // bottle's own temperature (see utils/chambering.ts).
@@ -187,6 +189,12 @@ export interface Cabinet {
   // (see utils/chambering.ts).
   temp_sensor_entity_id: string;
   humidity_sensor_entity_id: string;
+  // For a rack whose thermometer isn't connected: set the matching sensor id
+  // to MANUAL_SENSOR and type the reading in by hand. *_at is when it was typed.
+  temp_manual_value?: number | null;
+  temp_manual_at?: string | null;
+  humidity_manual_value?: number | null;
+  humidity_manual_at?: string | null;
 }
 
 export interface CellarStats {
