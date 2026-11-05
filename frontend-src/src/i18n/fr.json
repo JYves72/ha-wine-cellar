@@ -411,6 +411,8 @@
       "oneFree": "1 libre",
       "nFree": "{n} libres",
       "noRoomSplit": "Plus de place là-bas — répartissez la série dans",
+      "suggestedTitleByType": "Suggéré — là où ce type est rangé",
+      "noRoomPutIn": "Plus de place là-bas — mettez-la dans",
       "orFreeSlotFirst": ", ou libérez d'abord un emplacement.",
       "chooseLocation": "Choisir un emplacement",
       "selectCabinetHint": "Choisissez un rack et une position pour cette bouteille",

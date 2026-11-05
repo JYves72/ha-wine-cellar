@@ -1157,6 +1157,8 @@ var ui$1 = {
 		oneFree: "1 free",
 		nFree: "{n} free",
 		noRoomSplit: "No room left there — split the series into",
+		suggestedTitleByType: "Suggested — where this type is kept",
+		noRoomPutIn: "No room left there — put it in",
 		orFreeSlotFirst: ", or free a slot first.",
 		chooseLocation: "Choose Location",
 		selectCabinetHint: "Select a cabinet and position for this bottle",
@@ -1935,6 +1937,8 @@ var ui = {
 		oneFree: "1 libre",
 		nFree: "{n} libres",
 		noRoomSplit: "Plus de place là-bas — répartissez la série dans",
+		suggestedTitleByType: "Suggéré — là où ce type est rangé",
+		noRoomPutIn: "Plus de place là-bas — mettez-la dans",
 		orFreeSlotFirst: ", ou libérez d'abord un emplacement.",
 		chooseLocation: "Choisir un emplacement",
 		selectCabinetHint: "Choisissez un rack et une position pour cette bouteille",
@@ -2884,6 +2888,26 @@ function freeAt(target, cabinets, wines) {
     const used = wines.filter((w) => w.cabinet_id === cabinet.id && w.row !== null && w.col !== null).length;
     return Math.max(0, total - used);
 }
+// The share of one type above which a container reads as "the sparkling bin",
+// even though nothing declares it so. The arrangement report uses it to spot
+// intruders, the add dialog to point a bottle at its type's usual home.
+const TYPE_DOMINANCE = 0.75;
+function dominantType(bottles) {
+    const counts = new Map();
+    for (const w of bottles)
+        counts.set(w.type, (counts.get(w.type) || 0) + 1);
+    let best = null;
+    let bestCount = 0;
+    for (const [type, count] of counts) {
+        if (count > bestCount) {
+            best = type;
+            bestCount = count;
+        }
+    }
+    if (best === null)
+        return null;
+    return { type: best, count: bestCount, share: bestCount / bottles.length };
+}
 
 const TIER_ORDER = ["same-wine", "same-winery", "same-family"];
 const key = (value) => normalizeText(value).trim();
@@ -2898,6 +2922,24 @@ function cuveeKey(value) {
         .replace(/[^a-z0-9]+/g, " ")
         .trim();
 }
+const words = (value) => key(value).replace(/[^a-z0-9]+/g, " ").trim();
+// Regions are free text from three sources (the AI, Vivino, the user), so the
+// same place arrives as "Champagne", "Champagne, France" or "Champagne Grand
+// Cru". One containing the other as whole words is the same family; a bare
+// country ("France" against "Champagne, France") is not a region and would
+// make every bottle from that country a relative.
+function sameRegion(draft, wine) {
+    const a = words(draft.region);
+    const b = words(wine.region);
+    if (!a || !b)
+        return false;
+    if (a === b)
+        return true;
+    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+    if (!` ${longer} `.includes(` ${shorter} `))
+        return false;
+    return shorter !== words(draft.country) && shorter !== words(wine.country);
+}
 function tierOf(draft, wine) {
     const dName = cuveeKey(draft.name);
     const dWinery = key(draft.winery);
@@ -2909,10 +2951,8 @@ function tierOf(draft, wine) {
         return "same-wine";
     if (dWinery && dWinery === wWinery)
         return "same-winery";
-    const dRegion = key(draft.region);
-    if (dRegion && dRegion === key(wine.region) && draft.type && draft.type === wine.type) {
+    if (draft.type && draft.type === wine.type && sameRegion(draft, wine))
         return "same-family";
-    }
     return null;
 }
 function vintageList(wines) {
@@ -2932,6 +2972,10 @@ function reasonFor(tier, draft, matches) {
     if (tier === "same-winery") {
         const winery = matches[0]?.winery || draft.winery || "this winery";
         return `${bottles} from ${winery} here`;
+    }
+    if (tier === "same-type") {
+        const type = WINE_TYPE_LABELS[draft.type] || draft.type || "";
+        return `${bottles} of ${type} here`;
     }
     const first = matches[0];
     const region = first?.region || draft.region || "";
@@ -2970,6 +3014,8 @@ function alternativeFor(full, cabinet, wines, matchIds) {
 // holds nothing related — better to say nothing than to invent a reason.
 function suggestDestinations(draft, wines, cabinets, limit = 3) {
     const byContainer = new Map();
+    // Everything each live container holds, for the same-type fallback.
+    const contents = new Map();
     for (const wine of wines) {
         const container = containerOf(wine);
         if (!container)
@@ -2984,6 +3030,12 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
             continue;
         if (container.kind === "bottom" && !cabinet.has_bottom_zone)
             continue;
+        const ck = containerKey(container);
+        const held = contents.get(ck);
+        if (held)
+            held.bottles.push(wine);
+        else
+            contents.set(ck, { container, bottles: [wine] });
         const tier = tierOf(draft, wine);
         if (!tier)
             continue;
@@ -3004,7 +3056,28 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
             bestPerContainer.set(k, entry);
         }
     }
-    const ranked = Array.from(bestPerContainer.values()).sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || b.matches.length - a.matches.length);
+    let ranked = Array.from(bestPerContainer.values()).sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || b.matches.length - a.matches.length);
+    // No relative anywhere: fall back on the containers this type has made its
+    // own, by the same measure the arrangement report uses. Those with room come
+    // first — unlike a relative's bin, a type's home is interchangeable with the
+    // next one, so a full one is the least useful of them.
+    if (!ranked.length && draft.type) {
+        ranked = Array.from(contents.values())
+            .map(({ container, bottles }) => {
+            const dom = dominantType(bottles);
+            if (!dom || dom.type !== draft.type || dom.share < TYPE_DOMINANCE)
+                return null;
+            const cabinet = cabinets.find((c) => c.id === container.cabinetId);
+            return {
+                container,
+                tier: "same-type",
+                matches: bottles.filter((w) => w.type === draft.type),
+                full: containerUsage(container, cabinet, wines).full,
+            };
+        })
+            .filter((x) => x !== null)
+            .sort((a, b) => Number(a.full) - Number(b.full) || b.matches.length - a.matches.length);
+    }
     return ranked.slice(0, limit).map((entry) => {
         const cabinet = cabinets.find((c) => c.id === entry.container.cabinetId);
         const usage = containerUsage(entry.container, cabinet, wines);
@@ -3023,7 +3096,6 @@ function suggestDestinations(draft, wines, cabinets, limit = 3) {
 
 const MIN_GROUP_BOTTLES = 3;
 const MIN_CONTAINER_BOTTLES = 4;
-const DOMINANCE = 0.75;
 const MAX_INTRUDERS = 2;
 const groupKey = (w) => `${cuveeKey(w.name)}|${normalizeText(w.winery).trim()}`.replace(/^\||\|$/g, "");
 // A bottle whose window is closing: explicitly marked drink/past, or carrying a
@@ -3054,22 +3126,6 @@ function placedWines(wines, live) {
     return wines
         .map((wine) => ({ wine, container: containerOf(wine) }))
         .filter((x) => x.container !== null && live.has(containerKey(x.container)));
-}
-function dominantType(bottles) {
-    const counts = new Map();
-    for (const w of bottles)
-        counts.set(w.type, (counts.get(w.type) || 0) + 1);
-    let best = null;
-    let bestCount = 0;
-    for (const [type, count] of counts) {
-        if (count > bestCount) {
-            best = type;
-            bestCount = count;
-        }
-    }
-    if (best === null)
-        return null;
-    return { type: best, share: bestCount / bottles.length };
 }
 // Bottles of one wine scattered across several places. The fix is real work,
 // so only worth raising for a series big enough to be worth gathering.
@@ -3171,7 +3227,7 @@ function findOutliers(placed, live, cabinets, wines, language) {
     const homes = new Map();
     for (const [ck, bottles] of byContainer) {
         const dom = dominantType(bottles);
-        if (!dom || dom.share < DOMINANCE)
+        if (!dom || dom.share < TYPE_DOMINANCE)
             continue;
         const entry = live.get(ck);
         const list = homes.get(dom.type) || [];
@@ -3183,7 +3239,7 @@ function findOutliers(placed, live, cabinets, wines, language) {
         if (bottles.length < MIN_CONTAINER_BOTTLES)
             continue;
         const dom = dominantType(bottles);
-        if (!dom || dom.share < DOMINANCE)
+        if (!dom || dom.share < TYPE_DOMINANCE)
             continue;
         const intruders = bottles.filter((w) => w.type !== dom.type);
         if (!intruders.length || intruders.length > MAX_INTRUDERS)
@@ -8816,6 +8872,8 @@ let AddWineDialog = class AddWineDialog extends i {
         if (!suggestions.length)
             return A;
         const current = containerOf(this._wineData);
+        // The same-type fallback only appears alone, so one tier says it all.
+        const byType = suggestions[0].tier === "same-type";
         const spaceText = (s) => {
             if (s.usage.full)
                 return this._t("ui.addWine.fullUsage", { used: s.usage.used, capacity: s.usage.capacity });
@@ -8825,7 +8883,9 @@ let AddWineDialog = class AddWineDialog extends i {
         };
         return b `
       <div class="suggest-strip">
-        <div class="suggest-title">${this._t("ui.addWine.suggestedTitle")}</div>
+        <div class="suggest-title">
+          ${byType ? this._t("ui.addWine.suggestedTitleByType") : this._t("ui.addWine.suggestedTitle")}
+        </div>
         ${suggestions.map((s) => {
             const selected = !!current && sameContainer(current, s.container);
             return b `
@@ -8843,7 +8903,7 @@ let AddWineDialog = class AddWineDialog extends i {
             ${s.alternative
                 ? b `
                   <div class="suggest-alt">
-                    ${this._t("ui.addWine.noRoomSplit")}
+                    ${byType ? this._t("ui.addWine.noRoomPutIn") : this._t("ui.addWine.noRoomSplit")}
                     <button @click=${() => this._applyContainer(s.alternative.container)}>
                       ${s.alternative.label}
                     </button>

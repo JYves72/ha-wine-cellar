@@ -411,6 +411,8 @@
       "oneFree": "1 free",
       "nFree": "{n} free",
       "noRoomSplit": "No room left there — split the series into",
+      "suggestedTitleByType": "Suggested — where this type is kept",
+      "noRoomPutIn": "No room left there — put it in",
       "orFreeSlotFirst": ", or free a slot first.",
       "chooseLocation": "Choose Location",
       "selectCabinetHint": "Select a cabinet and position for this bottle",
