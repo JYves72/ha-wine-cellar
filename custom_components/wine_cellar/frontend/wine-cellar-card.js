@@ -6596,7 +6596,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
     async _rejectVivinoMatch() {
         const undo = this._vivinoUndo;
         const wineId = this.wine?.id ?? "";
-        if (!undo || undo.wineId !== wineId || !this.hass)
+        if (!this.wine || !this.hass)
             return;
         this._pendingVivinoImage = null;
         this._photoBusy = true;
@@ -6604,7 +6604,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             const resp = await this.hass.callWS({
                 type: "wine_cellar/revert_vivino_match",
                 wine_id: wineId,
-                previous: undo.previous,
+                previous: undo && undo.wineId === wineId ? undo.previous : {},
             });
             this._vivinoUndo = null;
             if (resp.wine && this._applyIfStillShowing(wineId, resp.wine)) {
@@ -7207,7 +7207,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                             @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._unlinkVivino(); }}
                           >✕ ${this._t("ui.wineDetail.linkRemoveBtn")}</a>`
                     : A}
-                      ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
+                      ${(wine.vivino_id && !wine.vivino_linked) || (this._vivinoUndo && this._vivinoUndo.wineId === wine.id)
                     ? b `<a href="#" style="color:#c62828;text-decoration:underline"
                             @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
                           >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`

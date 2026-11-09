@@ -1561,7 +1561,7 @@ async def ws_refresh_wine(
     {
         vol.Required("type"): "wine_cellar/revert_vivino_match",
         vol.Required("wine_id"): str,
-        vol.Required("previous"): dict,
+        vol.Optional("previous", default={}): dict,
     }
 )
 @websocket_api.async_response
@@ -1572,8 +1572,11 @@ async def ws_revert_vivino_match(
 ) -> None:
     """Undo a Vivino lookup the user says matched the wrong wine.
 
-    `previous` is the snapshot ws_refresh_wine returned. The rejected Vivino
-    page is remembered so the next search doesn't propose it again.
+    `previous` is the snapshot ws_refresh_wine returned (empty when rejecting
+    a match made earlier). The rejected Vivino page is remembered and the
+    wine's tie to it is cut: its id, link flag and the Vivino rating, which
+    came from that page. Only when the snapshot holds a different Vivino page
+    (a good one the lookup replaced) is that one put back instead.
     """
     storage = hass.data[DOMAIN]["storage"]
     wine = storage.get_wine(msg["wine_id"])
@@ -1586,6 +1589,11 @@ async def ws_revert_vivino_match(
     if bad_id and bad_id not in rejected:
         rejected.append(bad_id)
     restore["vivino_rejected_ids"] = rejected
+    if restore.get("vivino_id") in (None, bad_id):
+        restore.update({
+            "vivino_id": None, "vivino_linked": False,
+            "rating": None, "ratings_count": None,
+        })
     updated = storage.update_wine(msg["wine_id"], restore)
     if updated:
         _propagate_to_duplicates(storage, updated, restore)
