@@ -93,6 +93,10 @@ SUPPORTED_METADATA_CURRENCIES = ["USD", "EUR", "GBP", "CHF"]
 # applying automatically. "always" skips asking and just uses AI every time.
 CONF_AI_FALLBACK_ALWAYS = "ai_fallback_always"
 
+# When Vivino's photo differs from the one the user already has, the card asks
+# which to keep. With this on it never asks: the user's photo always stays.
+CONF_VIVINO_KEEP_PHOTO = "vivino_keep_photo"
+
 # Whether "whisky" is offered as a selectable bottle type in the UI (add-wine
 # type dropdown, edit-type dropdown, filter chips). Off by default: most
 # cellars track wine only. Existing whisky-typed bottles keep displaying
@@ -162,4 +166,4 @@ DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20261105e"
+FRONTEND_VERSION = "20261109a"

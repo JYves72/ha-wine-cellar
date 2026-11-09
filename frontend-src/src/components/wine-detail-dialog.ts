@@ -46,6 +46,10 @@ export class WineDetailDialog extends LitElement {
   @state() private _aiFallbackReason: "no_match" | "no_price" | null = null;
   // Link-a-Vivino-page dialog
   @state() private _linkOpen = false;
+  // What the last Vivino lookup overwrote, kept so "not the right wine" can put it back.
+  @state() private _vivinoUndo: { wineId: string; previous: Record<string, unknown> } | null = null;
+  @state() private _keepPhotoAlways = false;
+  @state() private _unlinking = false;
   @state() private _linkUrl = "";
   @state() private _linkError = "";
   @state() private _linking = false;
@@ -935,6 +939,7 @@ export class WineDetailDialog extends LitElement {
     const wineId = this.wine?.id ?? "";
     if (!this.wine || !this.hass) return;
     this._refreshing = true;
+    this._vivinoUndo = null;
     try {
       const resp = await this.hass.callWS({
         type: "wine_cellar/refresh_wine",
@@ -958,8 +963,12 @@ export class WineDetailDialog extends LitElement {
       } else if (resp.wine) {
         if (!this._applyIfStillShowing(wineId, resp.wine)) return;
         this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+        if (resp.previous && Object.keys(resp.previous).length) {
+          this._vivinoUndo = { wineId, previous: resp.previous };
+        }
         if (resp.vivino_image_url) {
           this._pendingVivinoImage = resp.vivino_image_url;
+          this._keepPhotoAlways = false;
         }
         if (resp.price_needs_ai) {
           this._aiFallbackReason = "no_price";
@@ -997,6 +1006,7 @@ export class WineDetailDialog extends LitElement {
         this._linkError = this._t("ui.wineDetail.linkFailed");
       } else {
         this._linkOpen = false;
+        this._vivinoUndo = null;
         if (this._applyIfStillShowing(wineId, resp.wine)) {
           this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
           if (resp.vivino_image_url) this._pendingVivinoImage = resp.vivino_image_url;
@@ -1007,6 +1017,47 @@ export class WineDetailDialog extends LitElement {
       this._linkError = this._t("ui.wineDetail.linkFailed");
     }
     this._linking = false;
+  }
+
+  private async _rejectVivinoMatch() {
+    const undo = this._vivinoUndo;
+    const wineId = this.wine?.id ?? "";
+    if (!undo || undo.wineId !== wineId || !this.hass) return;
+    this._pendingVivinoImage = null;
+    this._photoBusy = true;
+    try {
+      const resp = await this.hass.callWS({
+        type: "wine_cellar/revert_vivino_match",
+        wine_id: wineId,
+        previous: undo.previous,
+      });
+      this._vivinoUndo = null;
+      if (resp.wine && this._applyIfStillShowing(wineId, resp.wine)) {
+        this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+      }
+    } catch (err) {
+      console.error("Vivino revert failed", err);
+      alert(this._t("ui.wineDetail.wrongWineFailed"));
+    }
+    this._photoBusy = false;
+  }
+
+  private async _unlinkVivino() {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    if (!window.confirm(this._t("ui.wineDetail.linkRemoveConfirm"))) return;
+    this._unlinking = true;
+    try {
+      const resp = await this.hass.callWS({ type: "wine_cellar/unlink_vivino", wine_id: wineId });
+      this._linkOpen = false;
+      if (resp.wine && this._applyIfStillShowing(wineId, resp.wine)) {
+        this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+      }
+    } catch (err) {
+      console.error("Vivino unlink failed", err);
+      alert(this._t("ui.wineDetail.linkRemoveFailed"));
+    }
+    this._unlinking = false;
   }
 
   private async _confirmAiFallback(remember: boolean) {
@@ -1069,6 +1120,14 @@ export class WineDetailDialog extends LitElement {
 
   private _dismissVivinoPhoto() {
     this._pendingVivinoImage = null;
+    if (this._keepPhotoAlways) {
+      this._keepPhotoAlways = false;
+      this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", {
+        detail: { value: true },
+        bubbles: true,
+        composed: true,
+      }));
+    }
   }
 
   private _onDeletePhoto() {
@@ -1538,10 +1597,28 @@ export class WineDetailDialog extends LitElement {
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
                 ${this.mode === "cellar"
-                  ? html`<div style="text-align:center;font-size:0.72em;margin:-6px 0 6px">
-                      <a href="#" style="color:var(--wc-text-secondary);text-decoration:underline"
+                  ? html`<div style="text-align:center;font-size:0.78em;margin:-4px 0 8px;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:center;align-items:center">
+                      ${wine.vivino_id
+                        ? html`<span style="color:var(--wc-text)">${wine.vivino_linked ? "🔗" : "🍇"}
+                            ${wine.vivino_linked ? this._t("ui.wineDetail.linkedLabel") : this._t("ui.wineDetail.matchedLabel")}${this._t("ui.common.colonSep")}<a
+                              href="https://www.vivino.com/w/${wine.vivino_id}" target="_blank" rel="noopener noreferrer"
+                              style="color:#8e24aa;text-decoration:underline"
+                              @click=${(e: Event) => e.stopPropagation()}
+                            >vivino.com/w/${wine.vivino_id}</a></span>`
+                        : nothing}
+                      <a href="#" style="color:#8e24aa;text-decoration:underline"
                         @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._openVivinoLink(); }}
-                      >🔗 ${wine.vivino_id ? this._t("ui.wineDetail.linkVivinoChange") : this._t("ui.wineDetail.linkVivinoBtn")}</a>
+                      >${wine.vivino_id ? this._t("ui.wineDetail.linkVivinoChange") : `🔗 ${this._t("ui.wineDetail.linkVivinoBtn")}`}</a>
+                      ${wine.vivino_id && wine.vivino_linked
+                        ? html`<a href="#" style="color:#c62828;text-decoration:underline"
+                            @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._unlinkVivino(); }}
+                          >✕ ${this._t("ui.wineDetail.linkRemoveBtn")}</a>`
+                        : nothing}
+                      ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
+                        ? html`<a href="#" style="color:#c62828;text-decoration:underline"
+                            @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
+                          >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`
+                        : nothing}
                     </div>`
                   : nothing}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
@@ -1801,6 +1878,18 @@ export class WineDetailDialog extends LitElement {
                   >${this._t("ui.wineDetail.keepMyPhotoBtn")}</button>
                   <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
+                <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:0.78em;color:var(--wc-text-secondary);cursor:pointer">
+                  <input type="checkbox" .checked=${this._keepPhotoAlways}
+                    @change=${(e: Event) => (this._keepPhotoAlways = (e.target as HTMLInputElement).checked)} />
+                  ${this._t("ui.wineDetail.alwaysKeepPhoto")}
+                </label>
+                ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
+                  ? html`<button
+                      style="margin-top:12px;padding:6px 14px;border-radius:16px;border:1px solid #c62828;background:transparent;color:#c62828;cursor:pointer;font-size:0.8em"
+                      ?disabled=${this._photoBusy}
+                      @click=${this._rejectVivinoMatch}
+                    >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</button>`
+                  : nothing}
               </div>
             </div>
           ` : nothing}
@@ -1841,6 +1930,12 @@ export class WineDetailDialog extends LitElement {
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:340px;width:90%" @click=${(e: Event) => e.stopPropagation()}>
                 <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.linkTitle")}</h3>
                 <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.linkBody")}</p>
+                ${wine.vivino_id
+                  ? html`<p style="margin:0 0 12px;font-size:0.82em;color:var(--wc-text)">${this._t("ui.wineDetail.linkCurrent")}${this._t("ui.common.colonSep")}<a
+                      href="https://www.vivino.com/w/${wine.vivino_id}" target="_blank" rel="noopener noreferrer"
+                      style="color:#8e24aa;text-decoration:underline"
+                    >vivino.com/w/${wine.vivino_id}</a> (${wine.vivino_linked ? this._t("ui.wineDetail.linkCurrentManual") : this._t("ui.wineDetail.linkCurrentAuto")})</p>`
+                  : nothing}
                 <input
                   type="url"
                   style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--wc-border);border-radius:8px;background:transparent;color:var(--wc-text);font-size:0.9em"
@@ -1850,7 +1945,14 @@ export class WineDetailDialog extends LitElement {
                   @keydown=${(e: KeyboardEvent) => { if (e.key === "Enter") this._submitVivinoLink(); }}
                 />
                 ${this._linkError ? html`<div style="margin-top:8px;font-size:0.8em;color:#c62828">${this._linkError}</div>` : nothing}
-                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px;flex-wrap:wrap">
+                  ${wine.vivino_id && wine.vivino_linked
+                    ? html`<button
+                        style="margin-right:auto;padding:6px 12px;border-radius:16px;border:1px solid #c62828;background:transparent;color:#c62828;cursor:pointer;font-size:0.8em"
+                        ?disabled=${this._unlinking}
+                        @click=${() => this._unlinkVivino()}
+                      >✕ ${this._t("ui.wineDetail.linkRemoveBtn")}</button>`
+                    : nothing}
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._linkOpen = false)}

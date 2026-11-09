@@ -87,6 +87,7 @@ export class WineCellarCard extends LitElement {
   @state() private _metadataCurrency = "USD";
   @state() private _supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
   @state() private _aiFallbackAlways = false;
+  @state() private _vivinoKeepPhoto = false;
   @state() private _enableWhisky = false;
   @state() private _defaultWineType: WineType = "red";
   @state() private _dispositionDisplay: "letter" | "dot" = "letter";
@@ -679,6 +680,7 @@ export class WineCellarCard extends LitElement {
       this._metadataCurrency = capResult?.metadata_currency || "USD";
       this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
+      this._vivinoKeepPhoto = capResult?.vivino_keep_photo || false;
       this._enableWhisky = capResult?.enable_whisky || false;
       this._defaultWineType = capResult?.default_wine_type || "red";
       this._dispositionDisplay = capResult?.disposition_display || "letter";
@@ -2196,6 +2198,21 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  private async _setVivinoKeepPhoto(value: boolean) {
+    if (value === this._vivinoKeepPhoto) return;
+    const previous = this._vivinoKeepPhoto;
+    this._vivinoKeepPhoto = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { vivino_keep_photo: value },
+      });
+    } catch (err) {
+      this._vivinoKeepPhoto = previous;
+      this._showToast(this._t("toast.changeAiFallbackFailed"));
+    }
+  }
+
   private async _setEnableWhisky(value: boolean) {
     if (value === this._enableWhisky) return;
     const previous = this._enableWhisky;
@@ -3208,6 +3225,7 @@ export class WineCellarCard extends LitElement {
           @copy-wine=${(e: CustomEvent) => this._copyWine(e.detail.wine)}
           @locate-wine=${(e: CustomEvent) => this._locateWine(e.detail.wine)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
+          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @move-wine=${(e: CustomEvent) => {
             this._showDetail = false;
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
@@ -3277,6 +3295,7 @@ export class WineCellarCard extends LitElement {
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           .aiFallbackAlways=${this._aiFallbackAlways}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
+          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e: CustomEvent) => {
@@ -3314,6 +3333,7 @@ export class WineCellarCard extends LitElement {
           .open=${this._showVivinoAiSettings}
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .vivinoKeepPhoto=${this._vivinoKeepPhoto}
           .enableWhisky=${this._enableWhisky}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
@@ -3323,6 +3343,7 @@ export class WineCellarCard extends LitElement {
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
+          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @set-enable-whisky=${(e: CustomEvent) => this._setEnableWhisky(e.detail.value)}
           @set-default-wine-type=${(e: CustomEvent) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e: CustomEvent) => this._setDispositionDisplay(e.detail.value)}

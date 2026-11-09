@@ -1286,6 +1286,17 @@ var ui$1 = {
 		linkInvalid: "This isn't a Vivino wine page link (it should contain /w/ followed by a number).",
 		linkNotFound: "Vivino has no wine with this id.",
 		linkFailed: "The link could not be applied. Try again.",
+		wrongWineBtn: "Not the right wine",
+		wrongWineFailed: "Could not undo the Vivino match. Try again.",
+		alwaysKeepPhoto: "Always keep my photo (don't ask again)",
+		linkedLabel: "Linked Vivino page",
+		matchedLabel: "Vivino page (found automatically)",
+		linkCurrent: "Current link",
+		linkCurrentManual: "linked by hand",
+		linkCurrentAuto: "found automatically",
+		linkRemoveBtn: "Remove the link",
+		linkRemoveConfirm: "Remove the link to this Vivino page? The data already fetched is kept.",
+		linkRemoveFailed: "Could not remove the link. Try again.",
 		noVivinoMatchTitle: "No Vivino Match",
 		noPriceFoundTitle: "No Price Found",
 		vivinoNoMatchBody: "Vivino couldn't find a confident match for this wine. Try AI instead?",
@@ -1382,6 +1393,7 @@ var ui$1 = {
 	vivinoAiSettings: {
 		title: "Settings",
 		alwaysTryAi: "Always try AI when Vivino finds no match",
+		keepMyPhoto: "Always keep my photo when Vivino offers a different one",
 		enableWhisky: "Track whisky bottles (offer \"Whisky\" as a type)",
 		defaultWineTypeLabel: "Default wine type",
 		dispositionDisplayLabel: "Drink Now / Hold / Past Peak display",
@@ -2090,6 +2102,17 @@ var ui = {
 		linkInvalid: "Ce n'est pas un lien vers une fiche de vin Vivino (il doit contenir /w/ suivi d'un nombre).",
 		linkNotFound: "Vivino ne connaît aucun vin avec cet identifiant.",
 		linkFailed: "Le lien n'a pas pu être appliqué. Réessayez.",
+		wrongWineBtn: "Ce n'est pas le bon vin",
+		wrongWineFailed: "Impossible d'annuler la correspondance Vivino. Réessayez.",
+		alwaysKeepPhoto: "Toujours garder ma photo (ne plus demander)",
+		linkedLabel: "Fiche Vivino liée",
+		matchedLabel: "Fiche Vivino (trouvée automatiquement)",
+		linkCurrent: "Lien actuel",
+		linkCurrentManual: "lié à la main",
+		linkCurrentAuto: "trouvé automatiquement",
+		linkRemoveBtn: "Supprimer le lien",
+		linkRemoveConfirm: "Supprimer le lien vers cette fiche Vivino ? Les données déjà récupérées sont conservées.",
+		linkRemoveFailed: "Impossible de supprimer le lien. Réessayez.",
 		noVivinoMatchTitle: "Aucune correspondance Vivino",
 		noPriceFoundTitle: "Aucun prix trouvé",
 		vivinoNoMatchBody: "Vivino n'a pas trouvé de correspondance fiable pour ce vin. Essayer avec l'IA ?",
@@ -2186,6 +2209,7 @@ var ui = {
 	vivinoAiSettings: {
 		title: "Paramètres",
 		alwaysTryAi: "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
+		keepMyPhoto: "Toujours garder ma photo quand Vivino en propose une autre",
 		enableWhisky: "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
 		defaultWineTypeLabel: "Type de vin par défaut",
 		dispositionDisplayLabel: "Affichage à boire/à garder/sur le déclin",
@@ -6151,6 +6175,10 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._aiFallbackReason = null;
         // Link-a-Vivino-page dialog
         this._linkOpen = false;
+        // What the last Vivino lookup overwrote, kept so "not the right wine" can put it back.
+        this._vivinoUndo = null;
+        this._keepPhotoAlways = false;
+        this._unlinking = false;
         this._linkUrl = "";
         this._linkError = "";
         this._linking = false;
@@ -6478,6 +6506,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         if (!this.wine || !this.hass)
             return;
         this._refreshing = true;
+        this._vivinoUndo = null;
         try {
             const resp = await this.hass.callWS({
                 type: "wine_cellar/refresh_wine",
@@ -6504,8 +6533,12 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 if (!this._applyIfStillShowing(wineId, resp.wine))
                     return;
                 this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+                if (resp.previous && Object.keys(resp.previous).length) {
+                    this._vivinoUndo = { wineId, previous: resp.previous };
+                }
                 if (resp.vivino_image_url) {
                     this._pendingVivinoImage = resp.vivino_image_url;
+                    this._keepPhotoAlways = false;
                 }
                 if (resp.price_needs_ai) {
                     this._aiFallbackReason = "no_price";
@@ -6546,6 +6579,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             }
             else {
                 this._linkOpen = false;
+                this._vivinoUndo = null;
                 if (this._applyIfStillShowing(wineId, resp.wine)) {
                     this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
                     if (resp.vivino_image_url)
@@ -6558,6 +6592,50 @@ let WineDetailDialog = class WineDetailDialog extends i {
             this._linkError = this._t("ui.wineDetail.linkFailed");
         }
         this._linking = false;
+    }
+    async _rejectVivinoMatch() {
+        const undo = this._vivinoUndo;
+        const wineId = this.wine?.id ?? "";
+        if (!undo || undo.wineId !== wineId || !this.hass)
+            return;
+        this._pendingVivinoImage = null;
+        this._photoBusy = true;
+        try {
+            const resp = await this.hass.callWS({
+                type: "wine_cellar/revert_vivino_match",
+                wine_id: wineId,
+                previous: undo.previous,
+            });
+            this._vivinoUndo = null;
+            if (resp.wine && this._applyIfStillShowing(wineId, resp.wine)) {
+                this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+            }
+        }
+        catch (err) {
+            console.error("Vivino revert failed", err);
+            alert(this._t("ui.wineDetail.wrongWineFailed"));
+        }
+        this._photoBusy = false;
+    }
+    async _unlinkVivino() {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        if (!window.confirm(this._t("ui.wineDetail.linkRemoveConfirm")))
+            return;
+        this._unlinking = true;
+        try {
+            const resp = await this.hass.callWS({ type: "wine_cellar/unlink_vivino", wine_id: wineId });
+            this._linkOpen = false;
+            if (resp.wine && this._applyIfStillShowing(wineId, resp.wine)) {
+                this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+            }
+        }
+        catch (err) {
+            console.error("Vivino unlink failed", err);
+            alert(this._t("ui.wineDetail.linkRemoveFailed"));
+        }
+        this._unlinking = false;
     }
     async _confirmAiFallback(remember) {
         this._aiFallbackReason = null;
@@ -6620,6 +6698,14 @@ let WineDetailDialog = class WineDetailDialog extends i {
     }
     _dismissVivinoPhoto() {
         this._pendingVivinoImage = null;
+        if (this._keepPhotoAlways) {
+            this._keepPhotoAlways = false;
+            this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", {
+                detail: { value: true },
+                bubbles: true,
+                composed: true,
+            }));
+        }
     }
     _onDeletePhoto() {
         const field = this._photoSide === "back" ? "back_image_url" : "image_url";
@@ -7104,10 +7190,28 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     @click=${this._onRemove}>✕ ${this._t("ui.wineDetail.removeBtn")}</button>
                 </div>
                 ${this.mode === "cellar"
-                ? b `<div style="text-align:center;font-size:0.72em;margin:-6px 0 6px">
-                      <a href="#" style="color:var(--wc-text-secondary);text-decoration:underline"
+                ? b `<div style="text-align:center;font-size:0.78em;margin:-4px 0 8px;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:center;align-items:center">
+                      ${wine.vivino_id
+                    ? b `<span style="color:var(--wc-text)">${wine.vivino_linked ? "🔗" : "🍇"}
+                            ${wine.vivino_linked ? this._t("ui.wineDetail.linkedLabel") : this._t("ui.wineDetail.matchedLabel")}${this._t("ui.common.colonSep")}<a
+                              href="https://www.vivino.com/w/${wine.vivino_id}" target="_blank" rel="noopener noreferrer"
+                              style="color:#8e24aa;text-decoration:underline"
+                              @click=${(e) => e.stopPropagation()}
+                            >vivino.com/w/${wine.vivino_id}</a></span>`
+                    : A}
+                      <a href="#" style="color:#8e24aa;text-decoration:underline"
                         @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._openVivinoLink(); }}
-                      >🔗 ${wine.vivino_id ? this._t("ui.wineDetail.linkVivinoChange") : this._t("ui.wineDetail.linkVivinoBtn")}</a>
+                      >${wine.vivino_id ? this._t("ui.wineDetail.linkVivinoChange") : `🔗 ${this._t("ui.wineDetail.linkVivinoBtn")}`}</a>
+                      ${wine.vivino_id && wine.vivino_linked
+                    ? b `<a href="#" style="color:#c62828;text-decoration:underline"
+                            @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._unlinkVivino(); }}
+                          >✕ ${this._t("ui.wineDetail.linkRemoveBtn")}</a>`
+                    : A}
+                      ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
+                    ? b `<a href="#" style="color:#c62828;text-decoration:underline"
+                            @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
+                          >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`
+                    : A}
                     </div>`
                 : A}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
@@ -7361,6 +7465,18 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   >${this._t("ui.wineDetail.keepMyPhotoBtn")}</button>
                   <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
+                <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:0.78em;color:var(--wc-text-secondary);cursor:pointer">
+                  <input type="checkbox" .checked=${this._keepPhotoAlways}
+                    @change=${(e) => (this._keepPhotoAlways = e.target.checked)} />
+                  ${this._t("ui.wineDetail.alwaysKeepPhoto")}
+                </label>
+                ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
+            ? b `<button
+                      style="margin-top:12px;padding:6px 14px;border-radius:16px;border:1px solid #c62828;background:transparent;color:#c62828;cursor:pointer;font-size:0.8em"
+                      ?disabled=${this._photoBusy}
+                      @click=${this._rejectVivinoMatch}
+                    >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</button>`
+            : A}
               </div>
             </div>
           ` : A}
@@ -7401,6 +7517,12 @@ let WineDetailDialog = class WineDetailDialog extends i {
               <div style="background:var(--wc-bg);border-radius:12px;padding:24px;max-width:340px;width:90%" @click=${(e) => e.stopPropagation()}>
                 <h3 style="margin:0 0 4px;font-size:1em;color:var(--wc-text)">${this._t("ui.wineDetail.linkTitle")}</h3>
                 <p style="margin:0 0 12px;font-size:0.85em;color:var(--wc-text-secondary)">${this._t("ui.wineDetail.linkBody")}</p>
+                ${wine.vivino_id
+            ? b `<p style="margin:0 0 12px;font-size:0.82em;color:var(--wc-text)">${this._t("ui.wineDetail.linkCurrent")}${this._t("ui.common.colonSep")}<a
+                      href="https://www.vivino.com/w/${wine.vivino_id}" target="_blank" rel="noopener noreferrer"
+                      style="color:#8e24aa;text-decoration:underline"
+                    >vivino.com/w/${wine.vivino_id}</a> (${wine.vivino_linked ? this._t("ui.wineDetail.linkCurrentManual") : this._t("ui.wineDetail.linkCurrentAuto")})</p>`
+            : A}
                 <input
                   type="url"
                   style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--wc-border);border-radius:8px;background:transparent;color:var(--wc-text);font-size:0.9em"
@@ -7411,7 +7533,14 @@ let WineDetailDialog = class WineDetailDialog extends i {
             this._submitVivinoLink(); }}
                 />
                 ${this._linkError ? b `<div style="margin-top:8px;font-size:0.8em;color:#c62828">${this._linkError}</div>` : A}
-                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px;flex-wrap:wrap">
+                  ${wine.vivino_id && wine.vivino_linked
+            ? b `<button
+                        style="margin-right:auto;padding:6px 12px;border-radius:16px;border:1px solid #c62828;background:transparent;color:#c62828;cursor:pointer;font-size:0.8em"
+                        ?disabled=${this._unlinking}
+                        @click=${() => this._unlinkVivino()}
+                      >✕ ${this._t("ui.wineDetail.linkRemoveBtn")}</button>`
+            : A}
                   <button
                     style="padding:6px 16px;border-radius:16px;border:none;background:var(--wc-hover);color:var(--wc-text-secondary);cursor:pointer;font-size:0.85em"
                     @click=${() => (this._linkOpen = false)}
@@ -8075,6 +8204,15 @@ __decorate([
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_linkOpen", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_vivinoUndo", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_keepPhotoAlways", void 0);
+__decorate([
+    r()
+], WineDetailDialog.prototype, "_unlinking", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_linkUrl", void 0);
@@ -15696,6 +15834,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         super(...arguments);
         this.open = false;
         this.aiFallbackAlways = false;
+        this.vivinoKeepPhoto = false;
         this.enableWhisky = false;
         this.defaultWineType = "red";
         this.dispositionDisplay = "letter";
@@ -15713,6 +15852,9 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setFallback(value) {
         this.dispatchEvent(new CustomEvent("set-ai-fallback-always", { detail: { value } }));
+    }
+    _setKeepPhoto(value) {
+        this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", { detail: { value } }));
     }
     _setEnableWhisky(value) {
         this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
@@ -15810,6 +15952,17 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
                 @change=${(e) => this._setFallback(e.target.checked)}
               />
               ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.vivinoKeepPhoto}
+                @change=${(e) => this._setKeepPhoto(e.target.checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.keepMyPhoto")}
             </label>
           </div>
 
@@ -15962,6 +16115,9 @@ __decorate([
 ], VivinoAiSettingsDialog.prototype, "aiFallbackAlways", void 0);
 __decorate([
     n({ type: Boolean })
+], VivinoAiSettingsDialog.prototype, "vivinoKeepPhoto", void 0);
+__decorate([
+    n({ type: Boolean })
 ], VivinoAiSettingsDialog.prototype, "enableWhisky", void 0);
 __decorate([
     n({ type: String })
@@ -16047,6 +16203,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._metadataCurrency = "USD";
         this._supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
         this._aiFallbackAlways = false;
+        this._vivinoKeepPhoto = false;
         this._enableWhisky = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
@@ -16225,6 +16382,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._metadataCurrency = capResult?.metadata_currency || "USD";
             this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
+            this._vivinoKeepPhoto = capResult?.vivino_keep_photo || false;
             this._enableWhisky = capResult?.enable_whisky || false;
             this._defaultWineType = capResult?.default_wine_type || "red";
             this._dispositionDisplay = capResult?.disposition_display || "letter";
@@ -17666,6 +17824,22 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.changeAiFallbackFailed"));
         }
     }
+    async _setVivinoKeepPhoto(value) {
+        if (value === this._vivinoKeepPhoto)
+            return;
+        const previous = this._vivinoKeepPhoto;
+        this._vivinoKeepPhoto = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { vivino_keep_photo: value },
+            });
+        }
+        catch (err) {
+            this._vivinoKeepPhoto = previous;
+            this._showToast(this._t("toast.changeAiFallbackFailed"));
+        }
+    }
     async _setEnableWhisky(value) {
         if (value === this._enableWhisky)
             return;
@@ -18652,6 +18826,7 @@ let WineCellarCard = class WineCellarCard extends i {
           @copy-wine=${(e) => this._copyWine(e.detail.wine)}
           @locate-wine=${(e) => this._locateWine(e.detail.wine)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
+          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @move-wine=${(e) => {
             this._showDetail = false;
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
@@ -18721,6 +18896,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           .aiFallbackAlways=${this._aiFallbackAlways}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
+          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e) => {
@@ -18758,6 +18934,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .open=${this._showVivinoAiSettings}
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .vivinoKeepPhoto=${this._vivinoKeepPhoto}
           .enableWhisky=${this._enableWhisky}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
@@ -18767,6 +18944,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
+          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @set-enable-whisky=${(e) => this._setEnableWhisky(e.detail.value)}
           @set-default-wine-type=${(e) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e) => this._setDispositionDisplay(e.detail.value)}
@@ -19858,6 +20036,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_aiFallbackAlways", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_vivinoKeepPhoto", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_enableWhisky", void 0);

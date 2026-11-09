@@ -9,6 +9,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) open = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
+  @property({ type: Boolean }) vivinoKeepPhoto = false;
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: String }) defaultWineType: WineType = "red";
   @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
@@ -129,6 +130,10 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-ai-fallback-always", { detail: { value } }));
   }
 
+  private _setKeepPhoto(value: boolean) {
+    this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", { detail: { value } }));
+  }
+
   private _setEnableWhisky(value: boolean) {
     this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
   }
@@ -230,6 +235,17 @@ export class VivinoAiSettingsDialog extends LitElement {
                 @change=${(e: Event) => this._setFallback((e.target as HTMLInputElement).checked)}
               />
               ${this._t("ui.vivinoAiSettings.alwaysTryAi")}
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.vivinoKeepPhoto}
+                @change=${(e: Event) => this._setKeepPhoto((e.target as HTMLInputElement).checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.keepMyPhoto")}
             </label>
           </div>
 

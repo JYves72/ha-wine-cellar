@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import (
     CONF_AI_FALLBACK_ALWAYS,
+    CONF_VIVINO_KEEP_PHOTO,
     CONF_CHAMBERING_EQUILIBRATION_HOURS,
     CONF_CHAMBERING_TIME_CONSTANT_MINUTES,
     CONF_CHAMBERING_ROOM_SENSOR,
@@ -336,6 +337,16 @@ def _propagate_to_duplicates(
                 storage.update_wine(other["id"], shared)
 
 
+def _is_rejected_match(wine: dict[str, Any], lookup: dict[str, Any]) -> bool:
+    """True when the user already said this Vivino page is not their wine.
+
+    A rejected page would otherwise come straight back at the next search,
+    since the same text query ranks it first every time.
+    """
+    vid = lookup.get("vivino_id")
+    return bool(vid) and vid in (wine.get("vivino_rejected_ids") or [])
+
+
 def _parse_vivino_url(raw: str) -> tuple[int, int | None] | None:
     """Pull the wine id (and the vintage year, if any) out of a Vivino link.
 
@@ -635,6 +646,8 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_update_settings)
     websocket_api.async_register_command(hass, ws_analyze_wines)
     websocket_api.async_register_command(hass, ws_refresh_wine)
+    websocket_api.async_register_command(hass, ws_revert_vivino_match)
+    websocket_api.async_register_command(hass, ws_unlink_vivino)
     websocket_api.async_register_command(hass, ws_analyze_single_wine)
     websocket_api.async_register_command(hass, ws_reset_ai_content)
     websocket_api.async_register_command(hass, ws_batch_analyze_wines)
@@ -1185,6 +1198,9 @@ def ws_get_capabilities(
             "ai_fallback_always": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_AI_FALLBACK_ALWAYS, False)
             ),
+            "vivino_keep_photo": bool(
+                hass.data[DOMAIN]["storage"].settings.get(CONF_VIVINO_KEEP_PHOTO, False)
+            ),
             "enable_whisky": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_WHISKY, False)
             ),
@@ -1395,9 +1411,11 @@ async def ws_refresh_wine(
 
         result = await vivino.search_wine(query, language, currency, wine.get("vintage"), wine_type=wine.get("type"))
         lookup = result[0] if result else None
-        if lookup and not _vivino_match_is_trustworthy(wine, lookup):
+        if lookup and (
+            not _vivino_match_is_trustworthy(wine, lookup) or _is_rejected_match(wine, lookup)
+        ):
             _LOGGER.debug(
-                "Vivino match for '%s' looks unrelated (%s %s), falling back to AI",
+                "Vivino match for '%s' looks unrelated or was rejected (%s %s), falling back to AI",
                 query, lookup.get("winery"), lookup.get("name"),
             )
             lookup = None
@@ -1446,7 +1464,7 @@ async def ws_refresh_wine(
     if candidate_image and candidate_image != wine.get("image_url"):
         if not wine.get("image_url"):
             updates["image_url"] = candidate_image
-        else:
+        elif not storage.settings.get(CONF_VIVINO_KEEP_PHOTO, False):
             vivino_image_url = candidate_image
 
     # Store Vivino price as retail_price (always update — Vivino is real market data)
@@ -1520,6 +1538,11 @@ async def ws_refresh_wine(
         updates["ai_updated_at"] = now
         updates["ai_checked_at"] = now
 
+    # What these fields held before: lets the user say "that's not my wine"
+    # right after a lookup and get everything the lookup wrote put back. Not
+    # offered after a hand-made link, which the user chose themselves.
+    previous = None if linking else {key: wine.get(key) for key in updates}
+
     updated_wine = storage.update_wine(msg["wine_id"], updates)
     if updated_wine:
         _propagate_to_duplicates(storage, updated_wine, updates)
@@ -1530,7 +1553,70 @@ async def ws_refresh_wine(
         "updated_fields": changed_fields,
         "vivino_image_url": vivino_image_url,
         "price_needs_ai": price_needs_ai,
+        "previous": previous,
     })
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "wine_cellar/revert_vivino_match",
+        vol.Required("wine_id"): str,
+        vol.Required("previous"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_revert_vivino_match(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Undo a Vivino lookup the user says matched the wrong wine.
+
+    `previous` is the snapshot ws_refresh_wine returned. The rejected Vivino
+    page is remembered so the next search doesn't propose it again.
+    """
+    storage = hass.data[DOMAIN]["storage"]
+    wine = storage.get_wine(msg["wine_id"])
+    if not wine:
+        connection.send_result(msg["id"], {"error": "Wine not found."})
+        return
+    restore = {k: v for k, v in msg["previous"].items() if k not in _INSTANCE_ONLY_FIELDS}
+    rejected = list(wine.get("vivino_rejected_ids") or [])
+    bad_id = wine.get("vivino_id")
+    if bad_id and bad_id not in rejected:
+        rejected.append(bad_id)
+    restore["vivino_rejected_ids"] = rejected
+    updated = storage.update_wine(msg["wine_id"], restore)
+    if updated:
+        _propagate_to_duplicates(storage, updated, restore)
+    await storage.async_save()
+    hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(msg["id"], {"wine": updated})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "wine_cellar/unlink_vivino",
+        vol.Required("wine_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_unlink_vivino(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Remove the Vivino page tied to a wine (the data already fetched stays)."""
+    storage = hass.data[DOMAIN]["storage"]
+    updates = {"vivino_linked": False, "vivino_id": None}
+    updated = storage.update_wine(msg["wine_id"], updates)
+    if not updated:
+        connection.send_result(msg["id"], {"error": "Wine not found."})
+        return
+    _propagate_to_duplicates(storage, updated, updates)
+    await storage.async_save()
+    hass.bus.async_fire(f"{DOMAIN}_updated")
+    connection.send_result(msg["id"], {"wine": updated})
 
 
 @websocket_api.websocket_command(
@@ -1817,7 +1903,9 @@ async def ws_batch_refresh_vivino(
                     query, language, currency, wine.get("vintage"), fetch_extras=False, wine_type=wine.get("type"),
                 )
                 lookup = result[0] if result else None
-                if lookup and not _vivino_match_is_trustworthy(wine, lookup):
+                if lookup and (
+                    not _vivino_match_is_trustworthy(wine, lookup) or _is_rejected_match(wine, lookup)
+                ):
                     _LOGGER.debug(
                         "Batch Vivino: match for '%s' looks unrelated (%s %s), falling back to AI",
                         query, lookup.get("winery"), lookup.get("name"),
@@ -2052,7 +2140,7 @@ async def ws_enrich_wine_vivino(
             connection.send_result(msg["id"], {"result": None})
             return
         lookup = result[0]
-        if not _vivino_match_is_trustworthy(wine, lookup):
+        if not _vivino_match_is_trustworthy(wine, lookup) or _is_rejected_match(wine, lookup):
             connection.send_result(msg["id"], {"result": None})
             return
         connection.send_result(msg["id"], {"result": lookup})
