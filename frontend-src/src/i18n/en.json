@@ -506,6 +506,7 @@
       "drinkByPlaceholder": "e.g. 2030",
       "peakWindowLabel": "Peak (Optional)",
       "peakWindowPlaceholder": "e.g. 2028-2029 or 2028",
+      "peakEstimateNote": "The peak is an AI estimate based on the type of wine, not specific to this vintage. The drinking window comes from Vivino when the wine is linked.",
       "notesLabel": "Notes",
       "saving": "Saving...",
       "save": "Save",

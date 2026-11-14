@@ -1416,6 +1416,7 @@ export class WineDetailDialog extends LitElement {
             <label>${this._t("ui.wineDetail.peakWindowLabel")}</label>
             <input type="text" placeholder="${this._t('ui.wineDetail.peakWindowPlaceholder')}" .value=${d.peak_window || ""}
               @input=${(e: Event) => this._updateEditField("peak_window", (e.target as HTMLInputElement).value)} />
+            <div style="font-size:11px;opacity:0.7;margin-top:2px">${this._t("ui.wineDetail.peakEstimateNote")}</div>
           </div>
         </div>
 
@@ -1657,7 +1658,7 @@ export class WineDetailDialog extends LitElement {
                 <!-- Drink by banner for disposition wines -->
                 ${wine.disposition
                   ? html`
-                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInOrAfterPeakWindow(wine) ? 'peak' : ''}">
+                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInOrAfterPeakWindow(wine) ? 'peak' : ''}" title="${wine.peak_window ? this._t('ui.wineDetail.peakEstimateNote') : ''}">
                         ${wine.disposition === "D"
                           ? (wine.drink_window
                               ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))

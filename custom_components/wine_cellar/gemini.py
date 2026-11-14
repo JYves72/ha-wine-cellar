@@ -25,7 +25,7 @@ from .const import WINE_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"
 
 # Gemini answers 5xx when a model is overloaded ("high demand"). These spikes
 # are short, so a couple of retries inside the caller's timeout budget turn
@@ -42,9 +42,13 @@ def gemini_thinking_config(model: str) -> dict[str, str] | None:
     Gemini 3 and later think before answering by default, which can push a
     label read past the 45 s timeout. Every call here is reading or
     classifying, so low thinking is enough and 2-3x faster. Older models
-    don't accept `thinkingLevel`, so they get nothing.
+    don't accept `thinkingLevel`, so they get nothing. The `-latest` aliases
+    (gemini-flash-latest...) now resolve to a Gemini 3+ model, so they get it too.
     """
-    match = re.match(r"gemini-(\d+)", model.strip())
+    name = model.strip()
+    if re.fullmatch(r"gemini-[a-z-]+-latest", name):
+        return {"thinkingLevel": "low"}
+    match = re.match(r"gemini-(\d+)", name)
     if match and int(match.group(1)) >= 3:
         return {"thinkingLevel": "low"}
     return None
@@ -233,7 +237,7 @@ Wine analysis rules:
 - "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak
 - "drink_by": the LAST year of the drinking window
 - "drink_window": optimal drinking window as "YYYY-YYYY" range
-- Aging guidelines — be conservative:
+- If you know this specific wine (cuvée, producer, appellation, vintage) or its producer's typical aging potential, use that knowledge — as a wine critic or Vivino community would — for a realistic, not overly short, window. The generic guidelines below are only a fallback for wines you don't know:
   - Everyday reds/whites (under $20): 1-3 years from vintage = "Drink Now"
   - Quality reds ($20-50): 3-7 years from vintage
   - Premium Bordeaux, Barolo, Napa Cab ($50+): 10-15 years, rarely more than 20
@@ -646,8 +650,12 @@ class BaseAIClient:
         currency: str = "USD",
         storage_temp: float | None = None,
         storage_since: str | None = None,
+        vivino_window: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Analyze a single wine with AI — disposition, drink dates, and ratings.
+
+        `vivino_window` is Vivino's recommended drinking window for this exact
+        vintage when the wine is tied to Vivino: the answer must agree with it.
 
         If the wine has a stored photo (front and/or back label, from the
         user's own capture), it's sent along so the AI can read the label
@@ -704,6 +712,14 @@ class BaseAIClient:
         else:
             storage_line = ""
             storage_rule = ""
+        if vivino_window:
+            storage_rule = (
+                f"- VIVINO WINDOW: Vivino's community-based recommended drinking window for this exact vintage is "
+                f"{vivino_window['drink_window']}. Return exactly that as drink_window and its last year as drink_by "
+                f"(do not shift it for temperature or anything else). Use your knowledge of this specific wine to choose "
+                f"peak_window inside it: the period, starting no earlier than the window's first year, from which the wine "
+                f"is at its best until the end of the window.\n"
+            ) + storage_rule
         vintage = wine.get("vintage") or "NV"
         wine_type = wine.get("type", "red")
         name = wine.get("name", "Unknown")
@@ -755,8 +771,8 @@ Rules:
 - "drink_window": optimal drinking window as "YYYY-YYYY" range (earliest to latest year the wine should be consumed). This is the ENTIRE period when the wine is suitable to drink. This MUST be "YYYY-YYYY" format.
 - "peak_window": (NEW) the specific 1-2 year window when the wine is at its BEST (apex of maturity). Format "YYYY-YYYY" or "YYYY" for a single year. For most young wines, this is 1 year after vintage. For age-worthy wines, it peaks 2-5 years in. **CRITICAL: peak_window MUST ALWAYS be entirely within drink_window — the peak years cannot be before, after, or outside the drinking period.**
 - IMPORTANT: drink_window MUST be internally consistent across calls for the same wine (same vintage/type/price/region).
-- **PRIORITY:** If you recognize this specific wine (by name + winery + vintage) as a known/classic wine with published aging data, use YOUR KNOWLEDGE of that specific wine's actual aging window, not the generic guidelines below. Known wines (Bordeaux first growths, Burgundy grands crus, etc.) often age differently than the generic rules suggest.
-- Use these aging guidelines ONLY for unknown or generic wines:
+- **PRIORITY:** Base the window on YOUR KNOWLEDGE of this specific wine (cuvée, producer, appellation, vintage) and of what critics and wine communities such as Vivino say about its aging potential — not on the generic guidelines below. This applies to any wine you know, not only classics: a producer's regional or village wine often ages longer than the generic rules suggest. Give a realistic window; do not shorten it out of caution.
+- Use these aging guidelines ONLY as a fallback when you know nothing specific about the wine (unknown or generic wines):
   - Most everyday reds and whites (under $20): drink within 1-3 years of vintage, peak ~1 year in. Disposition "D" (Drink Now).
   - Quality reds (Cabernet, Merlot, Syrah, $20-50): drink 3-7 years from vintage, peak ~4 years in. Usually "H" (Hold).
   - Premium Bordeaux, Barolo, Napa Cab ($50+): drink 10-15 years from vintage, peak ~8-10 years in. "H" or "D" depending on current year vs. window.
@@ -767,8 +783,8 @@ Rules:
   - Vintage Champagne: drink 5-10 years, peak ~6 years in. "H" or "D".
   - Dessert wines (Sauternes, Port): drink 10-20+ years, peak ~10 years in. "H".
   - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}", disposition "D".
-- When in doubt, consult the stored current drink_by date: it is a prior assessment and should not be ignored without strong reason.
-{storage_rule}- CRITICAL: Your answer MUST be identical every time you analyze the same wine. Do not vary drink_window or peak_window based on mood or context. Treat this as a deterministic calculation from the vintage, type, price tier, and region alone.
+- The stored drink_by date, if any, is only a prior (possibly generic) assessment: replace it whenever your knowledge of this wine gives a different, better-founded window.
+{storage_rule}- CRITICAL: Your answer must be stable: analyzing the same wine again must give the same drink_window and peak_window. Do not vary them based on mood or context; derive them from what you know about the wine, falling back on vintage, type, price tier and region.
 - CRITICAL: If the wine is already past its intended drinking window (current year {current_year} is AFTER the drink_by year you would normally assign), the drink_window MUST end in a year BEFORE {current_year}, and disposition MUST be "P" (Past Peak). Do not backdate the window to a future year just because it seems safer to drink it now — if the vintage has already aged past its prime, show that honestly.
 - "description": Write a professional tasting-style description of what this wine is known for. If you know the wine, describe its character. If not, describe what to expect based on grape, region, and vintage.
 - "food_pairings": suggest 3-5 classic food pairings for this wine's type/style, comma-separated (e.g. "Grilled beef, Lamb, Aged cheese"). Always provide this, based on standard sommelier pairing knowledge for the grape/style even if you don't know the specific wine.
@@ -807,7 +823,8 @@ Examples (current year {current_year}):
             ) + _language_suffix(language)
 
         result = await self._call_ai(
-            prompt, front_photo, timeout_s=45, temperature=0.1, extra_image_base64=back_photo
+            prompt, front_photo, timeout_s=90, temperature=0.1,
+            extra_image_base64=back_photo,
         )
         if "error" in result:
             return result
@@ -1017,7 +1034,7 @@ class GeminiVisionClient(BaseAIClient):
                 _LOGGER.warning("Gemini response has no parts")
                 return {"error": "Gemini returned empty response"}
 
-            text = parts_out[0].get("text", "")
+            text = "".join(p.get("text", "") for p in parts_out if not p.get("thought"))
             _LOGGER.debug("Gemini raw response: %s", text[:500])
             return parse_json_response(text)
 

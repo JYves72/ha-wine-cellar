@@ -1252,6 +1252,7 @@ var ui$1 = {
 		drinkByPlaceholder: "e.g. 2030",
 		peakWindowLabel: "Peak (Optional)",
 		peakWindowPlaceholder: "e.g. 2028-2029 or 2028",
+		peakEstimateNote: "The peak is an AI estimate based on the type of wine, not specific to this vintage. The drinking window comes from Vivino when the wine is linked.",
 		notesLabel: "Notes",
 		saving: "Saving...",
 		save: "Save",
@@ -2068,6 +2069,7 @@ var ui = {
 		drinkByPlaceholder: "ex. 2030",
 		peakWindowLabel: "Apogée (Optionnel)",
 		peakWindowPlaceholder: "ex. 2028-2029 ou 2028",
+		peakEstimateNote: "L'apogée est une estimation de l'IA basée sur le type de vin, pas spécifique à ce millésime. La fenêtre de garde vient de Vivino quand le vin est lié.",
 		notesLabel: "Notes",
 		saving: "Enregistrement...",
 		save: "Enregistrer",
@@ -4496,10 +4498,13 @@ let CabinetGrid = class CabinetGrid extends i {
         // front=3), that means position 1 is a back dot, not front. Scale
         // always follows the lane itself (front=1, back=BACK_DOT_SCALE),
         // regardless of which one leads.
-        const renderInterleavedLane = (front, back) => {
+        // With equal lane lengths there is no longer lane, so the level decides:
+        // even boards (counted from the bottom) start with the front lane, odd
+        // boards with the back one — the same head-to-tail flip a 5/4 rack shows.
+        const renderInterleavedLane = (front, back, level) => {
             const frontSize = front?.size || 0;
             const backSize = back?.size || 0;
-            const frontLeads = frontSize >= backSize;
+            const frontLeads = frontSize === backSize ? level % 2 === 0 : frontSize > backSize;
             const items = [];
             for (let i = 0; i < Math.max(frontSize, backSize); i++) {
                 if (frontLeads) {
@@ -4521,9 +4526,9 @@ let CabinetGrid = class CabinetGrid extends i {
       <div class="bottom-zone zone-shelf">
         ${name ? b `<div class="bottom-zone-label">${name}</div>` : A}
         <div class="zone-shelf-levels">
-          ${levels.map(([, lanes], idx) => b `
+          ${levels.map(([level, lanes], idx) => b `
             <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
-              ${renderInterleavedLane(lanes.front, lanes.back)}
+              ${renderInterleavedLane(lanes.front, lanes.back, level)}
             </div>
           `)}
         </div>
@@ -7015,6 +7020,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             <label>${this._t("ui.wineDetail.peakWindowLabel")}</label>
             <input type="text" placeholder="${this._t('ui.wineDetail.peakWindowPlaceholder')}" .value=${d.peak_window || ""}
               @input=${(e) => this._updateEditField("peak_window", e.target.value)} />
+            <div style="font-size:11px;opacity:0.7;margin-top:2px">${this._t("ui.wineDetail.peakEstimateNote")}</div>
           </div>
         </div>
 
@@ -7247,7 +7253,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 <!-- Drink by banner for disposition wines -->
                 ${wine.disposition
                 ? b `
-                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInOrAfterPeakWindow(wine) ? 'peak' : ''}">
+                      <div class="drink-by-banner ${wine.disposition === 'D' ? 'drink' : wine.disposition === 'H' ? 'hold' : wine.disposition === 'P' ? 'past' : ''} ${wine.disposition === 'D' && this._isInOrAfterPeakWindow(wine) ? 'peak' : ''}" title="${wine.peak_window ? this._t('ui.wineDetail.peakEstimateNote') : ''}">
                         ${wine.disposition === "D"
                     ? (wine.drink_window
                         ? (wine.peak_window ? this._t("ui.wineDetail.drinkNowWithPeak", { window: wine.drink_window, peak: wine.peak_window }) : this._t("ui.wineDetail.drinkNowWithWindow", { window: wine.drink_window }))
@@ -8610,6 +8616,7 @@ let AddWineDialog = class AddWineDialog extends i {
                     grape_variety: result.result.grape_variety || "",
                     rating: result.result.rating,
                     ratings_count: result.result.ratings_count || null,
+                    vivino_id: result.result.vivino_id || null,
                     image_url: result.result.image_url || "",
                     description: result.result.description || "",
                     food_pairings: result.result.food_pairings || "",
@@ -8689,6 +8696,7 @@ let AddWineDialog = class AddWineDialog extends i {
             grape_variety: item.grape_variety || "",
             rating: item.rating,
             ratings_count: item.ratings_count || null,
+            vivino_id: item.vivino_id || null,
             image_url: item.image_url || "",
             description: item.description || "",
             food_pairings: item.food_pairings || "",
@@ -8758,6 +8766,17 @@ let AddWineDialog = class AddWineDialog extends i {
                     back_image_url: backThumbUrl,
                     ai_updated_at: new Date().toISOString(),
                     ai_checked_at: new Date().toISOString(),
+                    // The backend ties a recognised wine to Vivino when it finds a
+                    // trustworthy match: id, rating and Vivino's drinking window.
+                    ...(r.vivino_id
+                        ? {
+                            vivino_id: r.vivino_id,
+                            rating: r.rating ?? null,
+                            ratings_count: r.ratings_count || null,
+                            vivino_updated_at: new Date().toISOString(),
+                            vivino_checked_at: new Date().toISOString(),
+                        }
+                        : {}),
                 };
                 this._scanMode = "idle";
                 this._step = "details";

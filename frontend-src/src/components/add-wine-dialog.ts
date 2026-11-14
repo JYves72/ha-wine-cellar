@@ -670,6 +670,7 @@ export class AddWineDialog extends LitElement {
           grape_variety: result.result.grape_variety || "",
           rating: result.result.rating,
           ratings_count: result.result.ratings_count || null,
+          vivino_id: result.result.vivino_id || null,
           image_url: result.result.image_url || "",
           description: result.result.description || "",
           food_pairings: result.result.food_pairings || "",
@@ -751,6 +752,7 @@ export class AddWineDialog extends LitElement {
       grape_variety: item.grape_variety || "",
       rating: item.rating,
       ratings_count: item.ratings_count || null,
+      vivino_id: item.vivino_id || null,
       image_url: item.image_url || "",
       description: item.description || "",
       food_pairings: item.food_pairings || "",
@@ -823,6 +825,17 @@ export class AddWineDialog extends LitElement {
           back_image_url: backThumbUrl,
           ai_updated_at: new Date().toISOString(),
           ai_checked_at: new Date().toISOString(),
+          // The backend ties a recognised wine to Vivino when it finds a
+          // trustworthy match: id, rating and Vivino's drinking window.
+          ...(r.vivino_id
+            ? {
+                vivino_id: r.vivino_id,
+                rating: r.rating ?? null,
+                ratings_count: r.ratings_count || null,
+                vivino_updated_at: new Date().toISOString(),
+                vivino_checked_at: new Date().toISOString(),
+              }
+            : {}),
         };
         this._scanMode = "idle";
         this._step = "details";
