@@ -9,7 +9,7 @@ import re
 import unicodedata
 from html import unescape
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 import aiohttp
 
@@ -29,6 +29,21 @@ UPC_DB_URL = "https://api.upcitemdb.com/prod/trial/lookup?upc={barcode}"
 # endpoint. Only useful once a wine's id is already known from a prior
 # match; it's a by-id lookup, not a search.
 VIVINO_MOBILE_API_URL = "https://api.vivino.com"
+
+# vivino.com's own search box queries this Algolia index with a search-only
+# key that its public JavaScript ships. If Vivino rotates it the request fails
+# and search_wine falls back to the older routes.
+ALGOLIA_APP_ID = "9TAKGWJUXL"
+ALGOLIA_SEARCH_KEY = "60c11b2f1068885161d95ca068d3a6ae"
+ALGOLIA_URL = f"https://{ALGOLIA_APP_ID.lower()}-dsn.algolia.net/1/indexes/WINES_prod/query"
+
+
+def _fix_mojibake(text: str) -> str:
+    """Repair UTF-8 text that was decoded as Latin-1 ("CuvÃ©e" -> "Cuvée")."""
+    try:
+        return (text or "").encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text or ""
 
 # Small, stable reference tables — fetched/cached once per process instead
 # of per-wine. Grape names are proper nouns (Grenache, Syrah...) that don't
@@ -207,6 +222,23 @@ def _explore_result_matches_query(query: str, result: dict[str, Any]) -> bool:
     return len(shared) >= 2 and len(shared) / min(len(query_words), len(result_words)) >= 0.75
 
 
+def _covers_query(query: str, result: dict[str, Any]) -> bool:
+    """Strict check for what the user typed: at least half of its identifying
+    words must appear in the result (accent- and punctuation-insensitive).
+
+    Vivino's own search is fuzzy ("point" finds "Pointe", an appellation alone
+    finds its neighbours), which is right for a refresh but misleading in a
+    list the user picks from — better to show nothing than unrelated wines.
+    """
+    query_words = {
+        w for w in _search_significant_words(query) if not re.fullmatch(r"(19|20)\d\d", w)
+    }
+    if not query_words:
+        return True
+    result_words = _search_significant_words(f"{result.get('winery', '')} {result.get('name', '')}")
+    return len(query_words & result_words) / len(query_words) >= 0.5
+
+
 def _prefer_matching_type(
     results: list[dict[str, Any]], wine_type: str | None
 ) -> list[dict[str, Any]]:
@@ -369,6 +401,44 @@ class VivinoClient:
 
         return result
 
+    async def get_drinking_window(self, vivino_id: int, vintage: int) -> dict[str, str] | None:
+        """Vivino's recommended drinking window for one vintage, or None.
+
+        Two cheap by-id requests (wine -> vintage id -> vintage), no search.
+        Returns {"drink_window": "2024-2032", "drink_by": "2032"}.
+        """
+        session = async_get_clientsession(self._hass)
+        headers = {"Accept": "application/json"}
+        timeout = aiohttp.ClientTimeout(total=15)
+        try:
+            async with session.get(
+                f"{VIVINO_MOBILE_API_URL}/wines/{vivino_id}", headers=headers, timeout=timeout
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                wine_data = await resp.json()
+            vintage_id = next(
+                (v.get("id") for v in wine_data.get("vintages") or []
+                 if str(v.get("year")) == str(vintage)),
+                None,
+            )
+            if not vintage_id:
+                return None
+            async with session.get(
+                f"{VIVINO_MOBILE_API_URL}/vintages/{vintage_id}", headers=headers, timeout=timeout
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+        except Exception as err:
+            _LOGGER.debug("Vivino drinking window lookup failed for id %s: %s", vivino_id, err)
+            return None
+        window = data.get("recommended_drinking_window") or {}
+        start, end = window.get("start_year"), window.get("end_year")
+        if isinstance(start, int) and isinstance(end, int) and 1900 < start <= end < 2200:
+            return {"drink_window": f"{start}-{end}", "drink_by": str(end)}
+        return None
+
     async def _get_vintage_details(self, vintage_id: int, language: str = "en") -> dict[str, Any]:
         """Fetch vintage-specific extras: image, description, alcohol, grapes, food."""
         session = async_get_clientsession(self._hass)
@@ -396,6 +466,16 @@ class VivinoClient:
         description = data.get("description") or ""
         if description:
             details["description"] = description
+
+        # Vivino's own recommended drinking window for this exact vintage.
+        window = data.get("recommended_drinking_window") or {}
+        start, end = window.get("start_year"), window.get("end_year")
+        if (
+            isinstance(start, int) and isinstance(end, int)
+            and 1900 < start <= end < 2200
+        ):
+            details["drink_window"] = f"{start}-{end}"
+            details["drink_by"] = str(end)
 
         wine_facts = data.get("wine_facts") or {}
         alcohol = wine_facts.get("alcohol")
@@ -504,6 +584,39 @@ class VivinoClient:
         vintage: int | None = None,
         fetch_extras: bool = True,
         wine_type: str | None = None,
+        strict: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Search for wines by name/text query (see `_search_wine`).
+
+        `strict` (the interactive name search) additionally drops results
+        that don't contain at least half of the words the user typed.
+        """
+        if strict:
+            # Same engine as vivino.com's search box; the old routes are the fallback.
+            site_results = await self._search_vivino_algolia(query, language)
+            if site_results:
+                return site_results
+        else:
+            # Refreshes, batches, label recognition and auto-enrich: same engine,
+            # then the wine's own page for description, grapes and window.
+            site_result = await self._search_by_site(query, language, vintage, wine_type)
+            if site_result:
+                return site_result
+        results = await self._search_wine(
+            query, language, currency, vintage, fetch_extras, wine_type
+        )
+        if strict:
+            results = [r for r in results if _covers_query(query, r)]
+        return results
+
+    async def _search_wine(
+        self,
+        query: str,
+        language: str = "en",
+        currency: str = "USD",
+        vintage: int | None = None,
+        fetch_extras: bool = True,
+        wine_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search for wines by name/text query.
 
@@ -562,6 +675,9 @@ class VivinoClient:
         results = _prefer_matching_type(results, wine_type)
         results = _prefer_matching_vintage(results, vintage)
         if results and _explore_result_matches_query(query, results[0]):
+            # Only the top hit was vetted above; the rest of Vivino's "trending"
+            # filler can be unrelated wines, so drop whatever doesn't fit.
+            results = [r for r in results if _explore_result_matches_query(query, r)]
             if html_results and not results[0].get("description") and not results[0].get("food_pairings"):
                 ranked = _prefer_matching_type(html_results, wine_type)
                 ranked = _prefer_matching_vintage(ranked, vintage)
@@ -587,8 +703,119 @@ class VivinoClient:
         if html_results:
             return html_results
 
-        # Nothing better available — return the (possibly unrelated) explore
-        # results so the caller's own trustworthy-match check can decide.
+        # Nothing better available. The explore API only echoes its generic
+        # "trending" list when it ignores the query, so unrelated results are
+        # noise: return only what actually resembles the query (usually nothing)
+        # rather than showing the user Masseto and Krug for "gren'age".
+        return [r for r in results if _explore_result_matches_query(query, r)]
+
+    # ── Vivino site search (Algolia) ────────────────────────────────
+
+    async def _search_by_site(
+        self, query: str, language: str, vintage: int | None, wine_type: str | None
+    ) -> list[dict[str, Any]]:
+        """Site-search candidates, the best one completed from its own page.
+
+        Returns [] when the site search fails or finds nothing related, so the
+        caller falls back to the explore API / HTML scrape. Those never carry a
+        price either way (see CLAUDE.md), so nothing is lost on that side.
+        """
+        hits = await self._search_vivino_algolia(query, language, vintage_hint=vintage)
+        hits = [h for h in hits if _explore_result_matches_query(query, h)]
+        if not hits:
+            return []
+        hits = _prefer_matching_type(hits, wine_type)
+        top = hits[0]
+        extra = await self.get_wine_by_id(top["vivino_id"], top.get("vintage"), language)
+        if extra:
+            rating = top.get("rating")
+            for key, value in extra.items():
+                if value not in ("", None):
+                    top[key] = value
+            if rating is not None:  # vintage-specific beats the wine-wide average
+                top["rating"] = rating
+            top["source"] = "vivino_search"
+        return hits
+
+    async def _search_vivino_algolia(
+        self, query: str, language: str = "en", limit: int = 8, vintage_hint: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Search the way vivino.com's own search box does.
+
+        The site's autocomplete queries Algolia with a search-only key that is
+        shipped in its public JavaScript. It is a real text search (unlike the
+        explore API, which ignores `q`) and finds wines the HTML search misses.
+        Returns [] on any failure so callers can fall back to the older routes.
+        """
+        session = async_get_clientsession(self._hass)
+        years = re.findall(r"\b(?:19|20)\d\d\b", query)
+        query_year = int(years[0]) if years else vintage_hint
+        # The year only dilutes the text match; it picks the vintage below.
+        text = re.sub(r"\b(?:19|20)\d\d\b", " ", query).strip() or query
+        try:
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with session.post(
+                ALGOLIA_URL,
+                headers={
+                    "X-Algolia-Application-Id": ALGOLIA_APP_ID,
+                    "X-Algolia-API-Key": ALGOLIA_SEARCH_KEY,
+                    "Content-Type": "application/json",
+                },
+                json={"params": f"query={quote(text)}&hitsPerPage={limit}"},
+                timeout=timeout,
+            ) as resp:
+                if resp.status != 200:
+                    _LOGGER.debug("Vivino Algolia search status %s", resp.status)
+                    return []
+                data = await resp.json(content_type=None)
+        except Exception as err:
+            _LOGGER.debug("Vivino Algolia search failed for '%s': %s", query, err)
+            return []
+
+        results: list[dict[str, Any]] = []
+        for hit in data.get("hits") or []:
+            if hit.get("hidden") or not hit.get("id"):
+                continue
+            winery_obj = hit.get("winery") or {}
+            region_obj = hit.get("region") or {}
+            vintages = [
+                v for v in hit.get("vintages") or []
+                if str(v.get("year") or "").isdigit()
+            ]
+            vintage = query_year
+            if vintage is None and vintages:
+                vintage = max(int(v["year"]) for v in vintages)
+            stats = hit.get("statistics") or {}
+            for v in vintages:
+                if vintage is not None and int(v["year"]) == vintage:
+                    vstats = v.get("statistics") or {}
+                    if (vstats.get("ratings_average") or 0) > 0:
+                        stats = vstats
+                    break
+            rating = stats.get("ratings_average")
+            rating = round(float(rating), 1) if isinstance(rating, (int, float)) and rating > 0 else None
+            image = (hit.get("image") or {}).get("variations") or {}
+            image_url = image.get("large") or image.get("medium") or ""
+            if image_url.startswith("//"):
+                image_url = "https:" + image_url
+            results.append({
+                "name": _fix_mojibake(hit.get("name", "")),
+                "winery": _fix_mojibake(winery_obj.get("name", "")),
+                "region": _fix_mojibake(region_obj.get("name", "")),
+                "country": _country_name(region_obj.get("country") or "", language),
+                "vintage": vintage,
+                "type": _map_wine_type(hit.get("type_id")),
+                "grape_variety": "",
+                "rating": rating,
+                "ratings_count": stats.get("ratings_count"),
+                "image_url": image_url,
+                "price": None,
+                "alcohol": "",
+                "description": "",
+                "food_pairings": "",
+                "vivino_id": hit["id"],
+                "source": "vivino_search",
+            })
         return results
 
     # ── Vivino Explore API ──────────────────────────────────────────

@@ -70,7 +70,7 @@ CONF_SETTINGS = "settings"
 
 CONF_GEMINI_API_KEY = "gemini_api_key"
 CONF_GEMINI_MODEL = "gemini_model"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"
 
 # AI provider: "gemini" (Google direct) or "openai_compatible" (any relay /
 # aggregator / self-hosted server exposing the standard chat completions API).
@@ -166,4 +166,4 @@ DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20261109b"
+FRONTEND_VERSION = "20261114c"

@@ -175,13 +175,95 @@ def _select_wines(storage: Any, wine_ids: list[str] | None) -> list[dict[str, An
     return [w for w in storage.wines if w.get("id") in wanted]
 
 
+async def _vivino_drinking_window(hass: HomeAssistant, wine: dict[str, Any]) -> dict[str, str] | None:
+    """Vivino's recommended window for this wine's vintage, if it is tied to Vivino.
+
+    Needs a Vivino id and a numeric vintage. Never raises: an unreachable
+    Vivino just means the caller keeps the AI's window.
+    """
+    vivino = hass.data.get(DOMAIN, {}).get("vivino")
+    if not vivino or _is_whisky(wine) or not wine.get("vivino_id"):
+        return None
+    try:
+        vintage = int(wine.get("vintage"))
+    except (TypeError, ValueError):
+        return None
+    try:
+        return await vivino.get_drinking_window(wine["vivino_id"], vintage)
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.debug("Vivino drinking window failed for wine %s: %s", wine.get("id"), err)
+        return None
+
+
+async def _find_vivino_match(hass: HomeAssistant, wine: dict[str, Any]) -> dict[str, Any] | None:
+    """Best trustworthy Vivino match for a wine described by name/winery/vintage."""
+    vivino = hass.data.get(DOMAIN, {}).get("vivino")
+    if not vivino or _is_whisky(wine):
+        return None
+    parts = [str(wine[k]) for k in ("winery", "name", "vintage") if wine.get(k)]
+    query = " ".join(parts)
+    if not query:
+        return None
+    try:
+        vintage = int(wine.get("vintage"))
+    except (TypeError, ValueError):
+        vintage = None
+    results = await vivino.search_wine(
+        query, _get_metadata_language(hass), _get_metadata_currency(hass), vintage,
+        wine_type=wine.get("type"),
+    )
+    if not results:
+        return None
+    lookup = results[0]
+    if _is_rejected_match(wine, lookup) or not _vivino_match_is_trustworthy(wine, lookup):
+        return None
+    return lookup
+
+
+def _clamp_peak_window(peak: str, window: str) -> str:
+    """Peak window for a "YYYY-YYYY" drinking window: starts where the AI says
+    the wine peaks (kept inside the window) and runs to the window's last year.
+
+    The wine is at its best from that point until the end of the window, which
+    is how the app's users read it.
+    """
+    win = re.findall(r"\d{4}", window or "")
+    years = re.findall(r"\d{4}", peak or "")
+    if len(win) != 2 or not years:
+        return peak
+    lo, hi = int(win[0]), int(win[1])
+    start = min(max(int(years[0]), lo), hi)
+    return str(start) if start == hi else f"{start}-{hi}"
+
+
+def _apply_vivino_window(
+    updates: dict[str, Any], wine: dict[str, Any], window: dict[str, str] | None
+) -> None:
+    """Make Vivino's window the wine's window (in place), peak kept inside it."""
+    if not window:
+        return
+    updates["drink_window"] = window["drink_window"]
+    updates["drink_by"] = window["drink_by"]
+    peak = updates.get("peak_window") or wine.get("peak_window") or ""
+    if peak:
+        clamped = _clamp_peak_window(peak, window["drink_window"])
+        if clamped != wine.get("peak_window"):
+            updates["peak_window"] = clamped
+    recomputed = compute_disposition({**wine, **updates})
+    if recomputed != wine.get("disposition"):
+        updates["disposition"] = recomputed
+
+
 def _build_ai_updates(
     wine: dict[str, Any],
     result: dict[str, Any],
     currency: str = "USD",
     language: str = "en",
+    vivino_window: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Build a wine `updates` dict from a Gemini analyze_single_wine result.
+
+    When `vivino_window` is given it replaces the AI's drink_window/drink_by.
 
     The estimated price replaces the stored one unless the user locked it
     (`price_locked`), in which case a scan never touches it.
@@ -234,6 +316,8 @@ def _build_ai_updates(
 
     if result.get("peak_window"):
         updates["peak_window"] = result["peak_window"]
+
+    _apply_vivino_window(updates, wine, vivino_window)
 
     # disposition is never taken from the AI's own guess directly — it's
     # always re-derived from whatever drink_by/drink_window end up on the
@@ -510,15 +594,24 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
             return
 
         currency = _get_metadata_currency(hass)
-        result = await vivino.search_wine(
-            query, _get_metadata_language(hass), currency, wine.get("vintage"),
-            wine_type=wine.get("type"),
-        )
-        if not result:
-            return
-
-        lookup = result[0]
-        if not _vivino_match_is_trustworthy(wine, lookup):
+        if wine.get("vivino_id"):
+            # Already tied to a Vivino page (barcode, search or label step):
+            # look that exact wine up instead of searching again, which could
+            # land on a different page.
+            lookup = await vivino.get_wine_by_id(
+                wine["vivino_id"], wine.get("vintage"), _get_metadata_language(hass)
+            )
+            if not lookup:
+                return
+        else:
+            result = await vivino.search_wine(
+                query, _get_metadata_language(hass), currency, wine.get("vintage"),
+                wine_type=wine.get("type"),
+            )
+            if not result:
+                return
+            lookup = result[0]
+        if not wine.get("vivino_id") and not _vivino_match_is_trustworthy(wine, lookup):
             _LOGGER.debug(
                 "Auto-enrich: Vivino match for '%s' looks unrelated (%s %s), skipping",
                 query, lookup.get("winery"), lookup.get("name"),
@@ -548,6 +641,13 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
             val = lookup.get(key)
             if val and not wine.get(key):
                 updates[key] = val
+
+        window = (
+            {"drink_window": lookup["drink_window"], "drink_by": lookup["drink_by"]}
+            if lookup.get("drink_window")
+            else await _vivino_drinking_window(hass, {**wine, "vivino_id": lookup.get("vivino_id")})
+        )
+        _apply_vivino_window(updates, wine, window)
 
         if updates:
             updates["vivino_updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -737,7 +837,13 @@ async def ws_add_wine(
 ) -> None:
     """Add a new wine, then auto-enrich with Vivino data."""
     storage = hass.data[DOMAIN]["storage"]
-    wine = storage.add_wine(msg["wine"])
+    wine_data = dict(msg["wine"])
+    # A wine tied to Vivino starts with Vivino's own drinking window, whatever
+    # route brought it here (barcode, name search, label photo).
+    window_updates: dict[str, Any] = {}
+    _apply_vivino_window(window_updates, wine_data, await _vivino_drinking_window(hass, wine_data))
+    wine_data.update(window_updates)
+    wine = storage.add_wine(wine_data)
     # A photo arrives inline from the camera; it goes to disk immediately so it
     # never becomes part of what every later page load has to carry.
     await photos.store_wine_photos(hass, wine)
@@ -1044,7 +1150,9 @@ async def ws_search_wine(
 ) -> None:
     """Search for wines on Vivino."""
     vivino = hass.data[DOMAIN]["vivino"]
-    results = await vivino.search_wine(msg["query"], _get_metadata_language(hass), _get_metadata_currency(hass))
+    results = await vivino.search_wine(
+        msg["query"], _get_metadata_language(hass), _get_metadata_currency(hass), strict=True
+    )
     connection.send_result(msg["id"], {"results": results})
 
 
@@ -1171,6 +1279,23 @@ async def ws_recognize_label(
             msg["id"], {"result": None, "error": result["error"]}
         )
     else:
+        # As soon as the wine is recognised, tie it to Vivino (rating, id and
+        # Vivino's drinking window). Best effort: the AI's reading stands if
+        # Vivino is unreachable or finds nothing it trusts.
+        try:
+            match = await _find_vivino_match(hass, result)
+            if match and match.get("vivino_id"):
+                result["vivino_id"] = match["vivino_id"]
+                if match.get("rating"):
+                    result["rating"] = match["rating"]
+                    result["ratings_count"] = match.get("ratings_count")
+                window_updates: dict[str, Any] = {}
+                _apply_vivino_window(
+                    window_updates, result, await _vivino_drinking_window(hass, result)
+                )
+                result.update(window_updates)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Vivino step after label recognition failed: %s", err)
         connection.send_result(msg["id"], {"result": result, "error": None})
 
 
@@ -1517,6 +1642,11 @@ async def ws_refresh_wine(
         updates["region"] = lookup["region"]
     if not wine.get("type") and lookup.get("type"):
         updates["type"] = lookup["type"]
+    if lookup.get("drink_window"):
+        _apply_vivino_window(
+            updates, wine,
+            {"drink_window": lookup["drink_window"], "drink_by": lookup["drink_by"]},
+        )
 
     # The field list reported to the frontend is the real changes only; the
     # bookkeeping keys added below would otherwise show up as "1 field
@@ -1656,15 +1786,17 @@ async def ws_analyze_single_wine(
 
     currency = _get_metadata_currency(hass)
     language = _get_metadata_language(hass)
+    vivino_window = await _vivino_drinking_window(hass, wine)
     result = await gemini.analyze_single_wine(
-        wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+        wine, language, currency, storage_temp=_wine_storage_temp(hass, wine),
+        storage_since=_wine_storage_since(wine), vivino_window=vivino_window,
     )
     if "error" in result:
         connection.send_result(msg["id"], {"error": result["error"]})
         return
 
     # Apply results to wine
-    updates = _build_ai_updates(wine, result, currency, language)
+    updates = _build_ai_updates(wine, result, currency, language, vivino_window)
 
     _LOGGER.debug("Final updates for wine %s: %s", msg["wine_id"], list(updates.keys()))
     # Same split as the Vivino path: the check is always recorded, the update
@@ -1768,8 +1900,10 @@ async def ws_batch_analyze_wines(
         wine = members[0]
         n = len(members)
         try:
+            vivino_window = await _vivino_drinking_window(hass, wine)
             result = await gemini.analyze_single_wine(
-                wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+                wine, language, currency, storage_temp=_wine_storage_temp(hass, wine),
+                storage_since=_wine_storage_since(wine), vivino_window=vivino_window,
             )
             if "error" in result:
                 _LOGGER.warning(
@@ -1779,7 +1913,7 @@ async def ws_batch_analyze_wines(
                 errors += n
                 continue
 
-            updates = _build_ai_updates(wine, result, currency, language)
+            updates = _build_ai_updates(wine, result, currency, language, vivino_window)
             had_changes = bool(updates)
 
             # The check is always recorded; the update timestamp only moves
@@ -1928,11 +2062,15 @@ async def ws_batch_refresh_vivino(
                 gemini = hass.data[DOMAIN].get("gemini") if ai_fallback_mode == "use" else None
                 if gemini:
                     try:
+                        fb_window = await _vivino_drinking_window(hass, wine)
                         ai_result = await gemini.analyze_single_wine(
-                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine), storage_since=_wine_storage_since(wine)
+                            wine, language, currency, storage_temp=_wine_storage_temp(hass, wine),
+                            storage_since=_wine_storage_since(wine), vivino_window=fb_window,
                         )
                         if "error" not in ai_result:
-                            ai_updates = _build_ai_updates(wine, ai_result, currency, language)
+                            ai_updates = _build_ai_updates(
+                                wine, ai_result, currency, language, fb_window,
+                            )
                             had_ai_changes = bool(ai_updates)
                             ai_now = datetime.now(timezone.utc).isoformat()
                             if had_ai_changes:
@@ -1971,6 +2109,11 @@ async def ws_batch_refresh_vivino(
                 if val:
                     updates[key] = val
             _apply_vivino_text_fields(updates, wine, lookup, language)
+            if lookup.get("drink_window"):
+                _apply_vivino_window(
+                    updates, wine,
+                    {"drink_window": lookup["drink_window"], "drink_by": lookup["drink_by"]},
+                )
 
             # Photo: only overwrite an existing photo when the user opted in
             # via photo_mode="replace"; otherwise leave the user's photo alone.

@@ -506,6 +506,7 @@
       "drinkByPlaceholder": "ex. 2030",
       "peakWindowLabel": "Apogée (Optionnel)",
       "peakWindowPlaceholder": "ex. 2028-2029 ou 2028",
+      "peakEstimateNote": "L'apogée est une estimation de l'IA basée sur le type de vin, pas spécifique à ce millésime. La fenêtre de garde vient de Vivino quand le vin est lié.",
       "notesLabel": "Notes",
       "saving": "Enregistrement...",
       "save": "Enregistrer",

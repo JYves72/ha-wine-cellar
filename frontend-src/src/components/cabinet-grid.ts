@@ -1430,10 +1430,15 @@ export class CabinetGrid extends LitElement {
     // front=3), that means position 1 is a back dot, not front. Scale
     // always follows the lane itself (front=1, back=BACK_DOT_SCALE),
     // regardless of which one leads.
-    const renderInterleavedLane = (front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined) => {
+    // With equal lane lengths there is no longer lane, so the level decides:
+    // even boards (counted from the bottom) start with the front lane, odd
+    // boards with the back one — the same head-to-tail flip a 5/4 rack shows.
+    const renderInterleavedLane = (
+      front: ShelfSlotGroup | undefined, back: ShelfSlotGroup | undefined, level: number
+    ) => {
       const frontSize = front?.size || 0;
       const backSize = back?.size || 0;
-      const frontLeads = frontSize >= backSize;
+      const frontLeads = frontSize === backSize ? level % 2 === 0 : frontSize > backSize;
       const items: TemplateResult[] = [];
       for (let i = 0; i < Math.max(frontSize, backSize); i++) {
         if (frontLeads) {
@@ -1451,9 +1456,9 @@ export class CabinetGrid extends LitElement {
       <div class="bottom-zone zone-shelf">
         ${name ? html`<div class="bottom-zone-label">${name}</div>` : nothing}
         <div class="zone-shelf-levels">
-          ${levels.map(([, lanes], idx) => html`
+          ${levels.map(([level, lanes], idx) => html`
             <div class="zone-shelf-level ${idx === levels.length - 1 ? "last" : ""}">
-              ${renderInterleavedLane(lanes.front, lanes.back)}
+              ${renderInterleavedLane(lanes.front, lanes.back, level)}
             </div>
           `)}
         </div>
