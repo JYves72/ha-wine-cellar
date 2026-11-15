@@ -57,6 +57,7 @@ export class InventoryDialog extends LitElement {
   @property({ attribute: false }) cabinets: Cabinet[] = [];
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: Boolean }) enableCider = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: String }) currency = "USD";
   @property({ type: String }) chamberingRoomSensor = "";
@@ -2165,6 +2166,7 @@ export class InventoryDialog extends LitElement {
       { id: "sparkling", label: this._t("wineType.sparkling") },
       { id: "dessert", label: this._t("wineType.dessert") },
       ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
+      ...(this.enableCider ? [{ id: "cider", label: this._t("wineType.cider") }] : []),
     ];
 
     const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;
@@ -2558,6 +2560,7 @@ export class InventoryDialog extends LitElement {
         .hasGemini=${this.hasGemini}
         .currency=${this.currency}
         .enableWhisky=${this.enableWhisky}
+        .enableCider=${this.enableCider}
         .aiFallbackAlways=${this.aiFallbackAlways}
         .chamberingRoomSensor=${this.chamberingRoomSensor}
         .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}

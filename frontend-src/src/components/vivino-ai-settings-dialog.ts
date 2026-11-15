@@ -11,6 +11,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) vivinoKeepPhoto = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: Boolean }) enableCider = false;
   @property({ type: String }) defaultWineType: WineType = "red";
   @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
   @property({ type: String }) metadataLanguage = "en";
@@ -138,6 +139,10 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
   }
 
+  private _setEnableCider(value: boolean) {
+    this.dispatchEvent(new CustomEvent("set-enable-cider", { detail: { value } }));
+  }
+
   private _setDefaultWineType(value: WineType) {
     this.dispatchEvent(new CustomEvent("set-default-wine-type", { detail: { value } }));
   }
@@ -177,13 +182,24 @@ export class VivinoAiSettingsDialog extends LitElement {
           </div>
 
           <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.enableCider}
+                @change=${(e: Event) => this._setEnableCider((e.target as HTMLInputElement).checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.enableCider")}
+            </label>
+          </div>
+
+          <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.defaultWineTypeLabel")}</span>
             <select
               class="settings-select"
               .value=${this.defaultWineType}
               @change=${(e: Event) => this._setDefaultWineType((e.target as HTMLSelectElement).value as WineType)}
             >
-              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(([value, label]) => html`
+              ${getSelectableWineTypes(this.enableWhisky, this.enableCider, this.hass?.language).map(([value, label]) => html`
                 <option value=${value} ?selected=${value === this.defaultWineType}>${label}</option>
               `)}
             </select>

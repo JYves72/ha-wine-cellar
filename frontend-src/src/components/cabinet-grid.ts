@@ -1017,6 +1017,7 @@ export class CabinetGrid extends LitElement {
       "#D4E09B": "#e8f0b8",  // sparkling → brighter green
       "#DAA520": "#f0c040",  // dessert → brighter gold
       "#B5651D": "#d9843a",  // whisky → brighter amber
+      "#8DB600": "#b4d93a",  // cider → brighter apple green
     };
     return brightMap[hex] || hex;
   }

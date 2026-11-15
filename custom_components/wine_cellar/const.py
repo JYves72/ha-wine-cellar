@@ -8,7 +8,15 @@ STORAGE_VERSION = 1
 # distillery, grape_variety = cask/maturation, vintage = distillation year)
 # so nothing in the storage shape changes. Vivino has no whisky data at
 # all, so every Vivino path skips it and only the AI enrichment applies.
-WINE_TYPES = ["red", "white", "rosé", "sparkling", "dessert", "whisky"]
+#
+# "cider" follows the same pattern (winery = cider house, grape_variety = apple
+# varieties, vintage = harvest year). Unlike whisky, Vivino does list ciders
+# (type id 25), so they go through the normal Vivino lookups.
+WINE_TYPES = ["red", "white", "rosé", "sparkling", "dessert", "whisky", "cider"]
+
+# Types the wine aging rules and wine-critic scores don't cover: the batch
+# disposition analysis does not ask the AI about them ("Drink Now" by default).
+NON_WINE_TYPES = ("whisky", "cider")
 
 WINE_TYPE_COLORS = {
     "red": "#722F37",
@@ -17,6 +25,7 @@ WINE_TYPE_COLORS = {
     "sparkling": "#D4E09B",
     "dessert": "#DAA520",
     "whisky": "#B5651D",
+    "cider": "#8DB600",
 }
 
 DEFAULT_CABINETS = [
@@ -103,6 +112,9 @@ CONF_VIVINO_KEEP_PHOTO = "vivino_keep_photo"
 # correctly either way — this only gates what's offered, not what's stored.
 CONF_ENABLE_WHISKY = "enable_whisky"
 
+# Same opt-in for "cider" (off by default, only gates what the UI offers).
+CONF_ENABLE_CIDER = "enable_cider"
+
 # Which wine type the add-wine form starts on. Moved here (an in-card
 # setting) from Home Assistant's own config/options flow, which is a
 # better fit for account/connection-level settings (API keys, Vivino
@@ -166,4 +178,4 @@ DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20261114c"
+FRONTEND_VERSION = "20261115a"

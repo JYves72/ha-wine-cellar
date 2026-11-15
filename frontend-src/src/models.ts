@@ -300,7 +300,9 @@ export function getRemovalReasons(language?: string): { id: string; label: strin
 // distillery, grape_variety = cask/maturation, vintage = distillation year),
 // so nothing in the data shape changes; only the field labels follow the
 // type, see producerLabel/varietyLabel below. Mirrors WINE_TYPES in const.py.
-export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert" | "whisky";
+// "cider" works the same way (winery = cider house, grape_variety = apple
+// varieties, vintage = harvest year).
+export type WineType = "red" | "white" | "rosé" | "sparkling" | "dessert" | "whisky" | "cider";
 
 export const WINE_TYPE_COLORS: Record<WineType, string> = {
   red: "#722F37",
@@ -309,6 +311,7 @@ export const WINE_TYPE_COLORS: Record<WineType, string> = {
   sparkling: "#D4E09B",
   dessert: "#DAA520",
   whisky: "#B5651D",
+  cider: "#8DB600",
 };
 
 export const WINE_TYPE_LABELS: Record<WineType, string> = {
@@ -318,6 +321,7 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
   sparkling: "Sparkling",
   dessert: "Dessert",
   whisky: "Whisky",
+  cider: "Cider",
 };
 
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
@@ -332,23 +336,32 @@ export function getWineTypeLabels(language?: string): Record<WineType, string> {
 // (or independent bottler) and the "grape variety" field holds the cask.
 export function producerLabel(type?: string, language?: string): string {
   const t = tGroup("bottleFields", language);
-  return type === "whisky" ? t.distillery : t.winery;
+  if (type === "whisky") return t.distillery;
+  if (type === "cider") return t.ciderHouse;
+  return t.winery;
 }
 
 export function varietyLabel(type?: string, short = false, language?: string): string {
   const t = tGroup("bottleFields", language);
   if (type === "whisky") return t.cask;
+  if (type === "cider") return t.apples;
   return short ? t.grape : t.grapeVariety;
 }
 
 // The [type, label] pairs to offer in a type dropdown or filter chip list —
-// "whisky" only when the cellar has opted in (Vivino/AI Settings), so a
-// cellar that doesn't track whisky doesn't see it as an option. An existing
-// whisky-typed bottle keeps displaying correctly either way; this only
-// gates what's *offered*, not what's stored.
-export function getSelectableWineTypes(enableWhisky: boolean, language?: string): [WineType, string][] {
+// "whisky" / "cider" only when the cellar has opted in (Vivino/AI Settings),
+// so a cellar that doesn't track them doesn't see them as options. An
+// existing whisky- or cider-typed bottle keeps displaying correctly either
+// way; this only gates what's *offered*, not what's stored.
+export function getSelectableWineTypes(
+  enableWhisky: boolean,
+  enableCider: boolean,
+  language?: string,
+): [WineType, string][] {
   const entries = Object.entries(getWineTypeLabels(language)) as [WineType, string][];
-  return enableWhisky ? entries : entries.filter(([value]) => value !== "whisky");
+  return entries.filter(
+    ([value]) => (value !== "whisky" || enableWhisky) && (value !== "cider" || enableCider),
+  );
 }
 
 // Every physical (row, col) grid slot in a cabinet, in display order,

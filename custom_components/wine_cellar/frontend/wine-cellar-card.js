@@ -751,12 +751,15 @@ var wineType$1 = {
 	"rosé": "Rosé",
 	sparkling: "Sparkling",
 	dessert: "Dessert",
-	whisky: "Whisky"
+	whisky: "Whisky",
+	cider: "Cider"
 };
 var bottleFields$1 = {
 	winery: "Winery",
 	distillery: "Distillery",
+	ciderHouse: "Cider house",
 	cask: "Cask",
+	apples: "Apples",
 	grape: "Grape",
 	grapeVariety: "Grape Variety"
 };
@@ -1396,6 +1399,7 @@ var ui$1 = {
 		alwaysTryAi: "Always try AI when Vivino finds no match",
 		keepMyPhoto: "Always keep my photo when Vivino offers a different one",
 		enableWhisky: "Track whisky bottles (offer \"Whisky\" as a type)",
+		enableCider: "Track cider bottles (offer \"Cider\" as a type)",
 		defaultWineTypeLabel: "Default wine type",
 		dispositionDisplayLabel: "Drink Now / Hold / Past Peak display",
 		dispositionDisplayLetter: "Badge with letter",
@@ -1511,6 +1515,7 @@ var toast$1 = {
 	changeCurrencyFailed: "Failed to change currency",
 	changeAiFallbackFailed: "Failed to change AI fallback setting",
 	changeEnableWhiskyFailed: "Failed to change the whisky setting",
+	changeEnableCiderFailed: "Failed to change the cider setting",
 	changeDispositionDisplayFailed: "Failed to change the disposition badge setting",
 	changeDefaultWineTypeFailed: "Failed to change the default wine type",
 	vivinoRefreshing: "Refreshing all wines from Vivino...",
@@ -1568,12 +1573,15 @@ var wineType = {
 	"rosé": "Rosé",
 	sparkling: "Pétillant",
 	dessert: "Sucré",
-	whisky: "Whisky"
+	whisky: "Whisky",
+	cider: "Cidre"
 };
 var bottleFields = {
 	winery: "Domaine",
 	distillery: "Distillerie",
+	ciderHouse: "Cidrerie",
 	cask: "Fût",
+	apples: "Pommes",
 	grape: "Cépage",
 	grapeVariety: "Cépage"
 };
@@ -2213,6 +2221,7 @@ var ui = {
 		alwaysTryAi: "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
 		keepMyPhoto: "Toujours garder ma photo quand Vivino en propose une autre",
 		enableWhisky: "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
+		enableCider: "Suivre les bouteilles de cidre (proposer \"Cidre\" comme type)",
 		defaultWineTypeLabel: "Type de vin par défaut",
 		dispositionDisplayLabel: "Affichage à boire/à garder/sur le déclin",
 		dispositionDisplayLetter: "Pastille avec lettre",
@@ -2328,6 +2337,7 @@ var toast = {
 	changeCurrencyFailed: "Échec du changement de devise",
 	changeAiFallbackFailed: "Échec du changement du paramètre de secours IA",
 	changeEnableWhiskyFailed: "Échec du changement du paramètre whisky",
+	changeEnableCiderFailed: "Échec du changement du paramètre cidre",
 	changeDispositionDisplayFailed: "Échec du changement d'affichage de la pastille",
 	changeDefaultWineTypeFailed: "Échec du changement du type de vin par défaut",
 	vivinoRefreshing: "Rafraîchissement de tous les vins depuis Vivino...",
@@ -2506,6 +2516,7 @@ const WINE_TYPE_COLORS = {
     sparkling: "#D4E09B",
     dessert: "#DAA520",
     whisky: "#B5651D",
+    cider: "#8DB600",
 };
 const WINE_TYPE_LABELS = {
     red: "Red",
@@ -2514,6 +2525,7 @@ const WINE_TYPE_LABELS = {
     sparkling: "Sparkling",
     dessert: "Dessert",
     whisky: "Whisky",
+    cider: "Cider",
 };
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
 // — falls back to the English WINE_TYPE_LABELS above for a language with
@@ -2526,22 +2538,28 @@ function getWineTypeLabels(language) {
 // (or independent bottler) and the "grape variety" field holds the cask.
 function producerLabel(type, language) {
     const t = tGroup("bottleFields", language);
-    return type === "whisky" ? t.distillery : t.winery;
+    if (type === "whisky")
+        return t.distillery;
+    if (type === "cider")
+        return t.ciderHouse;
+    return t.winery;
 }
 function varietyLabel(type, short = false, language) {
     const t = tGroup("bottleFields", language);
     if (type === "whisky")
         return t.cask;
+    if (type === "cider")
+        return t.apples;
     return short ? t.grape : t.grapeVariety;
 }
 // The [type, label] pairs to offer in a type dropdown or filter chip list —
-// "whisky" only when the cellar has opted in (Vivino/AI Settings), so a
-// cellar that doesn't track whisky doesn't see it as an option. An existing
-// whisky-typed bottle keeps displaying correctly either way; this only
-// gates what's *offered*, not what's stored.
-function getSelectableWineTypes(enableWhisky, language) {
+// "whisky" / "cider" only when the cellar has opted in (Vivino/AI Settings),
+// so a cellar that doesn't track them doesn't see them as options. An
+// existing whisky- or cider-typed bottle keeps displaying correctly either
+// way; this only gates what's *offered*, not what's stored.
+function getSelectableWineTypes(enableWhisky, enableCider, language) {
     const entries = Object.entries(getWineTypeLabels(language));
-    return enableWhisky ? entries : entries.filter(([value]) => value !== "whisky");
+    return entries.filter(([value]) => (value !== "whisky" || enableWhisky) && (value !== "cider" || enableCider));
 }
 // Every physical (row, col) grid slot in a cabinet, in display order,
 // skipping rows configured as bulk/box storage zones.
@@ -4101,6 +4119,7 @@ let CabinetGrid = class CabinetGrid extends i {
             "#D4E09B": "#e8f0b8", // sparkling → brighter green
             "#DAA520": "#f0c040", // dessert → brighter gold
             "#B5651D": "#d9843a", // whisky → brighter amber
+            "#8DB600": "#b4d93a", // cider → brighter apple green
         };
         return brightMap[hex] || hex;
     }
@@ -6190,6 +6209,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this.hasGemini = false;
         this.aiFallbackAlways = false;
         this.enableWhisky = false;
+        this.enableCider = false;
         this.currency = "USD";
         this.chamberingRoomSensor = "";
         this.chamberingTimeConstantMinutes = 75;
@@ -6954,7 +6974,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             <label>${this._t("ui.wineDetail.typeLabel")}</label>
             <select .value=${d.type}
               @change=${(e) => this._updateEditField("type", e.target.value)}>
-              ${getSelectableWineTypes(this.enableWhisky || d.type === "whisky", this.hass?.language).map(([value, label]) => b `<option value=${value} ?selected=${d.type === value}>${label}</option>`)}
+              ${getSelectableWineTypes(this.enableWhisky || d.type === "whisky", this.enableCider || d.type === "cider", this.hass?.language).map(([value, label]) => b `<option value=${value} ?selected=${d.type === value}>${label}</option>`)}
             </select>
           </div>
           <div class="form-group">
@@ -8238,6 +8258,9 @@ __decorate([
     n({ type: Boolean })
 ], WineDetailDialog.prototype, "enableWhisky", void 0);
 __decorate([
+    n({ type: Boolean })
+], WineDetailDialog.prototype, "enableCider", void 0);
+__decorate([
     n({ type: String })
 ], WineDetailDialog.prototype, "currency", void 0);
 __decorate([
@@ -8501,6 +8524,7 @@ let AddWineDialog = class AddWineDialog extends i {
         this.preselectedDepth = 0;
         this.buyListMode = false;
         this.enableWhisky = false;
+        this.enableCider = false;
         this.defaultWineType = "red";
         this._step = "scan";
         this._scanMode = "idle";
@@ -9201,7 +9225,7 @@ let AddWineDialog = class AddWineDialog extends i {
             <select
               @change=${(e) => this._updateField("type", e.target.value)}
             >
-              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(([value, label]) => b `<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`)}
+              ${getSelectableWineTypes(this.enableWhisky, this.enableCider, this.hass?.language).map(([value, label]) => b `<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`)}
             </select>
           </div>
           <div class="form-group">
@@ -10227,6 +10251,9 @@ __decorate([
     n({ type: Boolean })
 ], AddWineDialog.prototype, "enableWhisky", void 0);
 __decorate([
+    n({ type: Boolean })
+], AddWineDialog.prototype, "enableCider", void 0);
+__decorate([
     n({ type: String })
 ], AddWineDialog.prototype, "defaultWineType", void 0);
 __decorate([
@@ -10284,6 +10311,7 @@ let WineSearchBar = class WineSearchBar extends i {
         this.value = "";
         this.filter = "all";
         this.enableWhisky = false;
+        this.enableCider = false;
     }
     // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
     _t(key, params) {
@@ -10329,6 +10357,7 @@ let WineSearchBar = class WineSearchBar extends i {
             { id: "sparkling", label: this._t("wineType.sparkling") },
             { id: "dessert", label: this._t("wineType.dessert") },
             ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
+            ...(this.enableCider ? [{ id: "cider", label: this._t("wineType.cider") }] : []),
         ];
         return b `
       <div class="search-container">
@@ -10504,6 +10533,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], WineSearchBar.prototype, "enableWhisky", void 0);
+__decorate([
+    n({ type: Boolean })
+], WineSearchBar.prototype, "enableCider", void 0);
 WineSearchBar = __decorate([
     t$1("wine-search-bar")
 ], WineSearchBar);
@@ -13282,6 +13314,7 @@ let InventoryDialog = class InventoryDialog extends i {
         this.cabinets = [];
         this.hasGemini = false;
         this.enableWhisky = false;
+        this.enableCider = false;
         this.aiFallbackAlways = false;
         this.currency = "USD";
         this.chamberingRoomSensor = "";
@@ -14620,6 +14653,7 @@ let InventoryDialog = class InventoryDialog extends i {
             { id: "sparkling", label: this._t("wineType.sparkling") },
             { id: "dessert", label: this._t("wineType.dessert") },
             ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
+            ...(this.enableCider ? [{ id: "cider", label: this._t("wineType.cider") }] : []),
         ];
         const busy = this._importing || this._restoring || this._backingUp || this._serverBackingUp || this._serverRestoring;
         return b `
@@ -14995,6 +15029,7 @@ let InventoryDialog = class InventoryDialog extends i {
         .hasGemini=${this.hasGemini}
         .currency=${this.currency}
         .enableWhisky=${this.enableWhisky}
+        .enableCider=${this.enableCider}
         .aiFallbackAlways=${this.aiFallbackAlways}
         .chamberingRoomSensor=${this.chamberingRoomSensor}
         .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
@@ -15711,6 +15746,9 @@ __decorate([
 ], InventoryDialog.prototype, "enableWhisky", void 0);
 __decorate([
     n({ type: Boolean })
+], InventoryDialog.prototype, "enableCider", void 0);
+__decorate([
+    n({ type: Boolean })
 ], InventoryDialog.prototype, "aiFallbackAlways", void 0);
 __decorate([
     n({ type: String })
@@ -15855,6 +15893,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.aiFallbackAlways = false;
         this.vivinoKeepPhoto = false;
         this.enableWhisky = false;
+        this.enableCider = false;
         this.defaultWineType = "red";
         this.dispositionDisplay = "letter";
         this.metadataLanguage = "en";
@@ -15877,6 +15916,9 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setEnableWhisky(value) {
         this.dispatchEvent(new CustomEvent("set-enable-whisky", { detail: { value } }));
+    }
+    _setEnableCider(value) {
+        this.dispatchEvent(new CustomEvent("set-enable-cider", { detail: { value } }));
     }
     _setDefaultWineType(value) {
         this.dispatchEvent(new CustomEvent("set-default-wine-type", { detail: { value } }));
@@ -15913,13 +15955,24 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
           </div>
 
           <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.enableCider}
+                @change=${(e) => this._setEnableCider(e.target.checked)}
+              />
+              ${this._t("ui.vivinoAiSettings.enableCider")}
+            </label>
+          </div>
+
+          <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.defaultWineTypeLabel")}</span>
             <select
               class="settings-select"
               .value=${this.defaultWineType}
               @change=${(e) => this._setDefaultWineType(e.target.value)}
             >
-              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(([value, label]) => b `
+              ${getSelectableWineTypes(this.enableWhisky, this.enableCider, this.hass?.language).map(([value, label]) => b `
                 <option value=${value} ?selected=${value === this.defaultWineType}>${label}</option>
               `)}
             </select>
@@ -16139,6 +16192,9 @@ __decorate([
     n({ type: Boolean })
 ], VivinoAiSettingsDialog.prototype, "enableWhisky", void 0);
 __decorate([
+    n({ type: Boolean })
+], VivinoAiSettingsDialog.prototype, "enableCider", void 0);
+__decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "defaultWineType", void 0);
 __decorate([
@@ -16224,6 +16280,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._aiFallbackAlways = false;
         this._vivinoKeepPhoto = false;
         this._enableWhisky = false;
+        this._enableCider = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
         this._chamberingRoomSensor = "";
@@ -16403,6 +16460,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
             this._vivinoKeepPhoto = capResult?.vivino_keep_photo || false;
             this._enableWhisky = capResult?.enable_whisky || false;
+            this._enableCider = capResult?.enable_cider || false;
             this._defaultWineType = capResult?.default_wine_type || "red";
             this._dispositionDisplay = capResult?.disposition_display || "letter";
             this._chamberingRoomSensor = capResult?.chambering_room_sensor || "";
@@ -17875,6 +17933,22 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.changeEnableWhiskyFailed"));
         }
     }
+    async _setEnableCider(value) {
+        if (value === this._enableCider)
+            return;
+        const previous = this._enableCider;
+        this._enableCider = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { enable_cider: value },
+            });
+        }
+        catch (err) {
+            this._enableCider = previous;
+            this._showToast(this._t("toast.changeEnableCiderFailed"));
+        }
+    }
     async _setDefaultWineType(value) {
         if (value === this._defaultWineType)
             return;
@@ -18394,6 +18468,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           @search-change=${this._onSearch}
         ></wine-search-bar>
 
@@ -18830,6 +18905,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hasGemini=${this._hasGemini}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
           .mode=${this._detailMode}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
@@ -18872,6 +18948,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .preselectedDepth=${this._addPreselect.depth || 0}
           .buyListMode=${this._addToBuyListMode}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           @close=${() => { this._showAddDialog = false; this._addToBuyListMode = false; }}
           @wine-added=${this._onWineAdded}
@@ -18909,6 +18986,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .cabinets=${this._cabinets}
           .hasGemini=${this._hasGemini}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
@@ -18955,6 +19033,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .aiFallbackAlways=${this._aiFallbackAlways}
           .vivinoKeepPhoto=${this._vivinoKeepPhoto}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
           .metadataLanguage=${this._metadataLanguage}
@@ -18965,6 +19044,7 @@ let WineCellarCard = class WineCellarCard extends i {
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
           @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @set-enable-whisky=${(e) => this._setEnableWhisky(e.detail.value)}
+          @set-enable-cider=${(e) => this._setEnableCider(e.detail.value)}
           @set-default-wine-type=${(e) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e) => this._setMetadataLanguage(e.detail.value)}
@@ -20061,6 +20141,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_enableWhisky", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_enableCider", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_defaultWineType", void 0);

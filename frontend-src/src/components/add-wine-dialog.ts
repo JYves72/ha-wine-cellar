@@ -47,6 +47,7 @@ export class AddWineDialog extends LitElement {
   @property({ attribute: false }) preselectedDepth: number = 0;
   @property({ type: Boolean }) buyListMode = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: Boolean }) enableCider = false;
   @property({ type: String }) defaultWineType: WineType = "red";
 
   @state() private _step: Step = "scan";
@@ -1289,7 +1290,7 @@ export class AddWineDialog extends LitElement {
               @change=${(e: Event) =>
                 this._updateField("type", (e.target as HTMLSelectElement).value)}
             >
-              ${getSelectableWineTypes(this.enableWhisky, this.hass?.language).map(
+              ${getSelectableWineTypes(this.enableWhisky, this.enableCider, this.hass?.language).map(
                 ([value, label]) =>
                   html`<option value=${value} ?selected=${(this._wineData.type || "red") === value}>${label}</option>`
               )}

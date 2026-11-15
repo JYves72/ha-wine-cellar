@@ -63,6 +63,15 @@ ALL_WINE_TYPE_IDS = [1, 2, 3, 4, 7]  # red, white, sparkling, rosé, dessert
 WHISKY_KEYWORDS = ("whisky", "whiskey", "bourbon", "scotch", "single malt")
 
 
+CIDER_KEYWORDS = ("cider", "cidre", "sidra", "sidre", "perry", "poiré", "poire")
+
+
+def _looks_like_cider(text: str) -> bool:
+    """True when a barcode-database title/category reads as cider or perry."""
+    text = text.lower()
+    return any(kw in text for kw in CIDER_KEYWORDS)
+
+
 def _looks_like_whisky(text: str) -> bool:
     text = text.lower()
     return any(kw in text for kw in WHISKY_KEYWORDS)
@@ -1014,7 +1023,8 @@ class VivinoClient:
                 ]
                 is_wine = any(kw in title_lower for kw in wine_keywords)
                 is_whisky = _looks_like_whisky(title_lower)
-                if not is_wine and not is_whisky:
+                is_cider = _looks_like_cider(title_lower)
+                if not is_wine and not is_whisky and not is_cider:
                     _LOGGER.debug(
                         "UPC Item DB result doesn't look like wine: %s", title
                     )
@@ -1024,6 +1034,8 @@ class VivinoClient:
                 wine_type = "red"
                 if is_whisky:
                     wine_type = "whisky"
+                elif is_cider:
+                    wine_type = "cider"
                 elif "white" in title_lower or "chardonnay" in title_lower:
                     wine_type = "white"
                 elif "rosé" in title_lower or "rose" in title_lower:
@@ -1092,6 +1104,8 @@ class VivinoClient:
                     wine_type = "red"
                     if _looks_like_whisky(categories) or _looks_like_whisky(name):
                         wine_type = "whisky"
+                    elif _looks_like_cider(categories) or _looks_like_cider(name):
+                        wine_type = "cider"
                     elif "white" in categories or "blanc" in categories:
                         wine_type = "white"
                     elif "rosé" in categories or "rose" in categories:
@@ -1358,5 +1372,6 @@ def _map_wine_type(type_id: int | None) -> str:
         3: "sparkling",
         4: "rosé",
         7: "dessert",
+        25: "cider",  # Vivino's "other" bucket: mostly cider/perry
     }
     return mapping.get(type_id, "red") if type_id else "red"
