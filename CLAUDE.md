@@ -99,6 +99,11 @@ Home Assistant custom integration + Lovelace card for managing a wine cellar: ra
   - **Cabinet shelf zones**: with equal front/back lane counts the boards now alternate which lane leads (even level = front first), like 5/4 does (`renderInterleavedLane` in `cabinet-grid.ts`).
   - `docs/how-lookups-work.md` documents what each add/refresh/analyze action calls.
 
+- **v2.25.0** (2026-11-15) — opt-in **cider** bottle type, tested OK by the user on their real instance before release.
+  - Own checkbox in the Vivino/AI settings (`enable_cider`, off by default, only gates what the UI offers; same pattern as `enable_whisky`). Reuses the wine fields: winery = cider house, grape_variety = apples, vintage = harvest year; labels follow the type (`producerLabel`/`varietyLabel`). `getSelectableWineTypes(enableWhisky, enableCider, language)`; any component showing type lists needs both props.
+  - **Vivino DOES list ciders** (type id 25, "other" bucket — also mead; some ciders are filed under sparkling/red/white). First version wrongly skipped cider on Vivino like whisky; corrected after the user pointed at a real Vivino cider page. `_map_wine_type` and the account sync map 25 -> `cider`; `_vivino_match_is_trustworthy` exempts cider from the type-disagreement check. Only whisky is skipped (`_is_whisky`). `NON_WINE_TYPES = ("whisky","cider")` in `const.py` is AI-only (batch disposition defaults to Drink Now, no wine prompt).
+  - AI: dedicated `_cider_analysis_prompt` (mostly Drink Now, chilled serving range, no critic scores), cider sections in the label and wine-list prompts, barcode titles with cidre/cider/sidra/perry typed as cider. Colour `#8DB600` (gold clashed with dessert).
+
 ## Key technical findings from recent work (don't re-discover these)
 
 - **Vivino's `www.vivino.com/api/explore/explore` search API silently ignores the `q` param** for unauthenticated requests — returns the same generic "trending wines" list regardless of query (verified live, repeatedly). `search_wine()` in `vivino.py` now checks the top result for basic relevance before trusting it, falling back to HTML scraping (which *does* do real text search) when it looks wrong.
