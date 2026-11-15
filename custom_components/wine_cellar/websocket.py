@@ -22,6 +22,7 @@ from .const import (
     CONF_DEFAULT_WINE_TYPE,
     CONF_DISMISSED_ARRANGEMENTS,
     CONF_DISPOSITION_DISPLAY,
+    CONF_ENABLE_CIDER,
     CONF_ENABLE_WHISKY,
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
@@ -153,11 +154,12 @@ def _get_chambering_equilibration_hours(hass: HomeAssistant) -> int:
 
 
 def _is_whisky(wine: dict[str, Any]) -> bool:
-    """True for the one non-wine type.
+    """True for the one type Vivino has no data for.
 
-    Vivino is a wine database: a whisky query never matches, and because
-    Vivino answers every query with *something*, the "best match" is a random
-    wine. Every Vivino path skips whisky up front; AI enrichment still applies.
+    A whisky query never matches on Vivino, and because Vivino answers every
+    query with *something*, the "best match" is a random wine. Every Vivino
+    path skips whisky up front; AI enrichment still applies. (Cider is *not*
+    skipped: Vivino lists ciders under its own type id 25.)
     """
     return wine.get("type") == "whisky"
 
@@ -466,7 +468,16 @@ def _vivino_match_is_trustworthy(subject: dict[str, Any], lookup: dict[str, Any]
     """
     subject_type = subject.get("type")
     lookup_type = lookup.get("type")
-    if subject_type and lookup_type and subject_type != lookup_type:
+    # Cider is exempt: Vivino files many ciders under sparkling/red/white
+    # rather than its own bucket, and a cider has no colour variants to tell
+    # apart. A cider typed before the "cider" type existed also still reads
+    # as sparkling here.
+    if (
+        subject_type
+        and lookup_type
+        and subject_type != lookup_type
+        and "cider" not in (subject_type, lookup_type)
+    ):
         return False
     subject_words = _significant_words(f"{subject.get('winery', '')} {subject.get('name', '')}")
     lookup_words = _significant_words(f"{lookup.get('winery', '')} {lookup.get('name', '')}")
@@ -1328,6 +1339,9 @@ def ws_get_capabilities(
             ),
             "enable_whisky": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_WHISKY, False)
+            ),
+            "enable_cider": bool(
+                hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_CIDER, False)
             ),
             "default_wine_type": hass.data[DOMAIN]["storage"].settings.get(
                 CONF_DEFAULT_WINE_TYPE, DEFAULT_WINE_TYPE

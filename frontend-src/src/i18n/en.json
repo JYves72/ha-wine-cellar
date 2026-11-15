@@ -5,12 +5,15 @@
     "rosé": "Rosé",
     "sparkling": "Sparkling",
     "dessert": "Dessert",
-    "whisky": "Whisky"
+    "whisky": "Whisky",
+    "cider": "Cider"
   },
   "bottleFields": {
     "winery": "Winery",
     "distillery": "Distillery",
+    "ciderHouse": "Cider house",
     "cask": "Cask",
+    "apples": "Apples",
     "grape": "Grape",
     "grapeVariety": "Grape Variety"
   },
@@ -650,6 +653,7 @@
       "alwaysTryAi": "Always try AI when Vivino finds no match",
       "keepMyPhoto": "Always keep my photo when Vivino offers a different one",
       "enableWhisky": "Track whisky bottles (offer \"Whisky\" as a type)",
+      "enableCider": "Track cider bottles (offer \"Cider\" as a type)",
       "defaultWineTypeLabel": "Default wine type",
       "dispositionDisplayLabel": "Drink Now / Hold / Past Peak display",
       "dispositionDisplayLetter": "Badge with letter",
@@ -765,6 +769,7 @@
     "changeCurrencyFailed": "Failed to change currency",
     "changeAiFallbackFailed": "Failed to change AI fallback setting",
     "changeEnableWhiskyFailed": "Failed to change the whisky setting",
+    "changeEnableCiderFailed": "Failed to change the cider setting",
     "changeDispositionDisplayFailed": "Failed to change the disposition badge setting",
     "changeDefaultWineTypeFailed": "Failed to change the default wine type",
     "vivinoRefreshing": "Refreshing all wines from Vivino...",

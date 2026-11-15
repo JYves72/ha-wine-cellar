@@ -5,12 +5,15 @@
     "rosé": "Rosé",
     "sparkling": "Pétillant",
     "dessert": "Sucré",
-    "whisky": "Whisky"
+    "whisky": "Whisky",
+    "cider": "Cidre"
   },
   "bottleFields": {
     "winery": "Domaine",
     "distillery": "Distillerie",
+    "ciderHouse": "Cidrerie",
     "cask": "Fût",
+    "apples": "Pommes",
     "grape": "Cépage",
     "grapeVariety": "Cépage"
   },
@@ -650,6 +653,7 @@
       "alwaysTryAi": "Toujours essayer l'IA quand Vivino ne trouve pas de correspondance",
       "keepMyPhoto": "Toujours garder ma photo quand Vivino en propose une autre",
       "enableWhisky": "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
+      "enableCider": "Suivre les bouteilles de cidre (proposer \"Cidre\" comme type)",
       "defaultWineTypeLabel": "Type de vin par défaut",
       "dispositionDisplayLabel": "Affichage à boire/à garder/sur le déclin",
       "dispositionDisplayLetter": "Pastille avec lettre",
@@ -765,6 +769,7 @@
     "changeCurrencyFailed": "Échec du changement de devise",
     "changeAiFallbackFailed": "Échec du changement du paramètre de secours IA",
     "changeEnableWhiskyFailed": "Échec du changement du paramètre whisky",
+    "changeEnableCiderFailed": "Échec du changement du paramètre cidre",
     "changeDispositionDisplayFailed": "Échec du changement d'affichage de la pastille",
     "changeDefaultWineTypeFailed": "Échec du changement du type de vin par défaut",
     "vivinoRefreshing": "Rafraîchissement de tous les vins depuis Vivino...",

@@ -9,6 +9,7 @@ export class WineSearchBar extends LitElement {
   @property({ type: String }) value = "";
   @property({ type: String }) filter = "all";
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: Boolean }) enableCider = false;
 
   static styles = [
     sharedStyles,
@@ -190,6 +191,7 @@ export class WineSearchBar extends LitElement {
       { id: "sparkling", label: this._t("wineType.sparkling") },
       { id: "dessert", label: this._t("wineType.dessert") },
       ...(this.enableWhisky ? [{ id: "whisky", label: this._t("wineType.whisky") }] : []),
+      ...(this.enableCider ? [{ id: "cider", label: this._t("wineType.cider") }] : []),
     ];
 
     return html`

@@ -21,7 +21,7 @@ import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import WINE_TYPES
+from .const import NON_WINE_TYPES, WINE_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -186,7 +186,7 @@ def _extract_base64_from_data_url(value: str | None) -> str | None:
     return value.split(";base64,", 1)[1]
 
 
-LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognition expert. The current year is {current_year}. Analyze this label image, identify the wine (or whisky), and provide a full assessment. Return ONLY a JSON object with these exact fields:
+LABEL_PROMPT = """You are a master sommelier, whisky and cider expert and label recognition expert. The current year is {current_year}. Analyze this label image, identify the wine (or whisky, or cider), and provide a full assessment. Return ONLY a JSON object with these exact fields:
 
 {{
   "name": "the wine's own name only, without winery, grape, colour, region or vintage (see the naming rule below)",
@@ -215,13 +215,13 @@ LABEL_PROMPT = """You are a master sommelier, whisky expert and label recognitio
 Label reading rules:
 - "name" is ONLY the wine's own name (the cuvée / brand name, e.g. "Piana del Sole", "Bronzinelle"), plus a designation that is truly part of its identity (Reserva, Riserva, Brut, Demi-Sec, Grand Cru, Cuvée X, Vieilles Vignes). Do NOT repeat in "name" anything that has its own field: not the winery, not the grape variety (Primitivo, Merlot...), not the colour/type word (Rosso, Rouge, Blanc, Red...), not the region, appellation or classification (Puglia, IGT, DOC, AOC, Bordeaux Supérieur...), not the vintage. Example: a label reading "Piana del Sole - Primitivo - Puglia IGT - Rosso" gives name "Piana del Sole", grape_variety "Primitivo", region "Puglia", type "red". Only when the label has no cuvée name at all (the producer's name plus an appellation or grape is all there is), use that appellation or grape as the name.
 - "vintage" must be a 4-digit year as an integer, or null if not visible (NV wines = null) — check both front and back label if two images are provided, since the vintage is often only on the back
-- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
+- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky", "cider"
 - For "type", infer from visual cues (bottle color, label text like "Blanc", "Rosé", "Brut") if not explicitly stated
 - "region" must be the broad, commonly-recognized wine region — the level used for grouping and filtering (e.g. "Bordeaux", "Vallée du Rhône", "Vallée de la Loire", "Toscane", "Napa Valley"), never:
   - a specific appellation, commune or vineyard name printed on the label (e.g. a label reading "Saint-Nicolas-de-Bourgueil" belongs to the Loire Valley — that IS the region, the appellation on the label is not)
   - a generic quality classification with no geographic meaning (e.g. "Vin de France", "Table Wine", "IGP") — if that is the only designation on the label, infer the actual region from the address/appellation printed instead; only fall back to the classification itself if truly nothing more specific is knowable
 - "barcode": if a barcode is visible in any image, read the digits printed alongside/below it (typically 8-14 digits, EAN-13 or UPC-A) and return them as a string. Only return digits you can actually read — null if no barcode is visible or the digits aren't legible.
-- If the image is neither a wine label nor a whisky label, return {{"error": "not_a_wine_label"}}
+- If the image is not a wine, whisky or cider label, return {{"error": "not_a_wine_label"}}
 
 Whisky labels (type "whisky") reuse the same fields:
 - "winery": the distillery, or the independent bottler if it is a bottler's release
@@ -232,6 +232,16 @@ Whisky labels (type "whisky") reuse the same fields:
 - "disposition": always "D", "drink_by": "" and "drink_window": "" — whisky does not age in the bottle
 - Rating fields (rating_ws, rating_rp, rating_jd, rating_ag) are wine critics: return null for whisky
 - "estimated_price" and "description" apply as normal; "alcohol" is the ABV as printed (e.g. "43%"); "serving_temp" is null (whisky is drunk neat or on the rocks, not chilled to a range); "notes" may hold the bottle size and cask strength/chill-filtration details from the label
+
+Cider labels (type "cider", apple or pear cider/perry) reuse the same fields:
+- "winery": the cider house / producer
+- "name": the cuvée or brand name, plus a designation that is part of its identity (Brut, Doux, Demi-Sec, Pays d'Auge, Poiré)
+- "vintage": the harvest year if printed, otherwise null
+- "grape_variety": the apple (or pear) varieties if printed, otherwise ""
+- "region": the cider region (e.g. Normandie, Bretagne, Asturias, Herefordshire, Québec)
+- "disposition": "D" for nearly all ciders; "drink_window" and "drink_by" only when the label or the style suggests keeping it (vintage or bottle-fermented cuvées, ice cider), otherwise "" — most cider is best within 1-3 years of the vintage
+- Rating fields (rating_ws, rating_rp, rating_jd, rating_ag) are wine critics: return null for cider
+- "alcohol" is the ABV as printed (e.g. "5%"); "serving_temp" is a chilled range such as "6-8°C" (sparkling/brut) or "8-10°C" (still/sweet); "notes" may hold the bottle size and sweetness level from the label
 
 Wine analysis rules:
 - "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak
@@ -290,10 +300,11 @@ Return ONLY a JSON object with this structure:
 Extraction rules:
 - Extract ALL wines visible on the menu or receipt, including by-the-glass options
 - Also extract whiskies (Scotch, bourbon, rye, Irish, Japanese, etc.) with type "whisky": "winery" is the distillery, "name" the expression with its age statement, "grape_variety" the cask info if given, "vintage" null unless a distillation year is printed. Skip other spirits.
-- For receipts: extract wine and whisky items only (skip non-wine items like food, tax, tips, etc.)
+- Also extract ciders and perries with type "cider": "winery" is the cider house, "grape_variety" the apple varieties if given, "vintage" null unless a harvest year is printed.
+- For receipts: extract wine, whisky and cider items only (skip non-wine items like food, tax, tips, etc.)
 - "name" is ONLY the wine's own name (the cuvée / brand name, e.g. "Piana del Sole", "Bronzinelle"), plus a designation that is truly part of its identity (Reserva, Riserva, Brut, Demi-Sec, Grand Cru, Cuvée X, Vieilles Vignes). Do NOT repeat in "name" anything that has its own field: not the winery, not the grape variety (Primitivo, Merlot...), not the colour/type word (Rosso, Rouge, Blanc, Red...), not the region, appellation or classification (Puglia, IGT, DOC, AOC, Bordeaux Supérieur...), not the vintage. Example: a label reading "Piana del Sole - Primitivo - Puglia IGT - Rosso" gives name "Piana del Sole", grape_variety "Primitivo", region "Puglia", type "red". Only when the label has no cuvée name at all (the producer's name plus an appellation or grape is all there is), use that appellation or grape as the name.
 - "vintage" must be a 4-digit year as an integer, or null if NV or not shown
-- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky"
+- "type" must be exactly one of: "red", "white", "rosé", "sparkling", "dessert", "whisky", "cider"
 - "list_price" is the price as a number (e.g. 65.00). Use null only if truly unreadable.
 - "list_price_currency" should be the 3-letter currency code (USD, EUR, GBP, etc.)
 - "estimated_retail_price": estimated current retail price in {currency} for this wine as a number (e.g. 35.00). Use your knowledge of the wine market to estimate what this bottle currently sells for at a retail store. Use null only if truly unknown.
@@ -315,10 +326,80 @@ Wine analysis rules (apply to every wine):
   - Rosé: 1-2 years. Most whites: 1-3 years. Sparkling NV: 2-3 years.
   - NV wines: "{current_year}-{next_year}"
   - Whisky: always "D" with drink_window "" (does not age in the bottle)
+  - Cider: "D"; most cider is best within 1-3 years of the vintage (drink_window "" if no vintage)
 - "description": Professional 2-3 sentence tasting-style description of this wine's character
-- Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess, and always null for whisky (these are wine critics).
+- Rating fields (rating_ws, rating_rp, rating_jd, rating_ag): If you know published critic scores, use those. Otherwise, provide your best estimated score (integer 85-100) based on the producer's reputation, region, and vintage quality. Only use null for obscure wines you truly cannot assess, and always null for whisky and cider (these are wine critics).
   - rating_ws = Wine Spectator, rating_rp = Robert Parker, rating_jd = Jeb Dunnuck, rating_ag = Antonio Galloni"""
 
+
+def _cider_analysis_prompt(
+    current_year: int,
+    name: str,
+    producer: str,
+    vintage: Any,
+    region: str,
+    country: str,
+    apples: str,
+    currency: str,
+    has_photo: bool,
+    has_back_photo: bool,
+) -> str:
+    """Single-bottle analysis prompt for a cider (or perry).
+
+    Same JSON shape as the wine prompt in `analyze_single_wine`. Wine aging
+    rules and wine critics do not apply: cider is nearly always "Drink Now",
+    served chilled, and the rating fields stay null.
+    """
+    photo_note = ""
+    if has_photo:
+        photo_note = (
+            "\n\nA photo of the bottle/label is attached"
+            + (" (front, then back)" if has_back_photo else " (front label)")
+            + ". If you don't recognize this specific cider from general "
+            "knowledge, read the label directly instead of guessing: extract "
+            "the ABV, apple varieties, sweetness level, harvest year and "
+            "reproduce any tasting note printed on the label."
+        )
+    return f"""You are a cider expert (cidre, sidra, perry). The current year is {current_year}.
+
+Analyze this cider and provide a detailed assessment:
+
+Cider: {name}
+Producer: {producer}
+Harvest year: {vintage}
+Region: {region}
+Country: {country}
+Apple varieties: {apples}
+
+Return ONLY a JSON object with these fields:
+{{
+  "disposition": "D",
+  "drink_by": "",
+  "drink_window": "",
+  "description": "2-3 sentence tasting profile and character of this cider",
+  "food_pairings": "3-5 suggested food pairings, comma-separated",
+  "estimated_price": null,
+  "rating_ws": null,
+  "rating_rp": null,
+  "rating_jd": null,
+  "rating_ag": null,
+  "region": null,
+  "country": null,
+  "grape_variety": null,
+  "alcohol": null,
+  "serving_temp": null
+}}
+
+Rules:
+- "disposition" is "D" for nearly every cider. Use "H" only for a cuvée clearly made to be kept (vintage or bottle-fermented, ice cider) and still young, "P" only if clearly past its prime.
+- "drink_window"/"drink_by": "YYYY-YYYY" / last year only for a cider worth keeping; otherwise "". Most cider is best within 1-3 years of the harvest; a few artisanal or ice ciders keep 5+.
+- "description": professional tasting-style description (appearance, nose, palate: sweetness, acidity, tannin, bubbles). If you don't know this exact cider, describe what to expect from the producer's style, the region and the sweetness level.
+- "food_pairings": classic pairings for this style (e.g. crêpes, andouille, Camembert, roast pork, apple tart), comma-separated. Always provide this from standard knowledge for the style, even if you don't know the specific cider.
+- "estimated_price": estimated current retail price in {currency} for this bottle as a number (e.g. 6.50). Return null only if you truly cannot estimate.
+- "alcohol": the ABV if printed or known (e.g. "5%"); best estimate otherwise (most cider is 3-6%, strong or ice ciders higher) — only null if you genuinely cannot judge even a range
+- "serving_temp": a chilled range in Celsius, e.g. "6-8°C" for brut or sparkling cider, "8-10°C" for still or sweet cider — always give a range
+- The rating fields are wine critics and must stay null
+- "region"/"country"/"grape_variety"/"alcohol": only fill these in if the corresponding field above is empty AND you can actually determine it. "grape_variety" holds the apple (or pear) varieties. Leave null if already provided above or genuinely unknown — don't guess.""" + photo_note
 
 def _whisky_analysis_prompt(
     current_year: int,
@@ -446,7 +527,7 @@ class BaseAIClient:
             prompt, image_base64, timeout_s=45, temperature=0.1, extra_image_base64=back_image_base64
         )
         if result.get("error") == "not_a_wine_label":
-            return {"error": "Not a wine or whisky label"}
+            return {"error": "Not a wine, whisky or cider label"}
         if "error" in result:
             return result
 
@@ -814,10 +895,15 @@ Examples (current year {current_year}):
             if front_photo else ""
         ) + _language_suffix(language)
 
-        # A whisky gets its own prompt: the wine aging rules and wine critics
-        # above do not apply to it. Same JSON shape, same handling below.
+        # A whisky (or cider) gets its own prompt: the wine aging rules and wine
+        # critics above do not apply to it. Same JSON shape, same handling below.
         if wine_type == "whisky":
             prompt = _language_prefix(language) + _whisky_analysis_prompt(
+                current_year, name, winery, "" if vintage == "NV" else vintage,
+                region, country, grape, currency, bool(front_photo), bool(back_photo),
+            ) + _language_suffix(language)
+        elif wine_type == "cider":
+            prompt = _language_prefix(language) + _cider_analysis_prompt(
                 current_year, name, winery, "" if vintage == "NV" else vintage,
                 region, country, grape, currency, bool(front_photo), bool(back_photo),
             ) + _language_suffix(language)
@@ -872,10 +958,10 @@ Examples (current year {current_year}):
         # Whisky does not develop in the bottle, so it is "Drink Now" by
         # definition — no point asking the model, and it keeps the prompt
         # free of bottles its wine guidelines don't cover.
-        whisky_ids = [w["id"] for w in wines if w.get("type") == "whisky"]
+        whisky_ids = [w["id"] for w in wines if w.get("type") in NON_WINE_TYPES]
         wine_lines = []
         for w in wines:
-            if w.get("type") == "whisky":
+            if w.get("type") in NON_WINE_TYPES:
                 continue
             vintage = w.get("vintage") or "NV"
             wine_type = w.get("type", "red")

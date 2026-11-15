@@ -11,7 +11,7 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 ## Features
 
 ### Visual Cellar Management
-- **Interactive Cabinet Grid** — Color-coded bottles by type (red, white, rosé, sparkling, dessert, whisky) with thumbnail images, scalable disposition badges (Drink/Hold/Past Peak), and Vivino ratings
+- **Interactive Cabinet Grid** — Color-coded bottles by type (red, white, rosé, sparkling, dessert, whisky, cider) with thumbnail images, scalable disposition badges (Drink/Hold/Past Peak), and Vivino ratings
 - **Deep Rack Support** — Racks can be 1-6 bottles deep; click any deep cell to open the depth side panel showing every bottle stacked front-to-back
 - **Depth Side Panel** — Slide-out panel reveals all bottles in a deep cell, click any wine for its detail or tap an empty slot to add a bottle at that specific depth
 - **Visual Rack Editor** — Create and edit racks with a live grid preview, stepper controls for rows/columns/depth, and per-row type selectors. Racks can be any size up to 20×20.
@@ -28,6 +28,7 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 
 - **Whisky Type** — Bottles can be typed as *Whisky* alongside the five wine types, with their own colour, filter chip and inventory count. A whisky reuses the wine fields: the *Winery* field becomes *Distillery*, *Grape Variety* becomes *Cask* (maturation info), and *Vintage* is the distillation year if the bottle has one.
 - **AI, not Vivino** — Vivino has no whisky data, so Vivino lookups and batch refreshes skip whisky bottles. Label recognition and the AI analysis handle whisky labels with their own rules: always *Drink Now* (whisky does not age in the bottle), no drink window, no wine-critic scores, but a tasting description and a price estimate as usual.
+- **Cider Type** — Off by default, enabled with its own checkbox in the Vivino/AI settings. A cider reuses the wine fields: *Winery* becomes *Cider house*, *Grape Variety* becomes *Apples*, *Vintage* is the harvest year. Unlike whisky, Vivino does list ciders, so lookups, ratings and refreshes work as for wine; the AI analysis uses its own cider rules (mostly *Drink Now*, chilled serving range, no wine-critic scores).
 
 ### Storage Zone Types
 - **Bulk Bins** — Open storage for loosely grouped bottles (e.g., daily drinkers, pending sort). Shows individual wine squares with configurable capacity.

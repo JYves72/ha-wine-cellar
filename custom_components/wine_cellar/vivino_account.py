@@ -815,7 +815,7 @@ def _parse_user_wine(record: dict[str, Any]) -> dict[str, Any] | None:
         vivino_id = vintage.get("id") or wine.get("id") or record.get("id")
 
         wine_type_id = wine.get("type_id")
-        type_map = {1: "red", 2: "white", 3: "sparkling", 4: "rosé", 7: "dessert"}
+        type_map = {1: "red", 2: "white", 3: "sparkling", 4: "rosé", 7: "dessert", 25: "cider"}
         wine_type = type_map.get(wine_type_id, "red")
 
         return {

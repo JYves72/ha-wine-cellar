@@ -89,6 +89,7 @@ export class WineCellarCard extends LitElement {
   @state() private _aiFallbackAlways = false;
   @state() private _vivinoKeepPhoto = false;
   @state() private _enableWhisky = false;
+  @state() private _enableCider = false;
   @state() private _defaultWineType: WineType = "red";
   @state() private _dispositionDisplay: "letter" | "dot" = "letter";
   @state() private _chamberingRoomSensor = "";
@@ -682,6 +683,7 @@ export class WineCellarCard extends LitElement {
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
       this._vivinoKeepPhoto = capResult?.vivino_keep_photo || false;
       this._enableWhisky = capResult?.enable_whisky || false;
+      this._enableCider = capResult?.enable_cider || false;
       this._defaultWineType = capResult?.default_wine_type || "red";
       this._dispositionDisplay = capResult?.disposition_display || "letter";
       this._chamberingRoomSensor = capResult?.chambering_room_sensor || "";
@@ -2228,6 +2230,21 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  private async _setEnableCider(value: boolean) {
+    if (value === this._enableCider) return;
+    const previous = this._enableCider;
+    this._enableCider = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { enable_cider: value },
+      });
+    } catch (err) {
+      this._enableCider = previous;
+      this._showToast(this._t("toast.changeEnableCiderFailed"));
+    }
+  }
+
   private async _setDefaultWineType(value: WineType) {
     if (value === this._defaultWineType) return;
     const previous = this._defaultWineType;
@@ -2764,6 +2781,7 @@ export class WineCellarCard extends LitElement {
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           @search-change=${this._onSearch}
         ></wine-search-bar>
 
@@ -3210,6 +3228,7 @@ export class WineCellarCard extends LitElement {
           .hasGemini=${this._hasGemini}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
           .mode=${this._detailMode}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
@@ -3252,6 +3271,7 @@ export class WineCellarCard extends LitElement {
           .preselectedDepth=${this._addPreselect.depth || 0}
           .buyListMode=${this._addToBuyListMode}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           @close=${() => { this._showAddDialog = false; this._addToBuyListMode = false; }}
           @wine-added=${this._onWineAdded}
@@ -3289,6 +3309,7 @@ export class WineCellarCard extends LitElement {
           .cabinets=${this._cabinets}
           .hasGemini=${this._hasGemini}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
@@ -3335,6 +3356,7 @@ export class WineCellarCard extends LitElement {
           .aiFallbackAlways=${this._aiFallbackAlways}
           .vivinoKeepPhoto=${this._vivinoKeepPhoto}
           .enableWhisky=${this._enableWhisky}
+          .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
           .metadataLanguage=${this._metadataLanguage}
@@ -3345,6 +3367,7 @@ export class WineCellarCard extends LitElement {
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
           @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @set-enable-whisky=${(e: CustomEvent) => this._setEnableWhisky(e.detail.value)}
+          @set-enable-cider=${(e: CustomEvent) => this._setEnableCider(e.detail.value)}
           @set-default-wine-type=${(e: CustomEvent) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e: CustomEvent) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e: CustomEvent) => this._setMetadataLanguage(e.detail.value)}

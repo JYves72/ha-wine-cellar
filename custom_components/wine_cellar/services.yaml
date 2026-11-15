@@ -26,6 +26,7 @@ add_wine:
             - sparkling
             - dessert
             - whisky
+            - cider
     vintage:
       name: Vintage
       description: Vintage year

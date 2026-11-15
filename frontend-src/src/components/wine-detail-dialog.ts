@@ -56,6 +56,7 @@ export class WineDetailDialog extends LitElement {
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) enableWhisky = false;
+  @property({ type: Boolean }) enableCider = false;
   @property({ type: String }) currency = "USD";
   @property({ type: String }) chamberingRoomSensor = "";
   @property({ type: Number }) chamberingTimeConstantMinutes = 75;
@@ -1348,7 +1349,7 @@ export class WineDetailDialog extends LitElement {
             <label>${this._t("ui.wineDetail.typeLabel")}</label>
             <select .value=${d.type}
               @change=${(e: Event) => this._updateEditField("type", (e.target as HTMLSelectElement).value)}>
-              ${getSelectableWineTypes(this.enableWhisky || d.type === "whisky", this.hass?.language).map(
+              ${getSelectableWineTypes(this.enableWhisky || d.type === "whisky", this.enableCider || d.type === "cider", this.hass?.language).map(
                 ([value, label]) => html`<option value=${value} ?selected=${d.type === value}>${label}</option>`
               )}
             </select>
