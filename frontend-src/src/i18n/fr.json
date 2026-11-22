@@ -684,10 +684,11 @@
       "notFound": "Aucune caméra trouvée sur cet appareil.",
       "busy": "La caméra est occupée ou indisponible — une autre application l'utilise peut-être.",
       "genericError": "Impossible d'accéder à la caméra{detail}.",
-      "fallbackHint": "Le bouton ci-dessous ouvre la caméra de votre appareil, qui fonctionne dans tous les cas.",
+      "fallbackHint": "« Prendre une photo » ouvre la caméra de votre appareil, qui fonctionne dans tous les cas ; ou choisissez une photo existante dans votre photothèque.",
       "pointAtLabel": "Pointez la caméra vers l'étiquette du vin",
       "takePhotoBtn": "📷 Prendre une photo",
       "uploadGalleryBtn": "📁 Importer depuis la galerie",
+      "chooseFromLibraryBtn": "📁 Choisir dans la photothèque",
       "takePhotoTitle": "Prendre une photo"
     },
     "wineList": {
