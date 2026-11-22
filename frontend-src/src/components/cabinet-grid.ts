@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "../models";
+import { Cabinet, Wine, StorageRow, WINE_TYPE_COLORS, WineType, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup, rowSlotCount } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 import { MANUAL_SENSOR, readCabinetHumidity, readCabinetTemp } from "../utils/chambering";
@@ -98,12 +98,21 @@ export class CabinetGrid extends LitElement {
       }
 
       .row {
+        --row-gap: 2px;
         display: flex;
-        gap: 2px;
+        gap: var(--row-gap);
         margin-bottom: 2px;
         padding: 0 4px;
         box-sizing: border-box;
         position: relative;
+      }
+
+      /* Staggered rack: a shorter row keeps full-size cells, centred. */
+      .row.short {
+        justify-content: center;
+      }
+      .row.short .cell {
+        flex: 0 0 calc((100% - (var(--rack-cols) - 1) * var(--row-gap)) / var(--rack-cols));
       }
 
       /* Scalloped shelf appearance */
@@ -779,7 +788,7 @@ export class CabinetGrid extends LitElement {
           padding: 4px;
         }
         .row {
-          gap: 1px;
+          --row-gap: 1px;
           margin-bottom: 1px;
         }
         .row::after {
@@ -814,7 +823,7 @@ export class CabinetGrid extends LitElement {
           padding: 5px;
         }
         .row {
-          gap: 2px;
+          --row-gap: 2px;
           margin-bottom: 1px;
         }
       }
@@ -1532,9 +1541,13 @@ export class CabinetGrid extends LitElement {
 
   private _renderGridRow(row: number, cols: number) {
     const cabinetDepth = (this.cabinet as any).depth || 1;
+    // A short row (staggered rack) keeps full-width cell size and is centred,
+    // which offsets it by half a slot against its neighbours.
+    const slots = rowSlotCount(this.cabinet, row);
+    const short = slots < cols;
     return html`
-      <div class="row">
-        ${Array.from({ length: cols }, (_, col) => {
+      <div class="row ${short ? "short" : ""}" style=${short ? `--rack-cols: ${cols}` : ""}>
+        ${Array.from({ length: slots }, (_, col) => {
           const wines = this._getWinesAt(row, col);
           const wineCount = wines.length;
           const frontWine = wines.length > 0

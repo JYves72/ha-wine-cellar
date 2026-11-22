@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES, getSteppedLevels } from "../models";
+import { Cabinet, Wine, StorageRow, getStorageRowTypeLabels, BOX_SIZES, getSteppedLevels, rowSlotCount, isStaggered } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
 import { MANUAL_SENSOR } from "../utils/chambering";
@@ -41,6 +41,8 @@ export class RackSettingsDialog extends LitElement {
   // the cabinet's own cols/depth (see _finalCols/_finalDepth) since a rack
   // never has more than one grid-shaped section.
   @state() private _secondaryGridRows = 1;
+  // Slots per row of the primary grid, for a staggered rack (empty: all full).
+  @state() private _rowCols: number[] = [];
   @state() private _deleteCabinet: Cabinet | null = null;
   @state() private _loading = false;
   @state() private _error = "";
@@ -282,6 +284,13 @@ export class RackSettingsDialog extends LitElement {
         padding: 8px;
         margin-bottom: 8px;
         overflow-x: auto;
+      }
+
+      .stagger-btn {
+        margin: 0 0 8px;
+      }
+      .stagger-btn.active {
+        border-color: var(--wc-primary);
       }
 
       .grid-preview-row {
@@ -772,6 +781,45 @@ export class RackSettingsDialog extends LitElement {
     return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? this._editCabinet.cols || 8 : 1;
   }
 
+  // Slots of one primary grid row, as the editor shows it.
+  private _primarySlots(row: number): number {
+    return rowSlotCount({ cols: this._editCabinet.cols || 8, row_cols: this._rowCols }, row);
+  }
+
+  private _primaryStaggered(): boolean {
+    const cols = this._editCabinet.cols || 8;
+    return Array.from({ length: this._editCabinet.rows || 1 }, (_, r) => this._primarySlots(r)).some((n) => n < cols);
+  }
+
+  // What gets saved: one entry per rack row, or nothing for a plain
+  // rectangle. The primary grid may sit below a secondary zone.
+  private _finalRowCols(): number[] {
+    if (this._primaryStyle !== "grid" || !this._primaryStaggered()) return [];
+    const result = Array.from({ length: this._finalRows() }, () => this._finalCols());
+    const offset =
+      this._secondaryStyle !== "none" && this._secondaryPosition === "above" ? this._slotRowCount("secondary") : 0;
+    for (let r = 0; r < (this._editCabinet.rows || 1); r++) result[offset + r] = this._primarySlots(r);
+    return result;
+  }
+
+  private _setRowSlots(row: number, n: number) {
+    const cols = this._editCabinet.cols || 1;
+    const next = Array.from({ length: this._editCabinet.rows || 1 }, (_, r) => this._primarySlots(r));
+    next[row] = Math.max(1, Math.min(cols, n));
+    this._rowCols = next;
+  }
+
+  // Staggered (honeycomb) layout: rows alternate full width and one slot
+  // less, e.g. 3/2/3/2. Pressing it again restores full rows.
+  private _toggleStagger() {
+    const cols = this._editCabinet.cols || 1;
+    if (this._primaryStaggered() || cols < 2) {
+      this._rowCols = [];
+      return;
+    }
+    this._rowCols = Array.from({ length: this._editCabinet.rows || 1 }, (_, r) => (r % 2 ? cols - 1 : cols));
+  }
+
   private _finalDepth(): number {
     return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? (this._editCabinet as any).depth || 1 : 1;
   }
@@ -803,6 +851,7 @@ export class RackSettingsDialog extends LitElement {
     const newCols = this._finalCols();
     const newDepth = this._finalDepth();
     const rows = this._finalStorageRows();
+    const shape = { cols: newCols, row_cols: this._finalRowCols() };
 
     return this.wines.filter((w) => {
       if (w.cabinet_id !== cabinetId) return false;
@@ -812,7 +861,7 @@ export class RackSettingsDialog extends LitElement {
         return (w.depth || 0) >= RackSettingsDialog._capacityOf(sr);
       }
       if (w.row == null || w.col == null) return false;
-      if (w.row >= newRows || w.col >= newCols) return true;
+      if (w.row >= newRows || w.col >= rowSlotCount(shape, w.row)) return true;
       if ((w.depth || 0) >= newDepth) return true;
       return rows.some((sr) => sr.row === w.row);
     });
@@ -835,6 +884,7 @@ export class RackSettingsDialog extends LitElement {
     this._secondaryStyle = "none";
     this._secondaryPosition = "below";
     this._secondaryGridRows = 1;
+    this._rowCols = [];
   }
 
   // Re-derives (primary style, secondary style + position) from a saved
@@ -881,7 +931,15 @@ export class RackSettingsDialog extends LitElement {
       }
     }
 
+    this._rowCols = [];
     const applySlot = (slot: SecondarySlot, cluster: Cluster | undefined) => {
+      if (slot === "primary" && cluster?.style === "grid") {
+        // The primary grid's row count is its own run, and so are its rows' slots.
+        if (isStaggered(cabinet)) {
+          this._editCabinet = { ...this._editCabinet, rows: cluster.size };
+          this._rowCols = Array.from({ length: cluster.size }, (_, r) => rowSlotCount(cabinet, cluster.start + r));
+        }
+      }
       if (!cluster) {
         if (slot === "primary") { this._primaryStyle = "grid"; this._primaryStorageRows = []; }
         else { this._secondaryStyle = "none"; this._secondaryStorageRows = []; }
@@ -1130,12 +1188,20 @@ export class RackSettingsDialog extends LitElement {
   private _addRow() {
     const current = this._editCabinet.rows || 1;
     if (current >= 20) return;
+    // A staggered rack keeps alternating: the new row copies two rows up.
+    if (this._primaryStaggered()) {
+      this._rowCols = [
+        ...Array.from({ length: current }, (_, r) => this._primarySlots(r)),
+        this._primarySlots(Math.max(0, current - 2)),
+      ];
+    }
     this._editCabinet = { ...this._editCabinet, rows: current + 1 };
   }
 
   private _removeRow() {
     const current = this._editCabinet.rows || 1;
     if (current <= 1) return;
+    this._rowCols = this._rowCols.slice(0, current - 1);
     this._editCabinet = { ...this._editCabinet, rows: current - 1 };
   }
 
@@ -1177,6 +1243,7 @@ export class RackSettingsDialog extends LitElement {
           has_bottom_zone: false,
           bottom_zone_name: "",
           storage_rows: this._finalStorageRows(),
+          row_cols: this._finalRowCols(),
           order: this.cabinets.length,
           orientation: "vertical",
           temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
@@ -1216,6 +1283,7 @@ export class RackSettingsDialog extends LitElement {
           has_bottom_zone: false,
           bottom_zone_name: "",
           storage_rows: this._finalStorageRows(),
+          row_cols: this._finalRowCols(),
           orientation: "vertical",
           temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
           humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
@@ -1308,6 +1376,12 @@ export class RackSettingsDialog extends LitElement {
     }
   }
 
+  // "3/2/3/2", cut short for long racks.
+  private _rowPattern(cab: Cabinet): string {
+    const counts = Array.from({ length: cab.rows }, (_, i) => rowSlotCount(cab, i));
+    return counts.length > 6 ? `${counts.slice(0, 4).join("/")}/…` : counts.join("/");
+  }
+
   private _renderList() {
     const sorted = [...this.cabinets].sort((a, b) => a.order - b.order);
     return html`
@@ -1324,7 +1398,9 @@ export class RackSettingsDialog extends LitElement {
                   <div class="rack-info">
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
-                      ${hasGridRows ? html`${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}` : nothing}
+                      ${hasGridRows ? html`${isStaggered(cab)
+                        ? this._t("ui.rack.staggeredRows", { rows: cab.rows, pattern: this._rowPattern(cab) })
+                        : this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}` : nothing}
                       ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
                       ${[...typeCounts.entries()].map(([type, count]) =>
                         type === "shelf"
@@ -1427,17 +1503,38 @@ export class RackSettingsDialog extends LitElement {
           </div>
         </div>
 
+        <button
+          class="small-btn stagger-btn ${this._primaryStaggered() ? "active" : ""}"
+          ?disabled=${numCols < 2}
+          @click=${this._toggleStagger}
+          title="${this._t("ui.rack.staggeredHint")}"
+        >${this._primaryStaggered() ? this._t("ui.rack.staggeredReset") : this._t("ui.rack.staggeredBtn")}</button>
+
         <!-- Visual grid preview -->
         <div class="grid-preview">
-          ${Array.from({ length: numRows }, (_, row) => html`
-            <div class="grid-preview-row">
-              <span class="grid-preview-label">R${row + 1}</span>
-              ${Array.from({ length: Math.min(numCols, 15) }, () => html`<div class="grid-preview-cell"></div>`)}
-              ${numCols > 15
-                ? html`<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${numCols - 15}</span>`
-                : nothing}
-            </div>
-          `)}
+          ${Array.from({ length: numRows }, (_, row) => {
+            const slots = this._primarySlots(row);
+            // A short row is centred: half a missing cell on each side.
+            const indent = ((Math.min(numCols, 15) - Math.min(slots, 15)) * 23) / 2;
+            return html`
+              <div class="grid-preview-row">
+                <span class="grid-preview-label">R${row + 1}</span>
+                ${indent ? html`<span style="width:${indent}px;flex-shrink:0"></span>` : nothing}
+                ${Array.from({ length: Math.min(slots, 15) }, () => html`<div class="grid-preview-cell"></div>`)}
+                ${slots > 15
+                  ? html`<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${slots - 15}</span>`
+                  : nothing}
+                ${this._primaryStaggered()
+                  ? html`
+                      <div class="row-cap-stepper" style="margin-left:${indent + 8}px">
+                        <button class="stepper-btn-sm" ?disabled=${slots <= 1} @click=${() => this._setRowSlots(row, slots - 1)}>−</button>
+                        <span class="stepper-val-sm">${slots}</span>
+                        <button class="stepper-btn-sm" ?disabled=${slots >= numCols} @click=${() => this._setRowSlots(row, slots + 1)}>+</button>
+                      </div>`
+                  : nothing}
+              </div>
+            `;
+          })}
         </div>
       `;
     }

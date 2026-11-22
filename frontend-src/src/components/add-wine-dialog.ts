@@ -10,6 +10,9 @@ import {
   getSelectableWineTypes,
   producerLabel,
   varietyLabel,
+  getRackSlots,
+  rowSlotCount,
+  isStaggered,
 } from "../models";
 import { sharedStyles } from "../styles";
 import { t } from "../i18n";
@@ -1553,7 +1556,9 @@ export class AddWineDialog extends LitElement {
                 }}
               >
                 <div class="cab-name">${cab.name}</div>
-                <div class="cab-info">${this._t("ui.addWine.slotsCount", { rows: cab.rows, cols: cab.cols })}</div>
+                <div class="cab-info">${isStaggered(cab)
+                  ? this._t("ui.addWine.slotsTotal", { n: getRackSlots(cab).length })
+                  : this._t("ui.addWine.slotsCount", { rows: cab.rows, cols: cab.cols })}</div>
               </div>
             `
           )}
@@ -1639,8 +1644,10 @@ export class AddWineDialog extends LitElement {
 
     const cabinet = this.cabinets.find((c) => c.id === d.cabinet_id);
     if (cabinet && !d.zone && d.row != null && d.col != null) {
-      if (d.row < 0 || d.row >= cabinet.rows || d.col < 0 || d.col >= cabinet.cols) {
-        this._error = this._t("ui.addWine.slotOutside", { cabinet: cabinet.name, rows: cabinet.rows, cols: cabinet.cols });
+      if (d.row < 0 || d.row >= cabinet.rows || d.col < 0 || d.col >= rowSlotCount(cabinet, d.row)) {
+        this._error = d.row >= 0 && d.row < cabinet.rows && rowSlotCount(cabinet, d.row) < cabinet.cols
+          ? this._t("ui.addWine.slotOutsideRow", { cabinet: cabinet.name, row: d.row + 1, n: rowSlotCount(cabinet, d.row) })
+          : this._t("ui.addWine.slotOutside", { cabinet: cabinet.name, rows: cabinet.rows, cols: cabinet.cols });
         return;
       }
       const isStorageRow = (cabinet.storage_rows || []).some((sr) => sr.row === d.row);
