@@ -73,6 +73,16 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Gemini Price Fallback** — When Vivino has no pricing data, Gemini AI provides estimated retail prices as a fallback for single wine refresh and batch scans
 - **Auto-Enrich on Add** — When you add a wine, Vivino data (rating, price, description, food pairings) is automatically fetched in the background
 
+### Dashboard Tiles
+- **Section Card** — Put a single rack on any dashboard as its own tile with `custom:wine-cellar-section-card` (or pick **Cork Dork — Section** in the card picker and choose the section). It shows that rack's grid, sensor reading and bottle count; tap a bottle for its details, tap a free slot to add a bottle there. It stays in sync with the full card; moving and copying bottles stay in the full card.
+
+  ```yaml
+  type: custom:wine-cellar-section-card
+  section: Kitchen        # rack name or id
+  title: Wine fridge      # optional
+  show_header: true       # optional, bottle count line
+  ```
+
 ### Vivino Integration
 - **Cellar Connection** — Connect your Vivino cellar by pasting your cellar URL and session cookie once (see **[docs/vivino-import.md](docs/vivino-import.md)**). One tap on the card's button then brings in every bottle you own (with ratings, images, region, grape data, and your personal star ratings/notes) as unassigned wines. Bottle counts are respected and already-imported bottles are never duplicated.
 - **Vivino Mode: Import or Synchronize** — Chosen in the integration's options. **Import** (the default) is a one-way mirror: Vivino is the source of truth and Cork Dork follows it; nothing is ever written to your Vivino account. **Synchronize** is a two-way reconcile: bottles you add or drink in Cork Dork are pushed back to your Vivino cellar as cellar events (visible and undoable in Vivino's history), guarded so a bad fetch can't wipe Cork Dork and corrupt local data can't wipe Vivino. The card's button reflects the mode — ⬇️ Vivino Import or 🔄 Vivino Sync.

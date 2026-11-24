@@ -37,6 +37,24 @@
     "slot": "Slot"
   },
   "ui": {
+    "sectionCard": {
+      "loading": "Loading…",
+      "unavailable": "Cork Dork is not available.",
+      "noSectionNamed": "No section named {name}.",
+      "chooseSection": "Choose a section for this card.",
+      "sectionsList": "Sections: {names}",
+      "bottlesOne": "{n} bottle",
+      "bottlesMany": "{n} bottles",
+      "free": "{n} free",
+      "slotTitle": "Row {row}, slot {col}",
+      "addHere": "+ Add a bottle here",
+      "fullCardOnly": "Moving and copying bottles is done in the full Cork Dork card.",
+      "editor": {
+        "section": "Section",
+        "title": "Title (optional)",
+        "showHeader": "Show bottle count (and title)"
+      }
+    },
     "common": {
       "cancel": "Cancel",
       "empty": "Empty",

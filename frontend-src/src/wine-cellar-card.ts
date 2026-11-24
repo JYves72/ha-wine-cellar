@@ -3951,6 +3951,9 @@ export class WineCellarCard extends LitElement {
 }
 
 // Register the card with Home Assistant
+// Ships in the same bundle: one rack as its own dashboard card.
+import "./wine-cellar-section-card";
+
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: "wine-cellar-card",

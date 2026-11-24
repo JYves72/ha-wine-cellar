@@ -37,6 +37,24 @@
     "slot": "Emplacement"
   },
   "ui": {
+    "sectionCard": {
+      "loading": "Chargement…",
+      "unavailable": "Cork Dork n'est pas disponible.",
+      "noSectionNamed": "Aucune section nommée {name}.",
+      "chooseSection": "Choisissez une section pour cette carte.",
+      "sectionsList": "Sections : {names}",
+      "bottlesOne": "{n} bouteille",
+      "bottlesMany": "{n} bouteilles",
+      "free": "{n} libres",
+      "slotTitle": "Rangée {row}, emplacement {col}",
+      "addHere": "+ Ajouter une bouteille ici",
+      "fullCardOnly": "Déplacer ou copier une bouteille se fait dans la carte Cork Dork complète.",
+      "editor": {
+        "section": "Section",
+        "title": "Titre (facultatif)",
+        "showHeader": "Afficher le nombre de bouteilles (et le titre)"
+      }
+    },
     "common": {
       "cancel": "Annuler",
       "empty": "Vide",

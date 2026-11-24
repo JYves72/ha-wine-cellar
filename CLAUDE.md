@@ -148,6 +148,7 @@ One branch per feature/fix, tested by the user on Synology, then PR + merge on t
 - `custom_components/wine_cellar/vivino_reconcile.py` — three-way reconcile logic (baseline / Vivino state / local state) backing the sync.
 - `docs/vivino-import.md` — user-facing instructions for obtaining the Vivino session cookie and cellar URL this feature needs.
 - `frontend-src/src/wine-cellar-card.ts` — main card (grid, tabs, batch actions, stats).
+- `frontend-src/src/wine-cellar-section-card.ts` — `custom:wine-cellar-section-card`: one rack as a dashboard tile (same bundle, imported by the main card). It reuses `cabinet-grid`, `wine-detail-dialog` and `add-wine-dialog` rather than copying them, and must pass them the same props as the main card; moving/copying bottles stays in the full card.
 - `frontend-src/src/components/` — dialogs (wine detail, add wine, inventory, rack settings, Vivino/AI settings, wine list scan, arrangement report).
 - `frontend-src/src/utils/` — shared logic, extracted so it stops being copied: `location.ts` (containers, occupancy, placement), `suggest.ts` (where a new bottle should go), `arrange.ts` (what is untidy), `search.ts` (`normalizeText`, filtering, sorting), `camera.ts` (why the camera failed).
 
