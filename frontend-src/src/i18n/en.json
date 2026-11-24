@@ -463,6 +463,20 @@
       "posRowCol": "Row {row}, Col {col}"
     },
     "wineDetail": {
+      "vivinoProfile": {
+        "title": "Vivino profile",
+        "light": "Light",
+        "bold": "Bold",
+        "smooth": "Smooth",
+        "tannic": "Tannic",
+        "dry": "Dry",
+        "sweet": "Sweet",
+        "soft": "Soft",
+        "acidic": "Acidic",
+        "gentle": "Gentle",
+        "fizzy": "Fizzy",
+        "critic": "Critic"
+      },
       "backLabelSuffix": " (back label)",
       "backLabelBadge": "Back label",
       "frontLabelTitle": "Front label",

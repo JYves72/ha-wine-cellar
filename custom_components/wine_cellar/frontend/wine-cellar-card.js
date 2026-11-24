@@ -1209,6 +1209,20 @@ var ui$1 = {
 		posRowCol: "Row {row}, Col {col}"
 	},
 	wineDetail: {
+		vivinoProfile: {
+			title: "Vivino profile",
+			light: "Light",
+			bold: "Bold",
+			smooth: "Smooth",
+			tannic: "Tannic",
+			dry: "Dry",
+			sweet: "Sweet",
+			soft: "Soft",
+			acidic: "Acidic",
+			gentle: "Gentle",
+			fizzy: "Fizzy",
+			critic: "Critic"
+		},
 		backLabelSuffix: " (back label)",
 		backLabelBadge: "Back label",
 		frontLabelTitle: "Front label",
@@ -2031,6 +2045,20 @@ var ui = {
 		posRowCol: "Ligne {row}, Col {col}"
 	},
 	wineDetail: {
+		vivinoProfile: {
+			title: "Profil Vivino",
+			light: "Léger",
+			bold: "Puissant",
+			smooth: "Souple",
+			tannic: "Tannique",
+			dry: "Sec",
+			sweet: "Doux",
+			soft: "Peu acide",
+			acidic: "Acide",
+			gentle: "Peu pétillant",
+			fizzy: "Pétillant",
+			critic: "Critique"
+		},
 		backLabelSuffix: " (étiquette arrière)",
 		backLabelBadge: "Étiquette arrière",
 		frontLabelTitle: "Étiquette avant",
@@ -7059,6 +7087,47 @@ let WineDetailDialog = class WineDetailDialog extends i {
       </div>
     `;
     }
+    // What Vivino's app shows on a wine's page: style, taste structure,
+    // main flavours, awards and critic scores (filled by vivino_profile.py).
+    _renderVivinoProfile(wine) {
+        const taste = wine.vivino_taste || {};
+        const scales = [
+            ["intensity", "light", "bold"],
+            ["tannin", "smooth", "tannic"],
+            ["sweetness", "dry", "sweet"],
+            ["acidity", "soft", "acidic"],
+            ["fizziness", "gentle", "fizzy"],
+        ];
+        const bars = scales.filter(([k]) => typeof taste[k] === "number");
+        const flavors = wine.vivino_flavors || [];
+        const awards = wine.vivino_awards || [];
+        const critics = wine.vivino_critics || [];
+        if (!wine.vivino_style && !bars.length && !flavors.length && !awards.length && !critics.length) {
+            return A;
+        }
+        return b `
+      <div class="vivino-profile">
+        <div class="detail-label" style="margin-bottom: 6px">${this._t("ui.wineDetail.vivinoProfile.title")}</div>
+        ${wine.vivino_style ? b `<div class="vp-style">${wine.vivino_style}</div>` : A}
+        ${bars.map(([k, low, high]) => b `
+            <div class="vp-scale">
+              <span class="vp-low">${this._t(`ui.wineDetail.vivinoProfile.${low}`)}</span>
+              <span class="vp-track"><span class="vp-fill" style="left: ${((Math.min(5, Math.max(1, taste[k])) - 1) / 4) * 100}%"></span></span>
+              <span class="vp-high">${this._t(`ui.wineDetail.vivinoProfile.${high}`)}</span>
+            </div>
+          `)}
+        ${flavors.length
+            ? b `<div class="vp-chips">${flavors.map((f) => b `<span class="vp-chip">${f}</span>`)}</div>`
+            : A}
+        ${awards.length
+            ? b `<div class="vp-list">${awards.map((a) => b `<div>🏅 ${[a.medal, a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`)}</div>`
+            : A}
+        ${critics.length
+            ? b `<div class="vp-list">${critics.map((c) => b `<div>✒️ ${c.critic || this._t("ui.wineDetail.vivinoProfile.critic")}: <b>${c.score}</b>${c.score_max ? `/${c.score_max}` : ""}</div>`)}</div>`
+            : A}
+      </div>
+    `;
+    }
     render() {
         if (!this.open || !this.wine)
             return A;
@@ -7363,6 +7432,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.barcodeLabel")}</span><span class="detail-value">${wine.barcode}</span></div>`
                 : A}
                 </div>
+
+                ${this._renderVivinoProfile(wine)}
 
                 ${wine.notes
                 ? b `
@@ -8152,6 +8223,59 @@ WineDetailDialog.styles = [
         .edit-form .form-row {
           grid-template-columns: 1fr;
         }
+      }
+      .vivino-profile {
+        margin: 12px 0 4px;
+      }
+      .vp-style {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .vp-scale {
+        display: grid;
+        grid-template-columns: 5em 1fr 5em;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8em;
+        color: var(--wc-text-secondary);
+        margin: 4px 0;
+      }
+      .vp-high {
+        text-align: right;
+      }
+      .vp-track {
+        position: relative;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--wc-border);
+      }
+      .vp-fill {
+        position: absolute;
+        top: -2px;
+        width: 22%;
+        height: 10px;
+        margin-left: -11%;
+        border-radius: 5px;
+        background: var(--wc-primary);
+      }
+      .vp-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 4px;
+      }
+      .vp-chip {
+        font-size: 0.8em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(114, 47, 55, 0.12);
+        color: var(--wc-text);
+      }
+      .vp-list {
+        font-size: 0.85em;
+        margin-top: 8px;
+        display: grid;
+        gap: 4px;
       }
     `,
 ];

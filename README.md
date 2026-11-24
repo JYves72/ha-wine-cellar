@@ -82,6 +82,7 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Sync Service & Sensor** — `wine_cellar.sync_vivino` service for automations plus a `Cork Dork Vivino Cellar` sensor reporting the last sync
 - **Vivino Batch Scan** — Refresh all wines from Vivino in one click: ratings, review counts, market pricing, descriptions, food pairings, alcohol content, and grape variety. Falls back to Gemini AI pricing when Vivino has no price.
 - **Individual Vivino Refresh** — Update any single wine's Vivino data from the detail dialog
+- **Vivino Profile** — For wines linked to Vivino, the wine sheet also shows what the Vivino app shows on the wine's page: the **wine style**, the **taste profile** (light↔bold, smooth↔tannic, dry↔sweet, soft↔acidic, gentle↔fizzy), the **main flavours**, and any **awards and critic scores**, in your metadata language. Fetched on refresh (single or batch), when a bottle is added, and in the background after a Vivino account sync.
 - **Wine Search** — Search Vivino by name to find and add wines without a barcode
 - **Wine List Vivino Enrichment** — After scanning a wine list, optionally click "Get Vivino Scores" to add Vivino ratings and images to your results
 

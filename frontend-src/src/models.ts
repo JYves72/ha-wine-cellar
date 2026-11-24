@@ -56,6 +56,13 @@ export interface Wine {
   // never overwrites.
   disposition_source?: string;
   drink_window: string;
+  // What Vivino's app shows on the wine's page (vivino_profile.py).
+  vivino_taste?: VivinoTaste | null;
+  vivino_flavors?: string[];
+  vivino_style?: string;
+  vivino_awards?: { competition?: string; medal?: string; score?: string; year?: number | string }[];
+  vivino_critics?: { critic?: string; score?: string; score_max?: number }[];
+  vivino_profile_at?: string;
   // Specific peak maturity window (when the wine is at its absolute best),
   // distinct from drink_window (entire suitable-to-drink period).
   // Format: "YYYY-YYYY" or "YYYY" for a single year. AI-filled only.
@@ -171,6 +178,15 @@ export function getShelfSlotGroups(levels: { front: number; back: number }[] | u
     offset += back;
   }
   return groups;
+}
+
+// Vivino taste structure, each on a 1-5 scale.
+export interface VivinoTaste {
+  intensity?: number;
+  sweetness?: number;
+  tannin?: number;
+  acidity?: number;
+  fizziness?: number;
 }
 
 export interface Cabinet {

@@ -49,6 +49,7 @@ from .const import (
 from . import photos
 from .disposition import compute_disposition
 from .vivino import _search_significant_words
+from .vivino_profile import PROFILE_CLEAR, async_apply_vivino_profile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -669,6 +670,8 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
             _propagate_to_duplicates(storage, wine, updates)
             await storage.async_save()
             hass.bus.async_fire(f"{DOMAIN}_updated")
+        # Taste, flavours, style, awards, critics of the now-known vintage.
+        await async_apply_vivino_profile(hass, wine["id"])
     except Exception as err:
         _LOGGER.warning("Auto-enrich failed for wine %s: %s", wine.get("id"), err)
 
@@ -1699,6 +1702,10 @@ async def ws_refresh_wine(
         "price_needs_ai": price_needs_ai,
         "previous": previous,
     })
+    # Vivino profile (taste, flavours, style, awards, critics): a few more
+    # requests, so it follows in the background and the card reloads.
+    if updated_wine and updated_wine.get("vivino_id"):
+        hass.async_create_task(async_apply_vivino_profile(hass, updated_wine["id"]))
 
 
 @websocket_api.websocket_command(
@@ -1737,6 +1744,8 @@ async def ws_revert_vivino_match(
         restore.update({
             "vivino_id": None, "vivino_linked": False,
             "rating": None, "ratings_count": None,
+            # The profile came from that page too.
+            **PROFILE_CLEAR,
         })
     updated = storage.update_wine(msg["wine_id"], restore)
     if updated:
@@ -2194,6 +2203,8 @@ async def ws_batch_refresh_vivino(
                 updates["ai_checked_at"] = now
             storage.update_wine(wine["id"], updates)
             _propagate_to_duplicates(storage, wine, updates)
+            # Profile of the vintage (propagated to identical bottles too).
+            await async_apply_vivino_profile(hass, wine["id"], save=False)
             if had_changes:
                 updated += n
             else:
