@@ -152,9 +152,15 @@ class WineCellarOptionsFlow(OptionsFlow):
                         CONF_VIVINO_AUTO_SYNC,
                         default=current.get(CONF_VIVINO_AUTO_SYNC, False),
                     ): bool,
+                    # No default: an entity selector rejects "", so a default of
+                    # "" made every save fail unless a room sensor was picked.
+                    # suggested_value pre-fills the field and lets it be cleared.
                     vol.Optional(
                         CONF_CHAMBERING_ROOM_SENSOR,
-                        default=current.get(CONF_CHAMBERING_ROOM_SENSOR, ""),
+                        description={
+                            "suggested_value": current.get(CONF_CHAMBERING_ROOM_SENSOR)
+                            or None
+                        },
                     ): EntitySelector(
                         EntitySelectorConfig(domain="sensor", device_class="temperature")
                     ),
