@@ -1432,10 +1432,11 @@ var ui$1 = {
 		notFound: "No camera found on this device.",
 		busy: "The camera is busy or unavailable — another app may be using it.",
 		genericError: "Could not access the camera{detail}.",
-		fallbackHint: "The button below opens your device's own camera, which works either way.",
+		fallbackHint: "\"Take a photo\" opens your device's own camera, which works either way; or pick an existing photo from your library.",
 		pointAtLabel: "Point the camera at the wine label",
 		takePhotoBtn: "📷 Take a photo",
 		uploadGalleryBtn: "📁 Upload from gallery",
+		chooseFromLibraryBtn: "📁 Choose from library",
 		takePhotoTitle: "Take photo"
 	},
 	wineList: {
@@ -2256,10 +2257,11 @@ var ui = {
 		notFound: "Aucune caméra trouvée sur cet appareil.",
 		busy: "La caméra est occupée ou indisponible — une autre application l'utilise peut-être.",
 		genericError: "Impossible d'accéder à la caméra{detail}.",
-		fallbackHint: "Le bouton ci-dessous ouvre la caméra de votre appareil, qui fonctionne dans tous les cas.",
+		fallbackHint: "« Prendre une photo » ouvre la caméra de votre appareil, qui fonctionne dans tous les cas ; ou choisissez une photo existante dans votre photothèque.",
 		pointAtLabel: "Pointez la caméra vers l'étiquette du vin",
 		takePhotoBtn: "📷 Prendre une photo",
 		uploadGalleryBtn: "📁 Importer depuis la galerie",
+		chooseFromLibraryBtn: "📁 Choisir dans la photothèque",
 		takePhotoTitle: "Prendre une photo"
 	},
 	wineList: {
@@ -6008,9 +6010,21 @@ let LabelCamera = class LabelCamera extends i {
           `}
 
       <div class="fallback-area">
+        ${this._error
+            ? b `
+              <!-- No live camera (e.g. plain http): capture="environment"
+                   opens the device's own camera without a secure context. -->
+              <label class="file-input-label">
+                ${this._t("ui.camera.takePhotoBtn")}
+                <input type="file" accept="image/*" capture="environment" @change=${this._onFileSelected} />
+              </label>
+            `
+            : A}
+        <!-- Never capture= here: on iOS it skips the photo library and
+             opens the camera, so "gallery" could not pick an existing photo. -->
         <label class="file-input-label">
-          ${this._error ? this._t("ui.camera.takePhotoBtn") : this._t("ui.camera.uploadGalleryBtn")}
-          <input type="file" accept="image/*" capture="environment" @change=${this._onFileSelected} />
+          ${this._error ? this._t("ui.camera.chooseFromLibraryBtn") : this._t("ui.camera.uploadGalleryBtn")}
+          <input type="file" accept="image/*" @change=${this._onFileSelected} />
         </label>
       </div>
     `;
@@ -6095,7 +6109,10 @@ LabelCamera.styles = [
       }
 
       .fallback-area {
-        text-align: center;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
         padding: 8px 0;
       }
 
