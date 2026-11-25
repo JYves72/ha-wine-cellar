@@ -104,6 +104,16 @@ Home Assistant custom integration + Lovelace card for managing a wine cellar: ra
   - **Vivino DOES list ciders** (type id 25, "other" bucket — also mead; some ciders are filed under sparkling/red/white). First version wrongly skipped cider on Vivino like whisky; corrected after the user pointed at a real Vivino cider page. `_map_wine_type` and the account sync map 25 -> `cider`; `_vivino_match_is_trustworthy` exempts cider from the type-disagreement check. Only whisky is skipped (`_is_whisky`). `NON_WINE_TYPES = ("whisky","cider")` in `const.py` is AI-only (batch disposition defaults to Drink Now, no wine prompt).
   - AI: dedicated `_cider_analysis_prompt` (mostly Drink Now, chilled serving range, no critic scores), cider sections in the label and wine-list prompts, barcode titles with cidre/cider/sidra/perry typed as cider. Colour `#8DB600` (gold clashed with dessert).
 
+- **v2.26.0** (2026-11-25) — tested OK by the user on their real instance before release.
+  - **Imports (credit)**: `Timothee-Rolland`'s fork — their pull requests 16-21 on `origin`, merged with their commits, plus the vintage/wine id fix, staggered racks and the drinking-status filters (the last two reworked on top of our editor and our letter/dot setting; their separate badge setting was not taken, "Hidden" was added to ours).
+  - **Currencies and languages**: stored setting "" = follow Home Assistant; lists in `locales.py`, country names in `country_names.py` (generated from CLDR). Food grouping exists for French and English only.
+  - **`keep_photo`** is per bottle (propagated to identical ones); the global setting remains in the settings dialog.
+  - **Two kinds of `vivino_id`**: vintage id for `VINTAGE_ID_SOURCES` (account sync), wine id otherwise; use `holds_vintage_id()`, never a `source.startswith("vivino")` test. `vivino_sync_id` keeps a synced bottle's cellar identity when its page changes — anything reconciling with the cellar must use `vivino_reconcile.sync_id()`.
+  - **Vivino app sign-in** is unofficial (client id/secret of the Android app, published here); the user was told. Their sync mode is "sync" and their Vivino cellar was empty as of 2026-09; synced-bottle paths have only been exercised with stubs.
+  - **Untranslated Vivino styles** (name slugs to the English `seo_name`) are composed by `_style_name()`; add trade names for regions Vivino translates literally to `_REGION_NAMES`.
+  - **Known gap**: a synced bottle's "vivino.com/w/<id>" link uses the vintage id, so it can open the wrong page.
+  - Stored profile values only change when the bottle is refreshed with Vivino.
+
 ## Key technical findings from recent work (don't re-discover these)
 
 - **Vivino's `www.vivino.com/api/explore/explore` search API silently ignores the `q` param** for unauthenticated requests — returns the same generic "trending wines" list regardless of query (verified live, repeatedly). `search_wine()` in `vivino.py` now checks the top result for basic relevance before trusting it, falling back to HTML scraping (which *does* do real text search) when it looks wrong.

@@ -47,6 +47,8 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Presets** — One-tap views for the questions actually worth asking: Drink this year, Past peak, Not rated, Missing data, Added recently
 - **Summary Stats** — Total bottles, estimated collection value, and type breakdown with colored indicators
 - **Disposition Search** — Search by "Drink", "Hold", or "Past Peak" to filter by disposition; also searches drink window field
+- **Drinking Status Filters** — *Drink now / Hold / Past peak* chips under the search bar filter the main view; the status on the racks can be shown as a letter, a coloured ring, or hidden.
+- **Your Currency and Language** — AI and Vivino texts and prices follow Home Assistant's own currency and language by default; any ISO 4217 currency and some 60 languages can be picked in the Vivino/AI settings. (The card's interface itself is translated into English and French.)
 - **CSV Export** — Download your filtered/sorted inventory as a date-stamped CSV file with 26 data columns
 - **Server Backup** — Save timestamped backups to the HA server (config/wine_cellar_backups/) with one click
 - **Server Restore** — Browse and restore from any previous server backup with a date/size picker
