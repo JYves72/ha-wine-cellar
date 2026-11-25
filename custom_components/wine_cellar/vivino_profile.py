@@ -9,7 +9,7 @@ window is *not* handled here: ``_apply_vivino_window`` in websocket.py
 already owns it.
 
 Which id is which: a bottle imported by the Vivino account sync (``source``
-starting with ``vivino``) carries a *vintage* id in ``vivino_id``; every
+in ``VINTAGE_ID_SOURCES``) carries a *vintage* id in ``vivino_id``; every
 other bottle (search, barcode, label, linked page) carries a *wine* id. The
 two id spaces overlap, so the kind of id decides the lookup, and the result
 is still checked against the bottle before it is kept.
@@ -45,6 +45,10 @@ PROFILE_CLEAR = {
     "vivino_profile_at": "",
 }
 _LIST_FIELDS = ("vivino_flavors", "vivino_awards", "vivino_critics")
+# Sources written by the account sync. Public search results are marked
+# "vivino"/"vivino_search"/"vivino_api" and carry wine ids, so a "vivino"
+# prefix alone does not tell them apart.
+VINTAGE_ID_SOURCES = ("vivino_account", "vivino_cellar")
 # Wines looked up per background pass after a sync (sequential, gentle).
 BACKFILL_LIMIT = 80
 BACKFILL_PAUSE = 0.3
@@ -52,7 +56,10 @@ BACKFILL_PAUSE = 0.3
 
 def holds_vintage_id(wine: dict[str, Any]) -> bool:
     """Does this bottle's vivino_id name a vintage (account sync) or a wine?"""
-    return str(wine.get("source") or "").startswith("vivino")
+    # A page linked by hand is a wine page, whatever the bottle's origin.
+    if wine.get("vivino_linked"):
+        return False
+    return wine.get("source") in VINTAGE_ID_SOURCES
 
 
 def build_profile_updates(profile: dict[str, Any]) -> dict[str, Any]:
@@ -115,10 +122,16 @@ async def async_apply_vivino_profile(
     wine = storage.get_wine(wine_id) if storage else None
     if not wine or not vivino or not wine.get("vivino_id"):
         return False
+    looked_up_id = wine["vivino_id"]
     try:
         profile = await _resolve_profile(vivino, wine, _get_metadata_language(hass))
     except Exception as err:  # noqa: BLE001
         _LOGGER.debug("Vivino profile for %s failed: %s", wine_id, err)
+        return False
+    # The link may have been removed or changed while we were fetching
+    # (e.g. "wrong wine"): don't bring the old page's profile back.
+    current = storage.get_wine(wine_id)
+    if not current or current.get("vivino_id") != looked_up_id:
         return False
     if profile:
         updates = build_profile_updates(profile)
