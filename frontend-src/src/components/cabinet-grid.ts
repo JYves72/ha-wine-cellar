@@ -29,7 +29,7 @@ export class CabinetGrid extends LitElement {
   // "letter" (default): the classic D/H/P badge. "dot": a plain colored
   // circle with no letter (green/blue/purple) — a settings-level choice,
   // not per-bottle.
-  @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
+  @property({ type: String }) dispositionDisplay: "letter" | "dot" | "off" = "letter";
 
   @state() private _dragOverCell: string | null = null;
   @state() private _quickEdit = false;
@@ -1047,7 +1047,7 @@ export class CabinetGrid extends LitElement {
   // as a thicker colored ring around the bottle instead, so the photo
   // stays uncovered.
   private _dispositionBadge(dispClass: string, disp: string, wine?: Wine, className = "disposition") {
-    if (!dispClass || this.dispositionDisplay === "dot") return nothing;
+    if (!dispClass || this.dispositionDisplay !== "letter") return nothing;
     const peakClass = dispClass === "drink" && this._isInOrAfterPeakWindow(wine) ? "peak" : "";
     return html`<span class="${className} ${dispClass} ${peakClass}">${disp}</span>`;
   }

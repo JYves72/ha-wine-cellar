@@ -694,6 +694,7 @@
       "dispositionDisplayLabel": "Affichage à boire/à garder/sur le déclin",
       "dispositionDisplayLetter": "Pastille avec lettre",
       "dispositionDisplayDot": "Cercle de couleur",
+      "dispositionDisplayOff": "Masqué",
       "languageLabel": "Langue Vivino/IA",
       "currencyLabel": "Devise",
       "followHa": "Comme Home Assistant : {value}",

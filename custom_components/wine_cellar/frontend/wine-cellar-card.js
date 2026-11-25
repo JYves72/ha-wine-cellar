@@ -1230,6 +1230,20 @@ var ui$1 = {
 		posRowCol: "Row {row}, Col {col}"
 	},
 	wineDetail: {
+		vivinoProfile: {
+			title: "Vivino profile",
+			light: "Light",
+			bold: "Bold",
+			smooth: "Smooth",
+			tannic: "Tannic",
+			dry: "Dry",
+			sweet: "Sweet",
+			soft: "Soft",
+			acidic: "Acidic",
+			gentle: "Gentle",
+			fizzy: "Fizzy",
+			critic: "Critic"
+		},
 		backLabelSuffix: " (back label)",
 		backLabelBadge: "Back label",
 		frontLabelTitle: "Front label",
@@ -1426,6 +1440,7 @@ var ui$1 = {
 		dispositionDisplayLabel: "Drink Now / Hold / Past Peak display",
 		dispositionDisplayLetter: "Badge with letter",
 		dispositionDisplayDot: "Colored circle",
+		dispositionDisplayOff: "Hidden",
 		languageLabel: "Vivino/AI language",
 		currencyLabel: "Currency",
 		followHa: "Same as Home Assistant: {value}",
@@ -2076,6 +2091,20 @@ var ui = {
 		posRowCol: "Ligne {row}, Col {col}"
 	},
 	wineDetail: {
+		vivinoProfile: {
+			title: "Profil Vivino",
+			light: "Léger",
+			bold: "Puissant",
+			smooth: "Souple",
+			tannic: "Tannique",
+			dry: "Sec",
+			sweet: "Doux",
+			soft: "Peu acide",
+			acidic: "Acide",
+			gentle: "Peu pétillant",
+			fizzy: "Pétillant",
+			critic: "Critique"
+		},
 		backLabelSuffix: " (étiquette arrière)",
 		backLabelBadge: "Étiquette arrière",
 		frontLabelTitle: "Étiquette avant",
@@ -2272,6 +2301,7 @@ var ui = {
 		dispositionDisplayLabel: "Affichage à boire/à garder/sur le déclin",
 		dispositionDisplayLetter: "Pastille avec lettre",
 		dispositionDisplayDot: "Cercle de couleur",
+		dispositionDisplayOff: "Masqué",
 		languageLabel: "Langue Vivino/IA",
 		currencyLabel: "Devise",
 		followHa: "Comme Home Assistant : {value}",
@@ -4198,7 +4228,7 @@ let CabinetGrid = class CabinetGrid extends i {
     // as a thicker colored ring around the bottle instead, so the photo
     // stays uncovered.
     _dispositionBadge(dispClass, disp, wine, className = "disposition") {
-        if (!dispClass || this.dispositionDisplay === "dot")
+        if (!dispClass || this.dispositionDisplay !== "letter")
             return A;
         const peakClass = dispClass === "drink" && this._isInOrAfterPeakWindow(wine) ? "peak" : "";
         return b `<span class="${className} ${dispClass} ${peakClass}">${disp}</span>`;
@@ -7135,6 +7165,47 @@ let WineDetailDialog = class WineDetailDialog extends i {
       </div>
     `;
     }
+    // What Vivino's app shows on a wine's page: style, taste structure,
+    // main flavours, awards and critic scores (filled by vivino_profile.py).
+    _renderVivinoProfile(wine) {
+        const taste = wine.vivino_taste || {};
+        const scales = [
+            ["intensity", "light", "bold"],
+            ["tannin", "smooth", "tannic"],
+            ["sweetness", "dry", "sweet"],
+            ["acidity", "soft", "acidic"],
+            ["fizziness", "gentle", "fizzy"],
+        ];
+        const bars = scales.filter(([k]) => typeof taste[k] === "number");
+        const flavors = wine.vivino_flavors || [];
+        const awards = wine.vivino_awards || [];
+        const critics = wine.vivino_critics || [];
+        if (!wine.vivino_style && !bars.length && !flavors.length && !awards.length && !critics.length) {
+            return A;
+        }
+        return b `
+      <div class="vivino-profile">
+        <div class="detail-label" style="margin-bottom: 6px">${this._t("ui.wineDetail.vivinoProfile.title")}</div>
+        ${wine.vivino_style ? b `<div class="vp-style">${wine.vivino_style}</div>` : A}
+        ${bars.map(([k, low, high]) => b `
+            <div class="vp-scale">
+              <span class="vp-low">${this._t(`ui.wineDetail.vivinoProfile.${low}`)}</span>
+              <span class="vp-track"><span class="vp-fill" style="left: ${((Math.min(5, Math.max(1, taste[k])) - 1) / 4) * 100}%"></span></span>
+              <span class="vp-high">${this._t(`ui.wineDetail.vivinoProfile.${high}`)}</span>
+            </div>
+          `)}
+        ${flavors.length
+            ? b `<div class="vp-chips">${flavors.map((f) => b `<span class="vp-chip">${f}</span>`)}</div>`
+            : A}
+        ${awards.length
+            ? b `<div class="vp-list">${awards.map((a) => b `<div>🏅 ${[a.medal, a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`)}</div>`
+            : A}
+        ${critics.length
+            ? b `<div class="vp-list">${critics.map((c) => b `<div>✒️ ${c.critic || this._t("ui.wineDetail.vivinoProfile.critic")}: <b>${c.score}</b>${c.score_max ? `/${c.score_max}` : ""}</div>`)}</div>`
+            : A}
+      </div>
+    `;
+    }
     render() {
         if (!this.open || !this.wine)
             return A;
@@ -7444,6 +7515,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.barcodeLabel")}</span><span class="detail-value">${wine.barcode}</span></div>`
                 : A}
                 </div>
+
+                ${this._renderVivinoProfile(wine)}
 
                 ${wine.notes
                 ? b `
@@ -8233,6 +8306,59 @@ WineDetailDialog.styles = [
         .edit-form .form-row {
           grid-template-columns: 1fr;
         }
+      }
+      .vivino-profile {
+        margin: 12px 0 4px;
+      }
+      .vp-style {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .vp-scale {
+        display: grid;
+        grid-template-columns: 5em 1fr 5em;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8em;
+        color: var(--wc-text-secondary);
+        margin: 4px 0;
+      }
+      .vp-high {
+        text-align: right;
+      }
+      .vp-track {
+        position: relative;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--wc-border);
+      }
+      .vp-fill {
+        position: absolute;
+        top: -2px;
+        width: 22%;
+        height: 10px;
+        margin-left: -11%;
+        border-radius: 5px;
+        background: var(--wc-primary);
+      }
+      .vp-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 4px;
+      }
+      .vp-chip {
+        font-size: 0.8em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(114, 47, 55, 0.12);
+        color: var(--wc-text);
+      }
+      .vp-list {
+        font-size: 0.85em;
+        margin-top: 8px;
+        display: grid;
+        gap: 4px;
       }
     `,
 ];
@@ -10410,6 +10536,8 @@ let WineSearchBar = class WineSearchBar extends i {
         super(...arguments);
         this.value = "";
         this.filter = "all";
+        // Drinking status: "" (any), "D", "H" or "P".
+        this.drinkFilter = "";
         this.enableWhisky = false;
         this.enableCider = false;
     }
@@ -10420,7 +10548,7 @@ let WineSearchBar = class WineSearchBar extends i {
     _onInput(e) {
         const value = e.target.value;
         this.dispatchEvent(new CustomEvent("search-change", {
-            detail: { query: value, filter: this.filter },
+            detail: { query: value, filter: this.filter, drinkFilter: this.drinkFilter },
             bubbles: true,
             composed: true,
         }));
@@ -10429,7 +10557,7 @@ let WineSearchBar = class WineSearchBar extends i {
     // enough to see. One tap, and the caret stays where the user can keep typing.
     _clear() {
         this.dispatchEvent(new CustomEvent("search-change", {
-            detail: { query: "", filter: this.filter },
+            detail: { query: "", filter: this.filter, drinkFilter: this.drinkFilter },
             bubbles: true,
             composed: true,
         }));
@@ -10443,7 +10571,17 @@ let WineSearchBar = class WineSearchBar extends i {
         this.filter = filter;
         const input = this.shadowRoot?.querySelector("input");
         this.dispatchEvent(new CustomEvent("search-change", {
-            detail: { query: input?.value || "", filter },
+            detail: { query: input?.value || "", filter, drinkFilter: this.drinkFilter },
+            bubbles: true,
+            composed: true,
+        }));
+    }
+    // A second filter, independent of the type: tap again to clear.
+    _onDrinkFilterChange(code) {
+        this.drinkFilter = this.drinkFilter === code ? "" : code;
+        const input = this.shadowRoot?.querySelector("input");
+        this.dispatchEvent(new CustomEvent("search-change", {
+            detail: { query: input?.value || "", filter: this.filter, drinkFilter: this.drinkFilter },
             bubbles: true,
             composed: true,
         }));
@@ -10489,6 +10627,20 @@ let WineSearchBar = class WineSearchBar extends i {
                 @click=${() => this._onFilterChange(f.id)}
               >
                 ${f.label}
+              </button>
+            `)}
+        </div>
+        <div class="filter-chips drink-chips">
+          ${[
+            { id: "D", key: "drinkNow", color: "#2e7d32" },
+            { id: "H", key: "hold", color: "#1565c0" },
+            { id: "P", key: "pastPeak", color: "#c62828" },
+        ].map((f) => b `
+              <button
+                class="chip ${this.drinkFilter === f.id ? "active" : ""}"
+                @click=${() => this._onDrinkFilterChange(f.id)}
+              >
+                <span class="drink-dot" style="background: ${f.color}"></span>${this._t(`ui.disposition.${f.key}`)}
               </button>
             `)}
         </div>
@@ -10610,6 +10762,19 @@ WineSearchBar.styles = [
         white-space: nowrap;
       }
 
+      .drink-chips {
+        margin-top: 6px;
+      }
+
+      .drink-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+
       .chip:hover {
         background: rgba(114, 47, 55, 0.08);
       }
@@ -10630,6 +10795,9 @@ __decorate([
 __decorate([
     n({ type: String })
 ], WineSearchBar.prototype, "filter", void 0);
+__decorate([
+    n({ type: String })
+], WineSearchBar.prototype, "drinkFilter", void 0);
 __decorate([
     n({ type: Boolean })
 ], WineSearchBar.prototype, "enableWhisky", void 0);
@@ -16217,6 +16385,10 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
                 class="pill ${this.dispositionDisplay === "dot" ? "active" : ""}"
                 @click=${() => this._setDispositionDisplay("dot")}
               >${this._t("ui.vivinoAiSettings.dispositionDisplayDot")}</button>
+              <button
+                class="pill ${this.dispositionDisplay === "off" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("off")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayOff")}</button>
             </div>
           </div>
 
@@ -16649,6 +16821,23 @@ let WineCellarSectionCard = class WineCellarSectionCard extends i {
             console.error("Wine Cellar: failed to remove wine", err);
         }
     }
+    // "Always fall back to AI" ticked in the wine sheet: save it, as the full card does.
+    async _setAiFallbackAlways(value) {
+        if (value === this._aiFallbackAlways)
+            return;
+        const previous = this._aiFallbackAlways;
+        this._aiFallbackAlways = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { ai_fallback_always: value },
+            });
+        }
+        catch {
+            this._aiFallbackAlways = previous;
+            this._toast(this._t("toast.changeAiFallbackFailed"));
+        }
+    }
     _onFullCardOnly() {
         this._showDetail = false;
         this._toast(this._t("ui.sectionCard.fullCardOnly"));
@@ -16732,6 +16921,7 @@ let WineCellarSectionCard = class WineCellarSectionCard extends i {
         @move-wine=${this._onFullCardOnly}
         @copy-wine=${this._onFullCardOnly}
         @locate-wine=${() => (this._showDetail = false)}
+        @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
       ></wine-detail-dialog>
 
       <add-wine-dialog
@@ -17101,6 +17291,8 @@ let WineCellarCard = class WineCellarCard extends i {
         this._enableCider = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
+        // Main view filter on the drinking status: "" (any), "D", "H" or "P".
+        this._drinkFilter = "";
         this._chamberingRoomSensor = "";
         this._chamberingTimeConstantMinutes = 75;
         this._chamberingEquilibrationHours = 24;
@@ -17329,6 +17521,9 @@ let WineCellarCard = class WineCellarCard extends i {
         if (this._searchFilter !== "all") {
             wines = wines.filter((w) => w.type === this._searchFilter);
         }
+        if (this._drinkFilter) {
+            wines = wines.filter((w) => w.disposition === this._drinkFilter);
+        }
         // Filter by search query — same matcher as the inventory dialog, so a
         // query never gives different results depending on which screen it was
         // typed into.
@@ -17347,7 +17542,7 @@ let WineCellarCard = class WineCellarCard extends i {
     // panels) — same letter-vs-dot choice as cabinet-grid.ts's own helper,
     // reading the same _dispositionDisplay state so both stay in sync.
     _dispositionBadge(dispClass, disp) {
-        if (!dispClass)
+        if (!dispClass || this._dispositionDisplay === "off")
             return A;
         const isDot = this._dispositionDisplay === "dot";
         return b `<span class="depth-slot-disposition ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
@@ -17879,6 +18074,7 @@ let WineCellarCard = class WineCellarCard extends i {
         // bottle's own rack.
         this._searchQuery = "";
         this._searchFilter = "all";
+        this._drinkFilter = "";
         this._activeTab = loc.cabinet.id;
         // Mark the bottle on the rack drawing regardless of whether a side panel
         // opens — for a plain bottom-zone bottle the drawing is the only place it
@@ -19061,6 +19257,7 @@ let WineCellarCard = class WineCellarCard extends i {
     _onSearch(e) {
         this._searchQuery = e.detail.query;
         this._searchFilter = e.detail.filter;
+        this._drinkFilter = e.detail.drinkFilter || "";
     }
     _getCabinetWines(cabinetId) {
         return this._wines.filter((w) => w.cabinet_id === cabinetId);
@@ -19079,7 +19276,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         const title = this._config?.title || "Cork Dork";
         const filteredWines = this._getFilteredWines();
-        const isSearching = !!(this._searchQuery || this._searchFilter !== "all");
+        const isSearching = !!(this._searchQuery || this._searchFilter !== "all" || this._drinkFilter);
         const unassignedWines = this._getUnassignedWines();
         const showGrid = !isSearching && this._activeTab !== "buy-list" && this._activeTab !== "unassigned" && (this._activeTab === "all" || this._cabinets.some((c) => c.id === this._activeTab));
         const showBuyList = this._activeTab === "buy-list" && !isSearching;
@@ -19293,6 +19490,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
+          .drinkFilter=${this._drinkFilter}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           @search-change=${this._onSearch}
@@ -20989,6 +21187,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_dispositionDisplay", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_drinkFilter", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_chamberingRoomSensor", void 0);

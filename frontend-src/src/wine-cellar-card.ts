@@ -96,7 +96,9 @@ export class WineCellarCard extends LitElement {
   @state() private _enableWhisky = false;
   @state() private _enableCider = false;
   @state() private _defaultWineType: WineType = "red";
-  @state() private _dispositionDisplay: "letter" | "dot" = "letter";
+  @state() private _dispositionDisplay: "letter" | "dot" | "off" = "letter";
+  // Main view filter on the drinking status: "" (any), "D", "H" or "P".
+  @state() private _drinkFilter = "";
   @state() private _chamberingRoomSensor = "";
   @state() private _chamberingTimeConstantMinutes = 75;
   @state() private _chamberingEquilibrationHours = 24;
@@ -745,6 +747,10 @@ export class WineCellarCard extends LitElement {
       wines = wines.filter((w) => w.type === this._searchFilter);
     }
 
+    if (this._drinkFilter) {
+      wines = wines.filter((w) => w.disposition === this._drinkFilter);
+    }
+
     // Filter by search query — same matcher as the inventory dialog, so a
     // query never gives different results depending on which screen it was
     // typed into.
@@ -766,7 +772,7 @@ export class WineCellarCard extends LitElement {
   // panels) — same letter-vs-dot choice as cabinet-grid.ts's own helper,
   // reading the same _dispositionDisplay state so both stay in sync.
   private _dispositionBadge(dispClass: string, disp: string) {
-    if (!dispClass) return nothing;
+    if (!dispClass || this._dispositionDisplay === "off") return nothing;
     const isDot = this._dispositionDisplay === "dot";
     return html`<span class="depth-slot-disposition ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
   }
@@ -1341,6 +1347,7 @@ export class WineCellarCard extends LitElement {
     // bottle's own rack.
     this._searchQuery = "";
     this._searchFilter = "all";
+    this._drinkFilter = "";
     this._activeTab = loc.cabinet.id;
 
     // Mark the bottle on the rack drawing regardless of whether a side panel
@@ -2273,7 +2280,7 @@ export class WineCellarCard extends LitElement {
     }
   }
 
-  private async _setDispositionDisplay(value: "letter" | "dot") {
+  private async _setDispositionDisplay(value: "letter" | "dot" | "off") {
     if (value === this._dispositionDisplay) return;
     const previous = this._dispositionDisplay;
     this._dispositionDisplay = value;
@@ -2554,6 +2561,7 @@ export class WineCellarCard extends LitElement {
   private _onSearch(e: CustomEvent) {
     this._searchQuery = e.detail.query;
     this._searchFilter = e.detail.filter;
+    this._drinkFilter = e.detail.drinkFilter || "";
   }
 
   private _getCabinetWines(cabinetId: string): Wine[] {
@@ -2576,7 +2584,7 @@ export class WineCellarCard extends LitElement {
 
     const title = this._config?.title || "Cork Dork";
     const filteredWines = this._getFilteredWines();
-    const isSearching = !!(this._searchQuery || this._searchFilter !== "all");
+    const isSearching = !!(this._searchQuery || this._searchFilter !== "all" || this._drinkFilter);
     const unassignedWines = this._getUnassignedWines();
     const showGrid = !isSearching && this._activeTab !== "buy-list" && this._activeTab !== "unassigned" && (this._activeTab === "all" || this._cabinets.some((c) => c.id === this._activeTab));
     const showBuyList = this._activeTab === "buy-list" && !isSearching;
@@ -2793,6 +2801,7 @@ export class WineCellarCard extends LitElement {
           .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
+          .drinkFilter=${this._drinkFilter}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           @search-change=${this._onSearch}

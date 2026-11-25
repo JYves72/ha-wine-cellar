@@ -694,6 +694,7 @@
       "dispositionDisplayLabel": "Drink Now / Hold / Past Peak display",
       "dispositionDisplayLetter": "Badge with letter",
       "dispositionDisplayDot": "Colored circle",
+      "dispositionDisplayOff": "Hidden",
       "languageLabel": "Vivino/AI language",
       "currencyLabel": "Currency",
       "followHa": "Same as Home Assistant: {value}",

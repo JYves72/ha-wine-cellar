@@ -13,7 +13,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: Boolean }) enableCider = false;
   @property({ type: String }) defaultWineType: WineType = "red";
-  @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
+  @property({ type: String }) dispositionDisplay: "letter" | "dot" | "off" = "letter";
   // The stored choices: "" follows Home Assistant.
   @property({ type: String }) metadataLanguage = "";
   @property({ type: String }) haLanguage = "en";
@@ -150,7 +150,7 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-default-wine-type", { detail: { value } }));
   }
 
-  private _setDispositionDisplay(value: "letter" | "dot") {
+  private _setDispositionDisplay(value: "letter" | "dot" | "off") {
     this.dispatchEvent(new CustomEvent("set-disposition-display", { detail: { value } }));
   }
 
@@ -253,6 +253,10 @@ export class VivinoAiSettingsDialog extends LitElement {
                 class="pill ${this.dispositionDisplay === "dot" ? "active" : ""}"
                 @click=${() => this._setDispositionDisplay("dot")}
               >${this._t("ui.vivinoAiSettings.dispositionDisplayDot")}</button>
+              <button
+                class="pill ${this.dispositionDisplay === "off" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("off")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayOff")}</button>
             </div>
           </div>
 
