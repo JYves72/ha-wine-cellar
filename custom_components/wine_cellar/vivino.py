@@ -309,6 +309,15 @@ _ENGLISH_STYLE = re.compile(
 )
 
 
+# Regions Vivino translates word for word, by (language, region seo_name):
+# use the names the local wine trade does.
+_REGION_NAMES = {
+    ("fr", "upper-loire"): "Centre-Loire",
+    ("fr", "middle-loire"): "Anjou-Saumur et Touraine",
+    ("fr", "lower-loire"): "Pays Nantais",
+}
+
+
 def _style_name(style: dict[str, Any], language: str) -> str:
     """The style's name, composed from its parts when Vivino has no translation.
 
@@ -336,8 +345,12 @@ def _style_name(style: dict[str, Any], language: str) -> str:
          if (g.get("name") or "").casefold() == variety and variety),
         "",
     )
-    region = style.get("region")
-    place = (region or {}).get("name") or _country_name(style.get("country") or "", language)
+    region = style.get("region") or {}
+    place = (
+        _REGION_NAMES.get((base, region.get("seo_name")))
+        or region.get("name")
+        or _country_name(style.get("country") or "", language)
+    )
     if not (grape or place):
         return name
     return " · ".join(part for part in (kind, grape, place) if part)
