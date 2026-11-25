@@ -65,6 +65,9 @@ export interface Wine {
   vivino_awards?: { competition?: string; medal?: string; score?: string; year?: number | string }[];
   vivino_critics?: { critic?: string; score?: string; score_max?: number }[];
   vivino_profile_at?: string;
+  // Set once a synced bottle's Vivino page is changed: the id the Vivino
+  // cellar knows it by.
+  vivino_sync_id?: string;
   // Specific peak maturity window (when the wine is at its absolute best),
   // distinct from drink_window (entire suitable-to-drink period).
   // Format: "YYYY-YYYY" or "YYYY" for a single year. AI-filled only.

@@ -155,6 +155,11 @@ CONF_VIVINO_AUTO_SYNC = "vivino_auto_sync"
 CONF_VIVINO_EMAIL = "vivino_email"
 CONF_VIVINO_PASSWORD = "vivino_password"
 
+# Bottle sources written by the account sync: their vivino_id is a Vivino
+# *vintage* id. Public search results are marked "vivino"/"vivino_search"/
+# "vivino_api" and carry wine ids, so a "vivino" prefix does not tell them apart.
+VINTAGE_ID_SOURCES = ("vivino_account", "vivino_cellar")
+
 # What the Vivino connection is allowed to do. "import" mirrors the Vivino
 # cellar into Cork Dork and never writes to the user's Vivino account;
 # "sync" is the full two-way reconcile that also pushes Cork Dork changes
@@ -188,4 +193,4 @@ DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20261125f"
+FRONTEND_VERSION = "20261125g"

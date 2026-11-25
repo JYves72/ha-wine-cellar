@@ -24,7 +24,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, VINTAGE_ID_SOURCES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,10 +45,6 @@ PROFILE_CLEAR = {
     "vivino_profile_at": "",
 }
 _LIST_FIELDS = ("vivino_flavors", "vivino_awards", "vivino_critics")
-# Sources written by the account sync. Public search results are marked
-# "vivino"/"vivino_search"/"vivino_api" and carry wine ids, so a "vivino"
-# prefix alone does not tell them apart.
-VINTAGE_ID_SOURCES = ("vivino_account", "vivino_cellar")
 # Wines looked up per background pass after a sync (sequential, gentle).
 BACKFILL_LIMIT = 80
 BACKFILL_PAUSE = 0.3
@@ -56,6 +52,9 @@ BACKFILL_PAUSE = 0.3
 
 def holds_vintage_id(wine: dict[str, Any]) -> bool:
     """Does this bottle's vivino_id name a vintage (account sync) or a wine?"""
+    # A synced bottle whose page was changed: only the original id is a vintage.
+    if wine.get("vivino_sync_id"):
+        return wine.get("vivino_id") == wine["vivino_sync_id"]
     # A page linked by hand is a wine page, whatever the bottle's origin.
     if wine.get("vivino_linked"):
         return False

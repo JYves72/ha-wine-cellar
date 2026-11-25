@@ -43,6 +43,7 @@ from .vivino_reconcile import (
     build_corkdork_state,
     build_vivino_state,
     is_delete_wave_suspicious,
+    sync_id,
     reconcile,
 )
 
@@ -919,6 +920,10 @@ async def _reconcile_cellar(
     if cellar:
         by_id = {str(w.get("vivino_id")): w for w in cellar if w.get("vivino_id")}
         for local in storage.wines:
+            # A bottle pointed at another page than the cellar's is the
+            # user's correction: don't refill it from the cellar record.
+            if local.get("vivino_sync_id") and local.get("vivino_id") != local["vivino_sync_id"]:
+                continue
             fresh = by_id.get(str(local.get("vivino_id") or ""))
             if not fresh:
                 continue
@@ -970,7 +975,7 @@ async def _reconcile_cellar(
                 meta = vivino_state.get(vid, {}).get("wine") or {}
                 local = next(
                     (w for w in storage.wines
-                     if str(w.get("vivino_id") or "") == str(vid)), {},
+                     if str(sync_id(w) or "") == str(vid)), {},
                 )
                 choice_queue[vid] = {
                     "count": need,
@@ -1148,7 +1153,12 @@ async def async_sync_from_vivino(
             buy_ids = {i.get("vivino_id") for i in storage.buy_list if i.get("vivino_id")}
             buy_keys = {_wine_key(i) for i in storage.buy_list}
             # Wines already in the cellar shouldn't be re-suggested to buy
-            cellar_ids = {w.get("vivino_id") for w in storage.wines if w.get("vivino_id")}
+            cellar_ids = {
+                i
+                for w in storage.wines
+                for i in (w.get("vivino_id"), w.get("vivino_sync_id"))
+                if i
+            }
 
             for entry in wishlist:
                 vid = entry.get("vivino_id", "")

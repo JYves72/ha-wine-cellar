@@ -46,6 +46,7 @@ from . import photos
 from .disposition import compute_disposition
 from .locales import CURRENCIES, LANGUAGE_NAMES, match_language
 from .vivino import _search_significant_words
+from .vivino_reconcile import sync_id
 from .vivino_profile import PROFILE_CLEAR, async_apply_vivino_profile, holds_vintage_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -382,7 +383,7 @@ def _build_ai_updates(
 # propagates when the user explicitly opts in (see propagate_notes below).
 _INSTANCE_ONLY_FIELDS = {
     "id", "cabinet_id", "row", "col", "zone", "depth",
-    "price", "purchase_date", "added_at", "notes",
+    "price", "purchase_date", "added_at", "notes", "vivino_sync_id",
 }
 
 
@@ -994,7 +995,7 @@ async def ws_resolve_vivino_removal(
     if not wine:
         connection.send_result(msg["id"], {"error": "Wine not found."})
         return
-    vid = str(wine.get("vivino_id") or "")
+    vid = str(sync_id(wine) or "")
     pending = storage.get_vivino_pending_removals()
     entry = pending.get(vid)
     if not entry:
@@ -1080,7 +1081,7 @@ async def ws_resolve_vivino_conflict(
     baseline = storage.get_vivino_baseline()
     entry = dict(baseline.get(vid) or {})
     local = next(
-        (w for w in storage.wines if str(w.get("vivino_id") or "") == vid), {}
+        (w for w in storage.wines if str(sync_id(w) or "") == vid), {}
     )
     entry.update({
         "count": cd_count,

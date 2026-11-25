@@ -18946,6 +18946,8 @@ let WineCellarCard = class WineCellarCard extends i {
                     ai_updated_at: this._copiedWine.ai_updated_at,
                     ai_checked_at: this._copiedWine.ai_checked_at,
                     vivino_id: this._copiedWine.vivino_id,
+                    vivino_sync_id: this._copiedWine.vivino_sync_id,
+                    vivino_linked: this._copiedWine.vivino_linked,
                     // Keep the source: a copy of a Vivino-synced bottle must stay part
                     // of the reconciliation (count pushes, removal candidates), or it
                     // becomes an invisible manual bottle with a vivino_id.
@@ -19217,7 +19219,7 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Pending Vivino removals: the user picks the actual bottle ---
     _removalCandidates(vid) {
-        return this._wines.filter((w) => String(w.vivino_id || "") === vid &&
+        return this._wines.filter((w) => String(w.vivino_sync_id || w.vivino_id || "") === vid &&
             String(w.source || "").startsWith("vivino"));
     }
     get _removalHighlightIds() {

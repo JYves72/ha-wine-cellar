@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    VINTAGE_ID_SOURCES,
     BARCODE_CACHE_MAX,
     CONF_BARCODE_CACHE,
     CONF_BUY_LIST,
@@ -22,6 +23,7 @@ from .const import (
     STORAGE_VERSION,
 )
 from .disposition import DISPOSITION_SOURCE_AUTO, compute_disposition
+from .vivino_reconcile import sync_id
 
 
 class WineCellarStorage:
@@ -226,6 +228,8 @@ class WineCellarStorage:
             "ai_updated_at": wine_data.get("ai_updated_at"),
             "ai_checked_at": wine_data.get("ai_checked_at"),
             "vivino_id": wine_data.get("vivino_id"),
+            "vivino_sync_id": wine_data.get("vivino_sync_id", ""),
+            "vivino_linked": bool(wine_data.get("vivino_linked", False)),
             # Vivino profile (see vivino_profile.py); kept when a bottle is
             # copied/pasted or restored, filled later otherwise.
             "vivino_taste": wine_data.get("vivino_taste"),
@@ -305,6 +309,16 @@ class WineCellarStorage:
                     key in updates and updates[key] != wine.get(key)
                     for key in self._LOCATION_KEYS
                 )
+                # Whatever changes a synced bottle's Vivino page, remember the
+                # id the Vivino cellar knows it by (see vivino_reconcile.sync_id).
+                if (
+                    "vivino_id" in updates
+                    and wine.get("source") in VINTAGE_ID_SOURCES
+                    and wine.get("vivino_id")
+                    and not wine.get("vivino_sync_id")
+                    and updates["vivino_id"] != wine["vivino_id"]
+                ):
+                    wine["vivino_sync_id"] = wine["vivino_id"]
                 for key, value in updates.items():
                     if key != "id":
                         wine[key] = value
@@ -691,7 +705,7 @@ class WineCellarStorage:
             return 0
         matching = [
             w for w in self._data.get(CONF_WINES, [])
-            if w.get("vivino_id") == vivino_id
+            if sync_id(w) == vivino_id
             and str(w.get("source", "")).startswith("vivino")
         ]
         # Unassigned (no cabinet) first, then oldest added first
@@ -722,7 +736,7 @@ class WineCellarStorage:
             return (0, 0)
         matching = [
             w for w in self._data.get(CONF_WINES, [])
-            if w.get("vivino_id") == vivino_id
+            if sync_id(w) == vivino_id
             and str(w.get("source", "")).startswith("vivino")
         ]
         if count >= len(matching):
