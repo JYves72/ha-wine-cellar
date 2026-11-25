@@ -7231,7 +7231,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         ${bars.map(([k, low, high]) => b `
             <div class="vp-scale">
               <span class="vp-low">${this._t(`ui.wineDetail.vivinoProfile.${low}`)}</span>
-              <span class="vp-track"><span class="vp-fill" style="left: ${((Math.min(5, Math.max(1, taste[k])) - 1) / 4) * 100}%"></span></span>
+              <span class="vp-track"><span class="vp-fill" style="left: ${((Math.min(5, Math.max(1, taste[k])) - 1) / 4) * 78}%"></span></span>
               <span class="vp-high">${this._t(`ui.wineDetail.vivinoProfile.${high}`)}</span>
             </div>
           `)}
@@ -7348,7 +7348,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             : A}
               ${this.mode !== "winelist"
             ? b `
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
                       <span style="font-size:0.8em;color:var(--wc-text-secondary)">${this._t('ui.wineDetail.myRating')}</span>
                       <star-rating
                         .value=${this._userRating}
@@ -7967,6 +7967,7 @@ WineDetailDialog.styles = [
       }
 
       .wine-title {
+        min-width: 0;
         flex: 1;
         min-width: 0;
       }
@@ -8349,7 +8350,7 @@ WineDetailDialog.styles = [
         }
       }
       .vivino-profile {
-        margin: 12px 0 4px;
+        padding: 0 20px 16px;
       }
       .vp-style {
         font-weight: 600;
@@ -8357,7 +8358,7 @@ WineDetailDialog.styles = [
       }
       .vp-scale {
         display: grid;
-        grid-template-columns: 5em 1fr 5em;
+        grid-template-columns: 5em minmax(0, 1fr) 5em;
         align-items: center;
         gap: 8px;
         font-size: 0.8em;
@@ -8378,7 +8379,6 @@ WineDetailDialog.styles = [
         top: -2px;
         width: 22%;
         height: 10px;
-        margin-left: -11%;
         border-radius: 5px;
         background: var(--wc-primary);
       }

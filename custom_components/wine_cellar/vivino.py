@@ -283,6 +283,26 @@ def _prefer_matching_vintage(
     return results
 
 
+def _style_name(style: dict[str, Any], language: str) -> str:
+    """The style's name, rebuilt from its parts when Vivino has no translation.
+
+    Some styles are only named in English whatever language is asked for
+    ("French Bordeaux Rosé"); their colour/grape and region still read well
+    ("Rosé · Bordeaux"). An untranslated name is one that slugs to the
+    style's (English) ``seo_name``.
+    """
+    name = style.get("name") or ""
+    region = style.get("regional_name") or ""
+    variety = style.get("varietal_name") or ""
+    if language.split("-")[0] == "en" or not (region and variety) or region == name:
+        return name
+    plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    slug = re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-")
+    if slug != style.get("seo_name") or region not in name:
+        return name
+    return f"{variety} · {region}"
+
+
 async def _none() -> None:
     return None
 
@@ -438,7 +458,7 @@ class VivinoClient:
             self._get_json(f"/v/9.0.0/wines/{wine_id}/tastes", params={"language": language}) if wine_id else _none(),
         )
         if isinstance(style, dict) and style.get("name"):
-            profile["vivino_style"] = style["name"]
+            profile["vivino_style"] = _style_name(style, language)
 
         tastes = (tastes or {}).get("tastes", tastes) if isinstance(tastes, dict) else None
         if isinstance(tastes, dict):
