@@ -10,6 +10,8 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 
 ![Wine Detail Dialog](docs/screenshot-wine-detail.png)
 
+*The screenshots show an example cellar: prices and places are illustrative, the bottle photos are the maintainer's own, and ratings and taste profiles come from [Vivino](https://www.vivino.com).*
+
 ## Features
 
 ### Visual Cellar Management
@@ -42,6 +44,8 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Shelves and Staggered Shelves** — Shelf zones with front and back lanes, and staggered ("quinconce") stacks where each row nests into the one below
 - **Rack Styles** — A rack is a classic grid, a staggered shelf, a front/back shelf, a bulk bin or a wine box, with an optional second zone of another style above or below it
 - **Staggered (Honeycomb) Racks** — Each slot row can hold fewer bottles than the rack is wide; shorter rows are drawn offset by half a slot, like a diamond/honeycomb rack where bottles rest in the gaps of the row below. One click on **Staggered rows** alternates full and one-short rows (e.g. 3/2/3/2), or set each row's count with its own stepper.
+
+<img src="docs/screenshot-staggered-rack.png" alt="Staggered honeycomb rack" width="420">
 
 ### Temperature, Humidity and Serving Advice
 - **Rack Sensors** — Give each rack a temperature and humidity sensor (or type the readings in by hand); they are shown on the rack's title line
@@ -111,6 +115,8 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Your Photo Stays Yours** — Refuse Vivino's photo for one wine, or always keep your own
 - **Wine Search** — Search Vivino by name to find and add wines without a barcode
 - **Wine List Vivino Enrichment** — After scanning a wine list, optionally click "Get Vivino Scores" to add Vivino ratings and images to your results
+
+<img src="docs/screenshot-vivino-profile.png" alt="Vivino profile on a wine sheet" width="500">
 
 ### Scanning & Input
 - **Camera Barcode Scanning** — Point your phone or tablet camera at a barcode to auto-lookup details from Vivino and Open Food Facts
