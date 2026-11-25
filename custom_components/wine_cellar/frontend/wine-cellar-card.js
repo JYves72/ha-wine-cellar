@@ -11241,9 +11241,10 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this._rowCols = [];
         const applySlot = (slot, cluster) => {
             if (slot === "primary" && cluster?.style === "grid") {
-                // The primary grid's row count is its own run, and so are its rows' slots.
+                // The rows stepper counts the primary grid's own rows, not the whole
+                // rack's: keeping the total would add the second zone's rows again.
+                this._editCabinet = { ...this._editCabinet, rows: cluster.size };
                 if (isStaggered(cabinet)) {
-                    this._editCabinet = { ...this._editCabinet, rows: cluster.size };
                     this._rowCols = Array.from({ length: cluster.size }, (_, r) => rowSlotCount(cabinet, cluster.start + r));
                 }
             }
