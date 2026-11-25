@@ -48,7 +48,7 @@ export class WineDetailDialog extends LitElement {
   @state() private _linkOpen = false;
   // What the last Vivino lookup overwrote, kept so "not the right wine" can put it back.
   @state() private _vivinoUndo: { wineId: string; previous: Record<string, unknown> } | null = null;
-  @state() private _keepPhotoAlways = false;
+  @state() private _keepPhotoForWine = false;
   @state() private _unlinking = false;
   @state() private _linkUrl = "";
   @state() private _linkError = "";
@@ -969,7 +969,7 @@ export class WineDetailDialog extends LitElement {
         }
         if (resp.vivino_image_url) {
           this._pendingVivinoImage = resp.vivino_image_url;
-          this._keepPhotoAlways = false;
+          this._keepPhotoForWine = false;
         }
         if (resp.price_needs_ai) {
           this._aiFallbackReason = "no_price";
@@ -1121,13 +1121,25 @@ export class WineDetailDialog extends LitElement {
 
   private _dismissVivinoPhoto() {
     this._pendingVivinoImage = null;
-    if (this._keepPhotoAlways) {
-      this._keepPhotoAlways = false;
-      this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", {
-        detail: { value: true },
-        bubbles: true,
-        composed: true,
-      }));
+    if (this._keepPhotoForWine) {
+      this._keepPhotoForWine = false;
+      this._setKeepPhoto(true);
+    }
+  }
+
+  private async _setKeepPhoto(keep: boolean) {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_wine",
+        wine_id: wineId,
+        updates: { keep_photo: keep },
+      });
+      this._applyIfStillShowing(wineId, { keep_photo: keep });
+      this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error("Photo preference update failed", err);
     }
   }
 
@@ -1621,6 +1633,11 @@ export class WineDetailDialog extends LitElement {
                             @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
                           >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`
                         : nothing}
+                      ${wine.keep_photo
+                        ? html`<a href="#" style="color:#8e24aa;text-decoration:underline"
+                            @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._setKeepPhoto(false); }}
+                          >📷 ${this._t("ui.wineDetail.offerPhotoAgainBtn")}</a>`
+                        : nothing}
                     </div>`
                   : nothing}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
@@ -1881,9 +1898,9 @@ export class WineDetailDialog extends LitElement {
                   <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
                 <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:0.78em;color:var(--wc-text-secondary);cursor:pointer">
-                  <input type="checkbox" .checked=${this._keepPhotoAlways}
-                    @change=${(e: Event) => (this._keepPhotoAlways = (e.target as HTMLInputElement).checked)} />
-                  ${this._t("ui.wineDetail.alwaysKeepPhoto")}
+                  <input type="checkbox" .checked=${this._keepPhotoForWine}
+                    @change=${(e: Event) => (this._keepPhotoForWine = (e.target as HTMLInputElement).checked)} />
+                  ${this._t("ui.wineDetail.keepPhotoForWine")}
                 </label>
                 ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
                   ? html`<button

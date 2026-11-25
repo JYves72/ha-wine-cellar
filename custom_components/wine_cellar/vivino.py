@@ -16,6 +16,8 @@ import aiohttp
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.core import HomeAssistant
 
+from .country_names import COUNTRY_CODE_NAMES
+
 _LOGGER = logging.getLogger(__name__)
 
 VIVINO_API_URL = "https://www.vivino.com/api/explore/explore"
@@ -83,40 +85,30 @@ CURRENCY_COUNTRY_CODE = {
     "EUR": "DE",
     "GBP": "GB",
     "CHF": "CH",
+    "AUD": "AU",
+    "BRL": "BR",
+    "CAD": "CA",
+    "CNY": "CN",
+    "CZK": "CZ",
+    "DKK": "DK",
+    "HKD": "HK",
+    "HUF": "HU",
+    "JPY": "JP",
+    "MXN": "MX",
+    "NOK": "NO",
+    "NZD": "NZ",
+    "PLN": "PL",
+    "RON": "RO",
+    "SEK": "SE",
+    "SGD": "SG",
+    "ZAR": "ZA",
 }
 
 # The mobile API's region.country is a bare ISO code ("fr"), not a display
-# name — common wine-producing countries only, good enough since region/
-# country are always-overwrite fields on a manual refresh (see
-# ws_refresh_wine), so a stale name from before this map existed still
-# gets corrected. Keyed by the country code, then by the configured
-# metadata language — a name that comes back in the wrong language means
-# the exact same country ends up as two different filter entries in the
-# app (English from here, French from Gemini's already-localized output),
-# so this must track _language_prefix's language set.
-COUNTRY_CODE_NAMES: dict[str, dict[str, str]] = {
-    "fr": {"en": "France", "fr": "France"},
-    "it": {"en": "Italy", "fr": "Italie"},
-    "es": {"en": "Spain", "fr": "Espagne"},
-    "pt": {"en": "Portugal", "fr": "Portugal"},
-    "de": {"en": "Germany", "fr": "Allemagne"},
-    "at": {"en": "Austria", "fr": "Autriche"},
-    "ch": {"en": "Switzerland", "fr": "Suisse"},
-    "us": {"en": "United States", "fr": "États-Unis"},
-    "ca": {"en": "Canada", "fr": "Canada"},
-    "mx": {"en": "Mexico", "fr": "Mexique"},
-    "au": {"en": "Australia", "fr": "Australie"},
-    "nz": {"en": "New Zealand", "fr": "Nouvelle-Zélande"},
-    "ar": {"en": "Argentina", "fr": "Argentine"},
-    "cl": {"en": "Chile", "fr": "Chili"},
-    "uy": {"en": "Uruguay", "fr": "Uruguay"},
-    "za": {"en": "South Africa", "fr": "Afrique du Sud"},
-    "gr": {"en": "Greece", "fr": "Grèce"},
-    "hu": {"en": "Hungary", "fr": "Hongrie"},
-    "ge": {"en": "Georgia", "fr": "Géorgie"},
-    "gb": {"en": "United Kingdom", "fr": "Royaume-Uni"},
-    "uk": {"en": "United Kingdom", "fr": "Royaume-Uni"},
-}
+# name. COUNTRY_CODE_NAMES covers the common wine-producing countries in every
+# offered language: a name that comes back in the wrong language means the
+# same country ends up as two filter entries (one from here, one from the AI's
+# already-localized output).
 
 
 def _country_name(code: str, language: str) -> str:
@@ -164,15 +156,12 @@ HEADERS = {
 # description) comes back server-side-localized based on IP/session
 # heuristics rather than a fixed language — pin it to whatever the user has
 # picked instead of leaving it to chance.
-ACCEPT_LANGUAGE_BY_CODE = {
-    "en": "en-US,en;q=0.9",
-    "fr": "fr-FR,fr;q=0.9,en;q=0.5",
-    "de": "de-DE,de;q=0.9,en;q=0.5",
-}
-
-
 def _accept_language(language: str) -> str:
-    return ACCEPT_LANGUAGE_BY_CODE.get(language, ACCEPT_LANGUAGE_BY_CODE["en"])
+    if language == "en":
+        return "en-US,en;q=0.9"
+    base = language.split("-")[0]
+    preferred = language if base == language else f"{language},{base};q=0.9"
+    return f"{preferred},en;q=0.5"
 
 
 # Generic wine-domain words carry no identifying signal on their own, so
@@ -885,7 +874,10 @@ class VivinoClient:
                     # Extract price from explore API response
                     price = None
                     price_info = match.get("price") or {}
-                    if price_info:
+                    # A market Vivino has no prices for can answer in another
+                    # currency; an unconverted number would be mislabelled.
+                    price_code = (price_info.get("currency") or {}).get("code")
+                    if price_info and price_code in (None, currency):
                         amt = price_info.get("amount")
                         if amt and isinstance(amt, (int, float)) and amt >= 6.0:
                             price = round(float(amt), 2)

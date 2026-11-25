@@ -83,6 +83,11 @@ export class WineCellarCard extends LitElement {
   // verification can take several seconds)
   @state() private _conflictResolving: string | null = null;
   @state() private _metadataLanguage = "en";
+  // "" means "follow Home Assistant"; _metadata* holds what is in effect.
+  @state() private _metadataLanguageSetting = "";
+  @state() private _haLanguage = "en";
+  @state() private _metadataCurrencySetting = "";
+  @state() private _haCurrency = "EUR";
   @state() private _supportedLanguages: string[] = ["en", "fr", "de"];
   @state() private _metadataCurrency = "USD";
   @state() private _supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
@@ -677,7 +682,11 @@ export class WineCellarCard extends LitElement {
       this._hasVivinoAccount = capResult?.has_vivino_account || false;
       this._vivinoMode = capResult?.vivino_mode || "import";
       this._metadataLanguage = capResult?.metadata_language || "en";
+      this._metadataLanguageSetting = capResult?.metadata_language_setting || "";
+      this._haLanguage = capResult?.ha_language || "en";
       this._supportedLanguages = capResult?.supported_languages || ["en", "fr", "de"];
+      this._metadataCurrencySetting = capResult?.metadata_currency_setting || "";
+      this._haCurrency = capResult?.ha_currency || "EUR";
       this._metadataCurrency = capResult?.metadata_currency || "USD";
       this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
@@ -2156,31 +2165,35 @@ export class WineCellarCard extends LitElement {
 
   // --- Metadata language (Vivino/AI) ---
   private async _setMetadataLanguage(lang: string) {
-    if (lang === this._metadataLanguage) return;
-    const previous = this._metadataLanguage;
-    this._metadataLanguage = lang;
+    if (lang === this._metadataLanguageSetting) return;
+    const previous = this._metadataLanguageSetting;
+    this._metadataLanguageSetting = lang;
+    this._metadataLanguage = lang || this._haLanguage;
     try {
       await this.hass.callWS({
         type: "wine_cellar/update_settings",
         updates: { metadata_language: lang },
       });
     } catch (err) {
-      this._metadataLanguage = previous;
+      this._metadataLanguageSetting = previous;
+      this._metadataLanguage = previous || this._haLanguage;
       this._showToast(this._t("toast.changeLanguageFailed"));
     }
   }
 
   private async _setMetadataCurrency(currency: string) {
-    if (currency === this._metadataCurrency) return;
-    const previous = this._metadataCurrency;
-    this._metadataCurrency = currency;
+    if (currency === this._metadataCurrencySetting) return;
+    const previous = this._metadataCurrencySetting;
+    this._metadataCurrencySetting = currency;
+    this._metadataCurrency = currency || this._haCurrency;
     try {
       await this.hass.callWS({
         type: "wine_cellar/update_settings",
         updates: { metadata_currency: currency },
       });
     } catch (err) {
-      this._metadataCurrency = previous;
+      this._metadataCurrencySetting = previous;
+      this._metadataCurrency = previous || this._haCurrency;
       this._showToast(this._t("toast.changeCurrencyFailed"));
     }
   }
@@ -3244,7 +3257,6 @@ export class WineCellarCard extends LitElement {
           @copy-wine=${(e: CustomEvent) => this._copyWine(e.detail.wine)}
           @locate-wine=${(e: CustomEvent) => this._locateWine(e.detail.wine)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @move-wine=${(e: CustomEvent) => {
             this._showDetail = false;
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
@@ -3311,12 +3323,12 @@ export class WineCellarCard extends LitElement {
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
+          .metadataLanguage=${this._metadataLanguage}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           .aiFallbackAlways=${this._aiFallbackAlways}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e: CustomEvent) => {
@@ -3359,9 +3371,11 @@ export class WineCellarCard extends LitElement {
           .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
-          .metadataLanguage=${this._metadataLanguage}
+          .metadataLanguage=${this._metadataLanguageSetting}
+          .haLanguage=${this._haLanguage}
           .supportedLanguages=${this._supportedLanguages}
-          .metadataCurrency=${this._metadataCurrency}
+          .metadataCurrency=${this._metadataCurrencySetting}
+          .haCurrency=${this._haCurrency}
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}

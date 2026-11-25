@@ -26,6 +26,8 @@ export interface Wine {
   retail_price_currency: string | null;
   /** When true, no AI/Vivino scan (single or batch) may change retail_price. */
   price_locked?: boolean;
+  // The user refused Vivino's photo for this wine: don't offer it again.
+  keep_photo?: boolean;
   purchase_date: string;
   drink_by: string;
   notes: string;

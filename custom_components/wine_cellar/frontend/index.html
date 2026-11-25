@@ -159,6 +159,12 @@
           case "wine_cellar/get_capabilities":
             return {
               has_gemini: true,
+              ha_language: "fr",
+              ha_currency: "EUR",
+              metadata_language: "fr",
+              metadata_currency: "EUR",
+              supported_languages: ["de", "en", "es", "fr", "it", "ja", "nl", "pt-BR", "zh-Hans"],
+              supported_currencies: ["CHF", "EUR", "GBP", "JPY", "SEK", "USD", "XOF"],
               dismissed_arrangements: mockSettings.dismissed_arrangements || [],
               chambering_room_sensor: "sensor.salon_temp",
               chambering_time_constant_minutes: 75,

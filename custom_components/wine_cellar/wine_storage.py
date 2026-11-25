@@ -194,6 +194,7 @@ class WineCellarStorage:
             "rating": wine_data.get("rating"),
             "image_url": wine_data.get("image_url", ""),
             "back_image_url": wine_data.get("back_image_url", ""),
+            "keep_photo": bool(wine_data.get("keep_photo", False)),
             "price": wine_data.get("price"),
             "retail_price": wine_data.get("retail_price"),
             "retail_price_currency": wine_data.get("retail_price_currency"),

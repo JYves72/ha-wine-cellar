@@ -33,8 +33,6 @@ from .const import (
     DEFAULT_CHAMBERING_EQUILIBRATION_HOURS,
     DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES,
     DEFAULT_DISPOSITION_DISPLAY,
-    DEFAULT_METADATA_CURRENCY,
-    DEFAULT_METADATA_LANGUAGE,
     DEFAULT_SERVER_BACKUP_KEEP,
     DEFAULT_VIVINO_MODE,
     DEFAULT_WINE_TYPE,
@@ -42,12 +40,11 @@ from .const import (
     DOMAIN,
     VIVINO_MODE_SYNC,
     SERVER_BACKUP_KEEP_CHOICES,
-    SUPPORTED_METADATA_CURRENCIES,
-    SUPPORTED_METADATA_LANGUAGES,
     WINE_TYPES,
 )
 from . import photos
 from .disposition import compute_disposition
+from .locales import CURRENCIES, LANGUAGE_NAMES, match_language
 from .vivino import _search_significant_words
 
 _LOGGER = logging.getLogger(__name__)
@@ -62,15 +59,17 @@ _significant_words = _search_significant_words
 
 
 def _get_metadata_language(hass: HomeAssistant) -> str:
-    """Return the user's chosen language for Vivino/AI metadata."""
+    """Return the language for Vivino/AI metadata: chosen, else Home Assistant's."""
     storage = hass.data[DOMAIN]["storage"]
-    return storage.settings.get(CONF_METADATA_LANGUAGE, DEFAULT_METADATA_LANGUAGE)
+    return match_language(
+        storage.settings.get(CONF_METADATA_LANGUAGE) or hass.config.language
+    )
 
 
 def _get_metadata_currency(hass: HomeAssistant) -> str:
-    """Return the user's chosen currency for Vivino/AI price data."""
+    """Return the currency for Vivino/AI price data: chosen, else Home Assistant's."""
     storage = hass.data[DOMAIN]["storage"]
-    return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
+    return storage.settings.get(CONF_METADATA_CURRENCY) or hass.config.currency
 
 
 def _wine_storage_temp(hass: HomeAssistant, wine: dict[str, Any]) -> float | None:
@@ -1328,9 +1327,17 @@ def ws_get_capabilities(
             "has_vivino_account": "vivino_account" in domain_data,
             "vivino_mode": _get_vivino_mode(hass),
             "metadata_language": _get_metadata_language(hass),
-            "supported_languages": SUPPORTED_METADATA_LANGUAGES,
+            "metadata_language_setting": hass.data[DOMAIN]["storage"].settings.get(
+                CONF_METADATA_LANGUAGE, ""
+            ),
+            "ha_language": match_language(hass.config.language),
+            "supported_languages": list(LANGUAGE_NAMES),
             "metadata_currency": _get_metadata_currency(hass),
-            "supported_currencies": SUPPORTED_METADATA_CURRENCIES,
+            "metadata_currency_setting": hass.data[DOMAIN]["storage"].settings.get(
+                CONF_METADATA_CURRENCY, ""
+            ),
+            "ha_currency": hass.config.currency,
+            "supported_currencies": CURRENCIES,
             "ai_fallback_always": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_AI_FALLBACK_ALWAYS, False)
             ),
@@ -1379,11 +1386,11 @@ async def ws_update_settings(
     storage = hass.data[DOMAIN]["storage"]
     updates = dict(msg["updates"])
     lang = updates.get(CONF_METADATA_LANGUAGE)
-    if lang is not None and lang not in SUPPORTED_METADATA_LANGUAGES:
+    if lang and lang not in LANGUAGE_NAMES:
         connection.send_result(msg["id"], {"error": f"Unsupported language: {lang}"})
         return
     currency = updates.get(CONF_METADATA_CURRENCY)
-    if currency is not None and currency not in SUPPORTED_METADATA_CURRENCIES:
+    if currency and currency not in CURRENCIES:
         connection.send_result(msg["id"], {"error": f"Unsupported currency: {currency}"})
         return
     disposition_display = updates.get(CONF_DISPOSITION_DISPLAY)
@@ -1603,7 +1610,10 @@ async def ws_refresh_wine(
     if candidate_image and candidate_image != wine.get("image_url"):
         if not wine.get("image_url"):
             updates["image_url"] = candidate_image
-        elif not storage.settings.get(CONF_VIVINO_KEEP_PHOTO, False):
+        elif not (
+            wine.get("keep_photo")  # refused for this wine
+            or storage.settings.get(CONF_VIVINO_KEEP_PHOTO, False)
+        ):
             vivino_image_url = candidate_image
 
     # Store Vivino price as retail_price (always update — Vivino is real market data)

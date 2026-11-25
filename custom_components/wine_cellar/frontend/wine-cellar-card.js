@@ -1292,7 +1292,8 @@ var ui$1 = {
 		linkFailed: "The link could not be applied. Try again.",
 		wrongWineBtn: "Not the right wine",
 		wrongWineFailed: "Could not undo the Vivino match. Try again.",
-		alwaysKeepPhoto: "Always keep my photo (don't ask again)",
+		keepPhotoForWine: "Don't offer another photo for this wine",
+		offerPhotoAgainBtn: "Offer Vivino's photo again",
 		linkedLabel: "Linked Vivino page",
 		matchedLabel: "Vivino page (found automatically)",
 		linkCurrent: "Current link",
@@ -1406,6 +1407,7 @@ var ui$1 = {
 		dispositionDisplayDot: "Colored circle",
 		languageLabel: "Vivino/AI language",
 		currencyLabel: "Currency",
+		followHa: "Same as Home Assistant: {value}",
 		infoTitle: "Vivino vs AI — What Each Provides",
 		vivinoProvidesTitle: "Vivino provides:",
 		vivinoBottlePhoto: "Bottle photo",
@@ -2114,7 +2116,8 @@ var ui = {
 		linkFailed: "Le lien n'a pas pu être appliqué. Réessayez.",
 		wrongWineBtn: "Ce n'est pas le bon vin",
 		wrongWineFailed: "Impossible d'annuler la correspondance Vivino. Réessayez.",
-		alwaysKeepPhoto: "Toujours garder ma photo (ne plus demander)",
+		keepPhotoForWine: "Ne plus me proposer de photo pour ce vin",
+		offerPhotoAgainBtn: "Reproposer la photo Vivino",
 		linkedLabel: "Fiche Vivino liée",
 		matchedLabel: "Fiche Vivino (trouvée automatiquement)",
 		linkCurrent: "Lien actuel",
@@ -2228,6 +2231,7 @@ var ui = {
 		dispositionDisplayDot: "Cercle de couleur",
 		languageLabel: "Langue Vivino/IA",
 		currencyLabel: "Devise",
+		followHa: "Comme Home Assistant : {value}",
 		infoTitle: "Vivino vs IA — Ce que chacun fournit",
 		vivinoProvidesTitle: "Vivino fournit :",
 		vivinoBottlePhoto: "Photo de la bouteille",
@@ -6201,7 +6205,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._linkOpen = false;
         // What the last Vivino lookup overwrote, kept so "not the right wine" can put it back.
         this._vivinoUndo = null;
-        this._keepPhotoAlways = false;
+        this._keepPhotoForWine = false;
         this._unlinking = false;
         this._linkUrl = "";
         this._linkError = "";
@@ -6563,7 +6567,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 }
                 if (resp.vivino_image_url) {
                     this._pendingVivinoImage = resp.vivino_image_url;
-                    this._keepPhotoAlways = false;
+                    this._keepPhotoForWine = false;
                 }
                 if (resp.price_needs_ai) {
                     this._aiFallbackReason = "no_price";
@@ -6723,13 +6727,26 @@ let WineDetailDialog = class WineDetailDialog extends i {
     }
     _dismissVivinoPhoto() {
         this._pendingVivinoImage = null;
-        if (this._keepPhotoAlways) {
-            this._keepPhotoAlways = false;
-            this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", {
-                detail: { value: true },
-                bubbles: true,
-                composed: true,
-            }));
+        if (this._keepPhotoForWine) {
+            this._keepPhotoForWine = false;
+            this._setKeepPhoto(true);
+        }
+    }
+    async _setKeepPhoto(keep) {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_wine",
+                wine_id: wineId,
+                updates: { keep_photo: keep },
+            });
+            this._applyIfStillShowing(wineId, { keep_photo: keep });
+            this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Photo preference update failed", err);
         }
     }
     _onDeletePhoto() {
@@ -7238,6 +7255,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                             @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
                           >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`
                     : A}
+                      ${wine.keep_photo
+                    ? b `<a href="#" style="color:#8e24aa;text-decoration:underline"
+                            @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._setKeepPhoto(false); }}
+                          >📷 ${this._t("ui.wineDetail.offerPhotoAgainBtn")}</a>`
+                    : A}
                     </div>`
                 : A}
                 ${wine.vivino_checked_at || wine.ai_checked_at || wine.vivino_updated_at || wine.ai_updated_at
@@ -7492,9 +7514,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
                 <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:0.78em;color:var(--wc-text-secondary);cursor:pointer">
-                  <input type="checkbox" .checked=${this._keepPhotoAlways}
-                    @change=${(e) => (this._keepPhotoAlways = e.target.checked)} />
-                  ${this._t("ui.wineDetail.alwaysKeepPhoto")}
+                  <input type="checkbox" .checked=${this._keepPhotoForWine}
+                    @change=${(e) => (this._keepPhotoForWine = e.target.checked)} />
+                  ${this._t("ui.wineDetail.keepPhotoForWine")}
                 </label>
                 ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
             ? b `<button
@@ -8235,7 +8257,7 @@ __decorate([
 ], WineDetailDialog.prototype, "_vivinoUndo", void 0);
 __decorate([
     r()
-], WineDetailDialog.prototype, "_keepPhotoAlways", void 0);
+], WineDetailDialog.prototype, "_keepPhotoForWine", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_unlinking", void 0);
@@ -13189,6 +13211,10 @@ const FOOD_CATEGORIES = [
         keywords: ["aperitif", "tapas", "gougere", "amuse-bouche", "amuse bouche"],
     },
     {
+        label: "Foie gras",
+        keywords: ["foie gras"],
+    },
+    {
         label: "Charcuterie",
         keywords: ["charcuterie", "rillette", "saucisson", "jambon", "pate", "terrine", "salami", "chorizo"],
     },
@@ -13205,8 +13231,8 @@ const FOOD_CATEGORIES = [
         keywords: ["poisson", "saumon", "cabillaud", "sole", "brochet", "truite", "papillote", "thon", "dorade", "morue", "bar"],
     },
     {
-        label: "Canard & foie gras",
-        keywords: ["canard", "magret", "foie gras"],
+        label: "Canard",
+        keywords: ["canard", "magret"],
     },
     {
         label: "Volaille",
@@ -13253,6 +13279,88 @@ const FOOD_CATEGORIES = [
         keywords: ["dessert", "chocolat", "tarte", "patisserie", "gateau", "glace", "sorbet", "fruit"],
     },
 ];
+const ENGLISH_CATEGORIES = [
+    {
+        label: "Aperitif & snacks",
+        keywords: ["aperitif", "appetizer", "appetiser", "tapas", "canape", "nibbles"],
+    },
+    {
+        label: "Foie gras",
+        keywords: ["foie gras"],
+    },
+    {
+        label: "Charcuterie",
+        keywords: ["charcuterie", "ham", "salami", "chorizo", "sausage", "prosciutto", "pate", "terrine", "rillette", "cold cuts", "cured meat"],
+    },
+    {
+        label: "Cheese",
+        keywords: ["cheese", "roquefort", "comte", "brie", "camembert", "parmesan", "cheddar", "gouda", "gruyere", "manchego"],
+    },
+    {
+        label: "Seafood",
+        keywords: ["seafood", "shellfish", "oyster", "shrimp", "prawn", "lobster", "crab", "mussel", "clam", "scallop", "sushi", "sashimi", "calamari"],
+    },
+    {
+        label: "Fish",
+        keywords: ["fish", "salmon", "cod", "sole", "trout", "tuna", "bream", "bass", "halibut", "monkfish"],
+    },
+    {
+        label: "Duck",
+        keywords: ["duck"],
+    },
+    {
+        label: "Poultry",
+        keywords: ["poultry", "chicken", "turkey", "capon", "quail", "guinea fowl"],
+    },
+    {
+        label: "Lamb",
+        keywords: ["lamb", "mutton"],
+    },
+    {
+        label: "Game",
+        keywords: ["game", "venison", "deer", "boar", "pheasant", "partridge", "hare", "rabbit"],
+    },
+    {
+        label: "Pork & veal",
+        keywords: ["pork", "veal"],
+    },
+    {
+        label: "Beef & red meat",
+        keywords: ["beef", "steak", "entrecote", "ribeye", "sirloin", "burger", "hamburger", "red meat"],
+    },
+    {
+        label: "Stews & braised dishes",
+        keywords: ["stew", "braised", "casserole", "ragout", "daube", "bourguignon", "cassoulet", "goulash", "in sauce", "pot roast"],
+    },
+    {
+        label: "Grills & barbecue",
+        keywords: ["grill", "grilled", "barbecue", "bbq", "kebab", "skewer", "roast", "roasted"],
+    },
+    {
+        label: "Spicy & world cuisine",
+        keywords: ["curry", "curries", "spicy", "spiced", "asian", "wok", "tex-mex", "mexican", "indian", "thai", "szechuan", "chinese"],
+    },
+    {
+        label: "Pasta & pizza",
+        keywords: ["pasta", "pizza", "lasagna", "lasagne", "spaghetti", "gnocchi"],
+    },
+    {
+        label: "Mediterranean cuisine",
+        keywords: ["~mediterran", "~provenc", "ratatouille", "tagine", "tajine"],
+    },
+    {
+        label: "Salads",
+        keywords: ["salad"],
+    },
+    {
+        label: "Vegetarian dishes",
+        keywords: ["risotto", "vegetable", "~vegetarian", "asparagus", "mushroom", "quiche"],
+    },
+    {
+        label: "Desserts",
+        keywords: ["dessert", "chocolate", "tart", "pastry", "pastries", "cake", "cheesecake", "fruit", "berry", "berries", "strawberry", "strawberries", "raspberry", "raspberries", "sorbet", "ice cream"],
+    },
+];
 // Two matching modes per keyword:
 // - default: word-boundary match allowing an optional French "e"/"s"/"es"
 //   suffix (singular/plural + masc/fem agreement) without an open wildcard,
@@ -13273,20 +13381,29 @@ function matchesKeyword(haystack, keyword) {
     }
     return new RegExp(`\\b${keyword}(?:e?s?)\\b`).test(haystack);
 }
+const CATEGORY_SETS = {
+    fr: { categories: FOOD_CATEGORIES, other: OTHER_LABEL },
+    en: { categories: ENGLISH_CATEGORIES, other: "Other pairings" },
+};
 // Maps one split pairing ("daube de bœuf") to its generic category label
-// ("Plats mijotés & en sauce"). Falls back to a shared "Autres accords"
-// bucket when nothing matches, rather than showing the raw specific text —
-// keeping the filter list short is the whole point of this function.
-function categorizeFoodPairing(pairing) {
+// ("Plats mijotés & en sauce"). Falls back to a shared "other" bucket when
+// nothing matches, rather than showing the raw specific text — keeping the
+// filter list short is the whole point of this function.
+function categorizeFoodPairing(pairing, language) {
+    const set = CATEGORY_SETS[language];
+    if (!set) {
+        const text = pairing.trim();
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
     const haystack = normalizeText(pairing);
     if (!haystack)
-        return OTHER_LABEL;
-    for (const category of FOOD_CATEGORIES) {
+        return set.other;
+    for (const category of set.categories) {
         if (category.keywords.some((kw) => matchesKeyword(haystack, kw))) {
             return category.label;
         }
     }
-    return OTHER_LABEL;
+    return set.other;
 }
 
 // Persisted so the inventory reopens the way it was left; the search query is
@@ -13317,6 +13434,7 @@ let InventoryDialog = class InventoryDialog extends i {
         this.enableCider = false;
         this.aiFallbackAlways = false;
         this.currency = "USD";
+        this.metadataLanguage = "en";
         this.chamberingRoomSensor = "";
         this.chamberingTimeConstantMinutes = 75;
         this.chamberingEquilibrationHours = 24;
@@ -13538,7 +13656,7 @@ let InventoryDialog = class InventoryDialog extends i {
     // is mapped to a generic category (see foodCategories.ts) so the filter
     // stays short — the wine detail view still shows the original AI text.
     _foodOptions() {
-        return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map(categorizeFoodPairing));
+        return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map((p) => categorizeFoodPairing(p, this.metadataLanguage)));
     }
     _winesWithoutPairings() {
         return this.wines.filter((w) => !splitMulti(w.food_pairings).length).length;
@@ -13661,7 +13779,7 @@ let InventoryDialog = class InventoryDialog extends i {
             wines = wines.filter((w) => normalizeText(w.grape_variety).includes(want));
         }
         if (this._foodFilter !== "all") {
-            wines = wines.filter((w) => splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p) === this._foodFilter));
+            wines = wines.filter((w) => splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p, this.metadataLanguage) === this._foodFilter));
         }
         if (this._cabinetFilter !== "all") {
             const known = new Set(this.cabinets.map((c) => c.id));
@@ -15755,6 +15873,9 @@ __decorate([
 ], InventoryDialog.prototype, "currency", void 0);
 __decorate([
     n({ type: String })
+], InventoryDialog.prototype, "metadataLanguage", void 0);
+__decorate([
+    n({ type: String })
 ], InventoryDialog.prototype, "chamberingRoomSensor", void 0);
 __decorate([
     n({ type: Number })
@@ -15896,9 +16017,12 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.enableCider = false;
         this.defaultWineType = "red";
         this.dispositionDisplay = "letter";
-        this.metadataLanguage = "en";
+        // The stored choices: "" follows Home Assistant.
+        this.metadataLanguage = "";
+        this.haLanguage = "en";
         this.supportedLanguages = ["en", "fr", "de"];
-        this.metadataCurrency = "USD";
+        this.metadataCurrency = "";
+        this.haCurrency = "EUR";
         this.supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
     }
     // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
@@ -15931,6 +16055,32 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setCurrency(currency) {
         this.dispatchEvent(new CustomEvent("set-metadata-currency", { detail: { value: currency } }));
+    }
+    // Language/currency names come from the browser, in the viewer's language.
+    _displayName(type, code) {
+        try {
+            const names = new Intl.DisplayNames([this.hass?.language || "en"], { type });
+            const name = names.of(code) || code;
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+        catch {
+            return code;
+        }
+    }
+    _renderLocaleSelect(type, value, haValue, codes, onChange) {
+        const label = (code) => type === "currency" ? `${code} — ${this._displayName(type, code)}` : this._displayName(type, code);
+        const options = codes
+            .map((code) => ({ code, text: label(code) }))
+            .sort((a, b) => a.text.localeCompare(b.text, this.hass?.language || "en"));
+        return b `
+      <select
+        class="settings-select"
+        @change=${(e) => onChange(e.target.value)}
+      >
+        <option value="" ?selected=${!value}>${this._t("ui.vivinoAiSettings.followHa", { value: label(haValue) })}</option>
+        ${options.map((o) => b `<option value=${o.code} ?selected=${o.code === value}>${o.text}</option>`)}
+      </select>
+    `;
     }
     render() {
         if (!this.open)
@@ -15994,26 +16144,12 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
 
           <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedCurrencies.map((cur) => b `
-                <button
-                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
-                  @click=${() => this._setCurrency(cur)}
-                >${cur}</button>
-              `)}
-            </div>
+            ${this._renderLocaleSelect("currency", this.metadataCurrency, this.haCurrency, this.supportedCurrencies, (c) => this._setCurrency(c))}
           </div>
 
           <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedLanguages.map((lang) => b `
-                <button
-                  class="pill ${this.metadataLanguage === lang ? "active" : ""}"
-                  @click=${() => this._setLanguage(lang)}
-                >${lang.toUpperCase()}</button>
-              `)}
-            </div>
+            ${this._renderLocaleSelect("language", this.metadataLanguage, this.haLanguage, this.supportedLanguages, (l) => this._setLanguage(l))}
           </div>
 
           <div class="settings-row">
@@ -16204,11 +16340,17 @@ __decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "metadataLanguage", void 0);
 __decorate([
+    n({ type: String })
+], VivinoAiSettingsDialog.prototype, "haLanguage", void 0);
+__decorate([
     n({ attribute: false })
 ], VivinoAiSettingsDialog.prototype, "supportedLanguages", void 0);
 __decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "metadataCurrency", void 0);
+__decorate([
+    n({ type: String })
+], VivinoAiSettingsDialog.prototype, "haCurrency", void 0);
 __decorate([
     n({ attribute: false })
 ], VivinoAiSettingsDialog.prototype, "supportedCurrencies", void 0);
@@ -16274,6 +16416,11 @@ let WineCellarCard = class WineCellarCard extends i {
         // verification can take several seconds)
         this._conflictResolving = null;
         this._metadataLanguage = "en";
+        // "" means "follow Home Assistant"; _metadata* holds what is in effect.
+        this._metadataLanguageSetting = "";
+        this._haLanguage = "en";
+        this._metadataCurrencySetting = "";
+        this._haCurrency = "EUR";
         this._supportedLanguages = ["en", "fr", "de"];
         this._metadataCurrency = "USD";
         this._supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
@@ -16454,7 +16601,11 @@ let WineCellarCard = class WineCellarCard extends i {
             this._hasVivinoAccount = capResult?.has_vivino_account || false;
             this._vivinoMode = capResult?.vivino_mode || "import";
             this._metadataLanguage = capResult?.metadata_language || "en";
+            this._metadataLanguageSetting = capResult?.metadata_language_setting || "";
+            this._haLanguage = capResult?.ha_language || "en";
             this._supportedLanguages = capResult?.supported_languages || ["en", "fr", "de"];
+            this._metadataCurrencySetting = capResult?.metadata_currency_setting || "";
+            this._haCurrency = capResult?.ha_currency || "EUR";
             this._metadataCurrency = capResult?.metadata_currency || "USD";
             this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
@@ -17854,10 +18005,11 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Metadata language (Vivino/AI) ---
     async _setMetadataLanguage(lang) {
-        if (lang === this._metadataLanguage)
+        if (lang === this._metadataLanguageSetting)
             return;
-        const previous = this._metadataLanguage;
-        this._metadataLanguage = lang;
+        const previous = this._metadataLanguageSetting;
+        this._metadataLanguageSetting = lang;
+        this._metadataLanguage = lang || this._haLanguage;
         try {
             await this.hass.callWS({
                 type: "wine_cellar/update_settings",
@@ -17865,15 +18017,17 @@ let WineCellarCard = class WineCellarCard extends i {
             });
         }
         catch (err) {
-            this._metadataLanguage = previous;
+            this._metadataLanguageSetting = previous;
+            this._metadataLanguage = previous || this._haLanguage;
             this._showToast(this._t("toast.changeLanguageFailed"));
         }
     }
     async _setMetadataCurrency(currency) {
-        if (currency === this._metadataCurrency)
+        if (currency === this._metadataCurrencySetting)
             return;
-        const previous = this._metadataCurrency;
-        this._metadataCurrency = currency;
+        const previous = this._metadataCurrencySetting;
+        this._metadataCurrencySetting = currency;
+        this._metadataCurrency = currency || this._haCurrency;
         try {
             await this.hass.callWS({
                 type: "wine_cellar/update_settings",
@@ -17881,7 +18035,8 @@ let WineCellarCard = class WineCellarCard extends i {
             });
         }
         catch (err) {
-            this._metadataCurrency = previous;
+            this._metadataCurrencySetting = previous;
+            this._metadataCurrency = previous || this._haCurrency;
             this._showToast(this._t("toast.changeCurrencyFailed"));
         }
     }
@@ -18921,7 +19076,6 @@ let WineCellarCard = class WineCellarCard extends i {
           @copy-wine=${(e) => this._copyWine(e.detail.wine)}
           @locate-wine=${(e) => this._locateWine(e.detail.wine)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @move-wine=${(e) => {
             this._showDetail = false;
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
@@ -18988,12 +19142,12 @@ let WineCellarCard = class WineCellarCard extends i {
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
+          .metadataLanguage=${this._metadataLanguage}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           .aiFallbackAlways=${this._aiFallbackAlways}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e) => {
@@ -19036,9 +19190,11 @@ let WineCellarCard = class WineCellarCard extends i {
           .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
-          .metadataLanguage=${this._metadataLanguage}
+          .metadataLanguage=${this._metadataLanguageSetting}
+          .haLanguage=${this._haLanguage}
           .supportedLanguages=${this._supportedLanguages}
-          .metadataCurrency=${this._metadataCurrency}
+          .metadataCurrency=${this._metadataCurrencySetting}
+          .haCurrency=${this._haCurrency}
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
@@ -20123,6 +20279,18 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_metadataLanguage", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_metadataLanguageSetting", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_haLanguage", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_metadataCurrencySetting", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_haCurrency", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_supportedLanguages", void 0);
