@@ -29,6 +29,15 @@ its own. When you later save other options, leave the password field empty. If
 Vivino ever ends the session, a "Vivino session expired" notification asks you
 to enter your password again in the same place. Clearing the email signs out.
 
+What to know about this sign-in:
+
+- It is **unofficial**: it behaves like the Vivino Android app, and Vivino may
+  block it at any time.
+- Label photos are then recognised by Vivino and appear in your Vivino scan
+  history.
+- It imports your cellar, not your wishlist.
+- Back up your cellar and start in **Import** mode before trying Synchronize.
+
 > **Signed up with Google or Apple?** Then your Vivino account has no password
 > yet. In the Vivino app, use **Forgot password** to set one, then sign in here.
 
