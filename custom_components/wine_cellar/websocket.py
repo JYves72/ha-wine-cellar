@@ -1265,14 +1265,56 @@ async def ws_recognize_label(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Recognize wine from label photo (optionally + back label) using AI Vision."""
-    gemini = hass.data[DOMAIN].get("gemini")
+    """Recognize a wine from a label photo.
+
+    With the Vivino app sign-in, Vivino's own label recognition is tried
+    first: it identifies the exact vintage in Vivino's database (so the
+    bottle gets its vivino_id, rating and details at once). AI vision is the
+    fallback when Vivino does not recognise the label, and the only path
+    without the app sign-in.
+    """
+    domain_data = hass.data[DOMAIN]
+    gemini = domain_data.get("gemini")
+    account = domain_data.get("vivino_account")
+    vivino_error = ""
+
+    if account is not None and hasattr(account, "async_scan_label"):
+        try:
+            scan = await account.async_scan_label(msg["image"])
+        except Exception as err:  # noqa: BLE001 - fall back to AI, say why
+            _LOGGER.warning("Vivino label recognition failed: %s", err)
+            scan = {"wine": None, "message": str(err)}
+        wine = scan.get("wine")
+        if wine:
+            result = {
+                key: wine.get(key)
+                for key in ("name", "winery", "type", "vintage", "region", "country",
+                            "grape_variety", "rating", "ratings_count", "alcohol",
+                            "vivino_id")
+                if wine.get(key) not in (None, "")
+            }
+            result["source"] = "vivino_label"
+            if wine.get("drink_window"):
+                # Same rule as after an AI reading: Vivino's window is the
+                # wine's window, and the disposition follows from it.
+                window_updates: dict[str, Any] = {}
+                _apply_vivino_window(
+                    window_updates, result,
+                    {"drink_window": wine["drink_window"], "drink_by": wine["drink_by"]},
+                )
+                result.update(window_updates)
+            connection.send_result(msg["id"], {"result": result, "error": None})
+            return
+        vivino_error = scan.get("message") or "Vivino did not recognise this label"
+        _LOGGER.debug("Vivino label scan: %s", vivino_error)
+
     if not gemini:
         connection.send_result(
             msg["id"],
             {
                 "result": None,
-                "error": "Gemini API key not configured. Go to Settings > Integrations > Wine Cellar > Configure.",
+                "error": vivino_error
+                or "Gemini API key not configured. Go to Settings > Integrations > Wine Cellar > Configure.",
             },
         )
         return
@@ -1288,9 +1330,10 @@ async def ws_recognize_label(
     # The gemini client now returns {"error": "..."} on failure
     if "error" in result:
         _LOGGER.warning("Label recognition failed: %s", result["error"])
-        connection.send_result(
-            msg["id"], {"result": None, "error": result["error"]}
-        )
+        error = result["error"]
+        if vivino_error:
+            error = f"{vivino_error}; AI: {error}"
+        connection.send_result(msg["id"], {"result": None, "error": error})
     else:
         # As soon as the wine is recognised, tie it to Vivino (rating, id and
         # Vivino's drinking window). Best effort: the AI's reading stands if
@@ -1328,6 +1371,11 @@ def ws_get_capabilities(
         {
             "has_gemini": "gemini" in domain_data,
             "has_vivino_account": "vivino_account" in domain_data,
+            # Vivino's own label recognition needs the app sign-in (the
+            # cookie client cannot upload scans); AI is its fallback.
+            "vivino_label_scan": hasattr(
+                domain_data.get("vivino_account"), "async_scan_label"
+            ),
             "vivino_mode": _get_vivino_mode(hass),
             "metadata_language": _get_metadata_language(hass),
             "metadata_language_setting": hass.data[DOMAIN]["storage"].settings.get(
