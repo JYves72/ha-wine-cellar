@@ -283,24 +283,64 @@ def _prefer_matching_vintage(
     return results
 
 
+# Vivino wine type id -> red, white, sparkling, rosé, dessert, fortified.
+_STYLE_TYPE_IDS = (1, 2, 3, 4, 7, 24)
+_STYLE_TYPE_WORDS = {
+    "cs": ("Červené", "Bílé", "Šumivé", "Růžové", "Dezertní", "Fortifikované"),
+    "da": ("Rød", "Hvid", "Mousserende", "Rosé", "Dessert", "Hedvin"),
+    "de": ("Rot", "Weiß", "Schaumwein", "Rosé", "Dessertwein", "Likörwein"),
+    "es": ("Tinto", "Blanco", "Espumoso", "Rosado", "Dulce", "Generoso"),
+    "fi": ("Punaviini", "Valkoviini", "Kuohuviini", "Roseeviini", "Jälkiruokaviini", "Väkevä viini"),
+    "fr": ("Rouge", "Blanc", "Effervescent", "Rosé", "Sucré", "Muté"),
+    "it": ("Rosso", "Bianco", "Spumante", "Rosato", "Dolce", "Liquoroso"),
+    "nb": ("Rød", "Hvit", "Musserende", "Rosé", "Dessert", "Sterkvin"),
+    "nl": ("Rood", "Wit", "Mousserend", "Rosé", "Dessert", "Versterkt"),
+    "pl": ("Czerwone", "Białe", "Musujące", "Różowe", "Deserowe", "Wzmacniane"),
+    "pt": ("Tinto", "Branco", "Espumante", "Rosé", "Doce", "Fortificado"),
+    "sv": ("Rött", "Vitt", "Mousserande", "Rosé", "Dessert", "Starkvin"),
+}
+# How an English style name starts or ends, as opposed to a proper name
+# such as "Champagne" or "Cornas".
+_ENGLISH_STYLE = re.compile(
+    r"^(French|Italian|Spanish|Portuguese|German|Austrian|Swiss|Greek|Hungarian"
+    r"|American|Californian|Oregon|Washington|Argentinian|Chilean|Australian"
+    r"|New Zealand|South African) "
+    r"| (Red|White|Sparkling|Rosé|Dessert Wine|Fortified Wine)$"
+)
+
+
 def _style_name(style: dict[str, Any], language: str) -> str:
-    """The style's name, rebuilt from its parts when Vivino has no translation.
+    """The style's name, composed from its parts when Vivino has no translation.
 
     Some styles are only named in English whatever language is asked for
-    ("French Bordeaux Rosé"); their colour/grape and region still read well
-    ("Rosé · Bordeaux"). An untranslated name is one that slugs to the
-    style's (English) ``seo_name``.
+    ("French Middle Loire Cabernet Franc Red"). Their parts still come
+    through usably: the region is localized ("Loire moyenne") and grapes are
+    proper names, so the name becomes "Rouge · Cabernet franc · Loire
+    moyenne". An untranslated name slugs to the style's (English) ``seo_name``.
     """
     name = style.get("name") or ""
-    region = style.get("regional_name") or ""
-    variety = style.get("varietal_name") or ""
-    if language.split("-")[0] == "en" or not (region and variety) or region == name:
+    base = language.split("-")[0]
+    if base == "en" or not _ENGLISH_STYLE.search(name):
         return name
     plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    slug = re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-")
-    if slug != style.get("seo_name") or region not in name:
+    if re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-") != style.get("seo_name"):
         return name
-    return f"{variety} · {region}"
+
+    kind = ""
+    type_id = style.get("wine_type_id")
+    if base in _STYLE_TYPE_WORDS and type_id in _STYLE_TYPE_IDS:
+        kind = _STYLE_TYPE_WORDS[base][_STYLE_TYPE_IDS.index(type_id)]
+    variety = (style.get("varietal_name") or "").casefold()
+    grape = next(
+        (g["name"] for g in style.get("grapes") or []
+         if (g.get("name") or "").casefold() == variety and variety),
+        "",
+    )
+    region = style.get("region")
+    place = (region or {}).get("name") or _country_name(style.get("country") or "", language)
+    if not (grape or place):
+        return name
+    return " · ".join(part for part in (kind, grape, place) if part)
 
 
 async def _none() -> None:
