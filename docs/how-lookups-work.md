@@ -7,7 +7,7 @@ A short reference for what Cork Dork calls, and when. Nothing is sent to the AI 
 | How you add it | What runs | What you get |
 |---|---|---|
 | **Barcode** (scan or typed) | Vivino barcode lookup only. No AI. | Name, winery, vintage, rating, photo, Vivino link, and Vivino's drinking window. Run "Analyze with AI" yourself to fill the rest. |
-| **Label photo** | AI reads the label, then a Vivino lookup runs as soon as the wine is recognised. | AI fields (name, winery, region, grapes, notes…) plus the Vivino link, rating and drinking window when a trustworthy match is found. |
+| **Label photo** | Signed in to Vivino by email: Vivino recognises the label first, and the AI only reads it if Vivino cannot. Otherwise the AI reads it, then a Vivino lookup runs. | From Vivino: the exact wine, rating and drinking window (no description, pairings or price). From the AI: name, winery, region, grapes, notes…, plus the Vivino link when a trustworthy match is found. |
 | **Search by name** | Vivino text search only. No AI. | A list to pick from. Only results containing at least half of the words you typed are shown; if nothing fits, the list is empty and you can use manual entry. |
 | **Manual entry** | Nothing. | Exactly what you typed. |
 
@@ -18,7 +18,12 @@ A short reference for what Cork Dork calls, and when. Nothing is sent to the AI 
 | **Refresh from Vivino** (wine sheet, or batch) | Vivino lookup by id when the wine is already linked, otherwise text search with a relevance check. | Updates rating, photo, grapes, description, and the drinking window, then the Vivino profile (style, taste, flavours, awards, critics) of that vintage. Never changes a locked price. |
 | **Link Vivino manually** | Reads the Vivino page you paste. | The link becomes permanent: never searched again, and shared with identical bottles. |
 | **Wrong wine** ("Ce n'est pas le bon vin") | Cuts the Vivino tie. | The page is remembered and never proposed again. |
+| **Remove the link** | Nothing is looked up. | The data already fetched is kept. |
 | **Analyze with AI** (single or batch) | One AI call per distinct wine (identical bottles share the result). | Fills description, food pairings, serving temperature, drinking and peak windows. |
+
+## Bottles imported from your Vivino cellar
+
+They are matched to Vivino by the id of the vintage. Linking, unlinking or "Wrong wine" changes the page used for texts and ratings, not the bottle's place in the cellar synchronization.
 
 ## Where the dates come from
 
