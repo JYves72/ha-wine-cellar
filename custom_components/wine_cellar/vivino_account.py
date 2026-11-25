@@ -1217,4 +1217,11 @@ async def async_sync_from_vivino(
         result["cellar_pushed"], result["cellar_conflicts"],
         result["wishlist_imported"], len(result["errors"]),
     )
+
+    # Fill the Vivino profile (taste, flavours, style, awards, critics) of
+    # imported bottles that never got one: in the background, sequential,
+    # so the sync itself is not slowed down.
+    from .vivino_profile import async_backfill_vivino_profiles
+
+    hass.async_create_task(async_backfill_vivino_profiles(hass))
     return result

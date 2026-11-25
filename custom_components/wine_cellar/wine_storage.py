@@ -226,6 +226,14 @@ class WineCellarStorage:
             "ai_updated_at": wine_data.get("ai_updated_at"),
             "ai_checked_at": wine_data.get("ai_checked_at"),
             "vivino_id": wine_data.get("vivino_id"),
+            # Vivino profile (see vivino_profile.py); kept when a bottle is
+            # copied/pasted or restored, filled later otherwise.
+            "vivino_taste": wine_data.get("vivino_taste"),
+            "vivino_flavors": wine_data.get("vivino_flavors") or [],
+            "vivino_style": wine_data.get("vivino_style", ""),
+            "vivino_awards": wine_data.get("vivino_awards") or [],
+            "vivino_critics": wine_data.get("vivino_critics") or [],
+            "vivino_profile_at": wine_data.get("vivino_profile_at", ""),
         }
         # Never trust disposition as handed in (from a label-scan AI result,
         # a buy-list item, wherever) — recompute it from this same wine's own

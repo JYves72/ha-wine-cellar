@@ -15,7 +15,7 @@ A short reference for what Cork Dork calls, and when. Nothing is sent to the AI 
 
 | Action | What runs | Notes |
 |---|---|---|
-| **Refresh from Vivino** (wine sheet, or batch) | Vivino lookup by id when the wine is already linked, otherwise text search with a relevance check. | Updates rating, photo, grapes, description, and the drinking window. Never changes a locked price. |
+| **Refresh from Vivino** (wine sheet, or batch) | Vivino lookup by id when the wine is already linked, otherwise text search with a relevance check. | Updates rating, photo, grapes, description, and the drinking window, then the Vivino profile (style, taste, flavours, awards, critics) of that vintage. Never changes a locked price. |
 | **Link Vivino manually** | Reads the Vivino page you paste. | The link becomes permanent: never searched again, and shared with identical bottles. |
 | **Wrong wine** ("Ce n'est pas le bon vin") | Cuts the Vivino tie. | The page is remembered and never proposed again. |
 | **Analyze with AI** (single or batch) | One AI call per distinct wine (identical bottles share the result). | Fills description, food pairings, serving temperature, drinking and peak windows. |

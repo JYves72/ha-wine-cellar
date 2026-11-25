@@ -481,6 +481,20 @@
       "posRowCol": "Ligne {row}, Col {col}"
     },
     "wineDetail": {
+      "vivinoProfile": {
+        "title": "Profil Vivino",
+        "light": "Léger",
+        "bold": "Puissant",
+        "smooth": "Souple",
+        "tannic": "Tannique",
+        "dry": "Sec",
+        "sweet": "Doux",
+        "soft": "Peu acide",
+        "acidic": "Acide",
+        "gentle": "Peu pétillant",
+        "fizzy": "Pétillant",
+        "critic": "Critique"
+      },
       "backLabelSuffix": " (étiquette arrière)",
       "backLabelBadge": "Étiquette arrière",
       "frontLabelTitle": "Étiquette avant",
