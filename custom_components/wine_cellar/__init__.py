@@ -446,6 +446,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Forget the Vivino sign-in tokens when the integration is removed."""
+    await VivinoAppAccountClient.async_clear_tokens(hass)
+
+
 async def _async_register_services(
     hass: HomeAssistant, storage: WineCellarStorage, vivino: VivinoClient
 ) -> None:

@@ -406,6 +406,7 @@ class VivinoAppAccountClient:
     ) -> list[dict[str, Any]]:
         groups: list[dict[str, Any]] = []
         start = 0
+        total: Any = None
         for _ in range(MAX_PAGES):
             params: dict[str, Any] = {"start_from": start, "limit": PAGE_SIZE}
             if vintage_ids:
@@ -415,8 +416,18 @@ class VivinoAppAccountClient:
             groups.extend(g for g in page if isinstance(g, dict))
             start += len(page)
             total = body.get("total_vintages") if isinstance(body, dict) else None
-            if len(page) < PAGE_SIZE or (isinstance(total, int) and start >= total):
+            # With a total, trust it over the page size: Vivino may serve
+            # shorter pages than asked for.
+            if isinstance(total, int):
+                if start >= total or not page:
+                    break
+            elif len(page) < PAGE_SIZE:
                 break
+        # A partial cellar would read as bottles removed on Vivino's side.
+        if not vintage_ids and isinstance(total, int) and start < total:
+            raise VivinoConnectionError(
+                f"Vivino returned only {start} of {total} cellar entries"
+            )
         return groups
 
     async def _vintages(self, ids: list[int]) -> dict[int, dict[str, Any]]:
@@ -441,14 +452,16 @@ class VivinoAppAccountClient:
         return {i: self._vintage_cache[i] for i in ids if i in self._vintage_cache}
 
     async def _countries(self) -> dict[str, str]:
-        """ISO code -> country name in Home Assistant's language (cached).
+        """ISO code -> country name in the metadata language (cached).
 
         ``_vintages`` only carries the code; ``/countries`` is public and
         localized with ``language``. Failure falls back to ``COUNTRY_NAMES``.
         """
         if self._country_names is None:
             self._country_names = {}
-            language = (self._hass.config.language or "en").split("-")[0]
+            from .websocket import _get_metadata_language
+
+            language = _get_metadata_language(self._hass).split("-")[0]
             try:
                 body = await self._get("/countries", params={"language": language})
             except VivinoAuthError:
