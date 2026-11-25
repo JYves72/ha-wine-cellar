@@ -11,9 +11,9 @@
     "persistent_notification",
     "websocket_api"
   ],
-  "documentation": "https://github.com/BaconWappedBitcoin/ha-wine-cellar",
+  "documentation": "https://github.com/JYves72/ha-wine-cellar",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/BaconWappedBitcoin/ha-wine-cellar/issues",
+  "issue_tracker": "https://github.com/JYves72/ha-wine-cellar/issues",
   "requirements": [],
-  "version": "2.26.0"
+  "version": "2.26.1"
 }
