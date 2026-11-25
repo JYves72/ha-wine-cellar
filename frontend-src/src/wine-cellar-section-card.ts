@@ -367,6 +367,22 @@ export class WineCellarSectionCard extends LitElement {
     }
   }
 
+  // "Always fall back to AI" ticked in the wine sheet: save it, as the full card does.
+  private async _setAiFallbackAlways(value: boolean) {
+    if (value === this._aiFallbackAlways) return;
+    const previous = this._aiFallbackAlways;
+    this._aiFallbackAlways = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { ai_fallback_always: value },
+      });
+    } catch {
+      this._aiFallbackAlways = previous;
+      this._toast(this._t("toast.changeAiFallbackFailed"));
+    }
+  }
+
   private _onFullCardOnly() {
     this._showDetail = false;
     this._toast(this._t("ui.sectionCard.fullCardOnly"));
@@ -454,6 +470,7 @@ export class WineCellarSectionCard extends LitElement {
         @move-wine=${this._onFullCardOnly}
         @copy-wine=${this._onFullCardOnly}
         @locate-wine=${() => (this._showDetail = false)}
+        @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
       ></wine-detail-dialog>
 
       <add-wine-dialog
