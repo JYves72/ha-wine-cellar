@@ -13,10 +13,13 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: Boolean }) enableCider = false;
   @property({ type: String }) defaultWineType: WineType = "red";
-  @property({ type: String }) dispositionDisplay: "letter" | "dot" = "letter";
-  @property({ type: String }) metadataLanguage = "en";
+  @property({ type: String }) dispositionDisplay: "letter" | "dot" | "off" = "letter";
+  // The stored choices: "" follows Home Assistant.
+  @property({ type: String }) metadataLanguage = "";
+  @property({ type: String }) haLanguage = "en";
   @property({ attribute: false }) supportedLanguages: string[] = ["en", "fr", "de"];
-  @property({ type: String }) metadataCurrency = "USD";
+  @property({ type: String }) metadataCurrency = "";
+  @property({ type: String }) haCurrency = "EUR";
   @property({ attribute: false }) supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
 
   static styles = [
@@ -147,7 +150,7 @@ export class VivinoAiSettingsDialog extends LitElement {
     this.dispatchEvent(new CustomEvent("set-default-wine-type", { detail: { value } }));
   }
 
-  private _setDispositionDisplay(value: "letter" | "dot") {
+  private _setDispositionDisplay(value: "letter" | "dot" | "off") {
     this.dispatchEvent(new CustomEvent("set-disposition-display", { detail: { value } }));
   }
 
@@ -157,6 +160,40 @@ export class VivinoAiSettingsDialog extends LitElement {
 
   private _setCurrency(currency: string) {
     this.dispatchEvent(new CustomEvent("set-metadata-currency", { detail: { value: currency } }));
+  }
+
+  // Language/currency names come from the browser, in the viewer's language.
+  private _displayName(type: "language" | "currency", code: string): string {
+    try {
+      const names = new (Intl as any).DisplayNames([this.hass?.language || "en"], { type });
+      const name: string = names.of(code) || code;
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    } catch {
+      return code;
+    }
+  }
+
+  private _renderLocaleSelect(
+    type: "language" | "currency",
+    value: string,
+    haValue: string,
+    codes: string[],
+    onChange: (code: string) => void,
+  ) {
+    const label = (code: string) =>
+      type === "currency" ? `${code} — ${this._displayName(type, code)}` : this._displayName(type, code);
+    const options = codes
+      .map((code) => ({ code, text: label(code) }))
+      .sort((a, b) => a.text.localeCompare(b.text, this.hass?.language || "en"));
+    return html`
+      <select
+        class="settings-select"
+        @change=${(e: Event) => onChange((e.target as HTMLSelectElement).value)}
+      >
+        <option value="" ?selected=${!value}>${this._t("ui.vivinoAiSettings.followHa", { value: label(haValue) })}</option>
+        ${options.map((o) => html`<option value=${o.code} ?selected=${o.code === value}>${o.text}</option>`)}
+      </select>
+    `;
   }
 
   render() {
@@ -216,31 +253,21 @@ export class VivinoAiSettingsDialog extends LitElement {
                 class="pill ${this.dispositionDisplay === "dot" ? "active" : ""}"
                 @click=${() => this._setDispositionDisplay("dot")}
               >${this._t("ui.vivinoAiSettings.dispositionDisplayDot")}</button>
+              <button
+                class="pill ${this.dispositionDisplay === "off" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("off")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayOff")}</button>
             </div>
           </div>
 
           <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedCurrencies.map((cur) => html`
-                <button
-                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
-                  @click=${() => this._setCurrency(cur)}
-                >${cur}</button>
-              `)}
-            </div>
+            ${this._renderLocaleSelect("currency", this.metadataCurrency, this.haCurrency, this.supportedCurrencies, (c) => this._setCurrency(c))}
           </div>
 
           <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedLanguages.map((lang) => html`
-                <button
-                  class="pill ${this.metadataLanguage === lang ? "active" : ""}"
-                  @click=${() => this._setLanguage(lang)}
-                >${lang.toUpperCase()}</button>
-              `)}
-            </div>
+            ${this._renderLocaleSelect("language", this.metadataLanguage, this.haLanguage, this.supportedLanguages, (l) => this._setLanguage(l))}
           </div>
 
           <div class="settings-row">

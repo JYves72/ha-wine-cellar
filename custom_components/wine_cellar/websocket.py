@@ -33,8 +33,6 @@ from .const import (
     DEFAULT_CHAMBERING_EQUILIBRATION_HOURS,
     DEFAULT_CHAMBERING_TIME_CONSTANT_MINUTES,
     DEFAULT_DISPOSITION_DISPLAY,
-    DEFAULT_METADATA_CURRENCY,
-    DEFAULT_METADATA_LANGUAGE,
     DEFAULT_SERVER_BACKUP_KEEP,
     DEFAULT_VIVINO_MODE,
     DEFAULT_WINE_TYPE,
@@ -42,13 +40,14 @@ from .const import (
     DOMAIN,
     VIVINO_MODE_SYNC,
     SERVER_BACKUP_KEEP_CHOICES,
-    SUPPORTED_METADATA_CURRENCIES,
-    SUPPORTED_METADATA_LANGUAGES,
     WINE_TYPES,
 )
 from . import photos
 from .disposition import compute_disposition
+from .locales import CURRENCIES, LANGUAGE_NAMES, match_language
 from .vivino import _search_significant_words
+from .vivino_reconcile import sync_id
+from .vivino_profile import PROFILE_CLEAR, async_apply_vivino_profile, holds_vintage_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,15 +61,17 @@ _significant_words = _search_significant_words
 
 
 def _get_metadata_language(hass: HomeAssistant) -> str:
-    """Return the user's chosen language for Vivino/AI metadata."""
+    """Return the language for Vivino/AI metadata: chosen, else Home Assistant's."""
     storage = hass.data[DOMAIN]["storage"]
-    return storage.settings.get(CONF_METADATA_LANGUAGE, DEFAULT_METADATA_LANGUAGE)
+    return match_language(
+        storage.settings.get(CONF_METADATA_LANGUAGE) or hass.config.language
+    )
 
 
 def _get_metadata_currency(hass: HomeAssistant) -> str:
-    """Return the user's chosen currency for Vivino/AI price data."""
+    """Return the currency for Vivino/AI price data: chosen, else Home Assistant's."""
     storage = hass.data[DOMAIN]["storage"]
-    return storage.settings.get(CONF_METADATA_CURRENCY, DEFAULT_METADATA_CURRENCY)
+    return storage.settings.get(CONF_METADATA_CURRENCY) or hass.config.currency
 
 
 def _wine_storage_temp(hass: HomeAssistant, wine: dict[str, Any]) -> float | None:
@@ -191,6 +192,11 @@ async def _vivino_drinking_window(hass: HomeAssistant, wine: dict[str, Any]) -> 
     except (TypeError, ValueError):
         return None
     try:
+        if holds_vintage_id(wine):
+            lookup = await _lookup_known_vivino_id(vivino, wine, _get_metadata_language(hass))
+            if not lookup or not lookup.get("drink_window"):
+                return None
+            return {"drink_window": lookup["drink_window"], "drink_by": lookup["drink_by"]}
         return await vivino.get_drinking_window(wine["vivino_id"], vintage)
     except Exception as err:  # noqa: BLE001
         _LOGGER.debug("Vivino drinking window failed for wine %s: %s", wine.get("id"), err)
@@ -377,7 +383,7 @@ def _build_ai_updates(
 # propagates when the user explicitly opts in (see propagate_notes below).
 _INSTANCE_ONLY_FIELDS = {
     "id", "cabinet_id", "row", "col", "zone", "depth",
-    "price", "purchase_date", "added_at", "notes",
+    "price", "purchase_date", "added_at", "notes", "vivino_sync_id",
 }
 
 
@@ -545,6 +551,15 @@ def _cabinet_shape_error(fields: dict[str, Any]) -> str | None:
         if not low <= value <= high:
             return f"{key} must be between {low} and {high}"
 
+    row_cols = fields.get("row_cols")
+    if row_cols is not None:
+        if not isinstance(row_cols, list) or len(row_cols) > _CABINET_LIMITS["rows"][1]:
+            return "row_cols must be a list with one entry per row"
+        low, high = _CABINET_LIMITS["cols"]
+        for n in row_cols:
+            if isinstance(n, bool) or not isinstance(n, int) or not low <= n <= high:
+                return f"each row's slot count must be between {low} and {high}"
+
     rows = fields.get("storage_rows")
     if rows is not None:
         if not isinstance(rows, list):
@@ -587,6 +602,43 @@ def _cabinet_shape_error(fields: dict[str, Any]) -> str | None:
     return None
 
 
+def _keeps_vivino_id(wine: dict[str, Any]) -> bool:
+    """An account-synced bottle's id is what matches it to the Vivino cellar.
+
+    It is a vintage id; a refresh must not swap it for the wine id.
+    """
+    return bool(wine.get("vivino_id")) and holds_vintage_id(wine)
+
+
+async def _lookup_known_vivino_id(
+    vivino: Any, wine: dict[str, Any], language: str
+) -> dict[str, Any] | None:
+    """Look a wine up by the ``vivino_id`` it already has, and verify it.
+
+    ``vivino_id`` holds a wine id for bottles matched by search, but a
+    *vintage* id for bottles imported by the account sync. The two id spaces
+    overlap: vintage 1213615 is a Monial Champagne, wine 1213615 a Montresor
+    Recioto. So the id is read as what the bottle's origin says it is, the
+    result is checked like a search result, and the other reading is tried
+    when it is not this wine. None means "fall back to search".
+    """
+    vid = wine.get("vivino_id")
+    if not vid:
+        return None
+    lookups = [vivino.get_wine_by_id, vivino.get_wine_by_vintage_id]
+    if holds_vintage_id(wine):
+        lookups.reverse()
+    for get in lookups:
+        lookup = await get(vid, wine.get("vintage"), language)
+        if lookup and _vivino_match_is_trustworthy(wine, lookup):
+            return lookup
+    _LOGGER.debug(
+        "Vivino id %s for '%s %s' matches neither a wine nor a vintage of it",
+        vid, wine.get("winery"), wine.get("name"),
+    )
+    return None
+
+
 async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
     """Background task: enrich a newly added wine with Vivino data."""
     try:
@@ -609,9 +661,14 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
             # Already tied to a Vivino page (barcode, search or label step):
             # look that exact wine up instead of searching again, which could
             # land on a different page.
-            lookup = await vivino.get_wine_by_id(
-                wine["vivino_id"], wine.get("vintage"), _get_metadata_language(hass)
-            )
+            if holds_vintage_id(wine):
+                lookup = await _lookup_known_vivino_id(
+                    vivino, wine, _get_metadata_language(hass)
+                )
+            else:
+                lookup = await vivino.get_wine_by_id(
+                    wine["vivino_id"], wine.get("vintage"), _get_metadata_language(hass)
+                )
             if not lookup:
                 return
         else:
@@ -656,19 +713,23 @@ async def _auto_enrich_wine(hass: HomeAssistant, wine: dict[str, Any]) -> None:
         window = (
             {"drink_window": lookup["drink_window"], "drink_by": lookup["drink_by"]}
             if lookup.get("drink_window")
-            else await _vivino_drinking_window(hass, {**wine, "vivino_id": lookup.get("vivino_id")})
+            else await _vivino_drinking_window(
+                hass, {**wine, "vivino_id": lookup.get("vivino_id"), "source": ""}
+            )
         )
         _apply_vivino_window(updates, wine, window)
 
         if updates:
             updates["vivino_updated_at"] = datetime.now(timezone.utc).isoformat()
-            if lookup.get("vivino_id"):
+            if lookup.get("vivino_id") and not _keeps_vivino_id(wine):
                 updates["vivino_id"] = lookup["vivino_id"]
             _LOGGER.debug("Auto-enrich wine %s: %s", wine.get("id"), list(updates.keys()))
             storage.update_wine(wine["id"], updates)
             _propagate_to_duplicates(storage, wine, updates)
             await storage.async_save()
             hass.bus.async_fire(f"{DOMAIN}_updated")
+        # Taste, flavours, style, awards, critics of the now-known vintage.
+        await async_apply_vivino_profile(hass, wine["id"])
     except Exception as err:
         _LOGGER.warning("Auto-enrich failed for wine %s: %s", wine.get("id"), err)
 
@@ -726,7 +787,7 @@ async def _auto_enrich_buy_list_item(hass: HomeAssistant, item: dict[str, Any]) 
 
         if updates:
             updates["vivino_updated_at"] = datetime.now(timezone.utc).isoformat()
-            if lookup.get("vivino_id"):
+            if lookup.get("vivino_id") and not _keeps_vivino_id(item):
                 updates["vivino_id"] = lookup["vivino_id"]
             storage.update_buy_list_item(item["id"], updates)
             await storage.async_save()
@@ -934,7 +995,7 @@ async def ws_resolve_vivino_removal(
     if not wine:
         connection.send_result(msg["id"], {"error": "Wine not found."})
         return
-    vid = str(wine.get("vivino_id") or "")
+    vid = str(sync_id(wine) or "")
     pending = storage.get_vivino_pending_removals()
     entry = pending.get(vid)
     if not entry:
@@ -1020,7 +1081,7 @@ async def ws_resolve_vivino_conflict(
     baseline = storage.get_vivino_baseline()
     entry = dict(baseline.get(vid) or {})
     local = next(
-        (w for w in storage.wines if str(w.get("vivino_id") or "") == vid), {}
+        (w for w in storage.wines if str(sync_id(w) or "") == vid), {}
     )
     entry.update({
         "count": cd_count,
@@ -1263,14 +1324,56 @@ async def ws_recognize_label(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Recognize wine from label photo (optionally + back label) using AI Vision."""
-    gemini = hass.data[DOMAIN].get("gemini")
+    """Recognize a wine from a label photo.
+
+    With the Vivino app sign-in, Vivino's own label recognition is tried
+    first: it identifies the exact vintage in Vivino's database (so the
+    bottle gets its vivino_id, rating and details at once). AI vision is the
+    fallback when Vivino does not recognise the label, and the only path
+    without the app sign-in.
+    """
+    domain_data = hass.data[DOMAIN]
+    gemini = domain_data.get("gemini")
+    account = domain_data.get("vivino_account")
+    vivino_error = ""
+
+    if account is not None and hasattr(account, "async_scan_label"):
+        try:
+            scan = await account.async_scan_label(msg["image"])
+        except Exception as err:  # noqa: BLE001 - fall back to AI, say why
+            _LOGGER.warning("Vivino label recognition failed: %s", err)
+            scan = {"wine": None, "message": str(err)}
+        wine = scan.get("wine")
+        if wine:
+            result = {
+                key: wine.get(key)
+                for key in ("name", "winery", "type", "vintage", "region", "country",
+                            "grape_variety", "rating", "ratings_count", "alcohol",
+                            "vivino_id")
+                if wine.get(key) not in (None, "")
+            }
+            result["source"] = "vivino_label"
+            if wine.get("drink_window"):
+                # Same rule as after an AI reading: Vivino's window is the
+                # wine's window, and the disposition follows from it.
+                window_updates: dict[str, Any] = {}
+                _apply_vivino_window(
+                    window_updates, result,
+                    {"drink_window": wine["drink_window"], "drink_by": wine["drink_by"]},
+                )
+                result.update(window_updates)
+            connection.send_result(msg["id"], {"result": result, "error": None})
+            return
+        vivino_error = scan.get("message") or "Vivino did not recognise this label"
+        _LOGGER.debug("Vivino label scan: %s", vivino_error)
+
     if not gemini:
         connection.send_result(
             msg["id"],
             {
                 "result": None,
-                "error": "Gemini API key not configured. Go to Settings > Integrations > Wine Cellar > Configure.",
+                "error": vivino_error
+                or "Gemini API key not configured. Go to Settings > Integrations > Wine Cellar > Configure.",
             },
         )
         return
@@ -1286,9 +1389,10 @@ async def ws_recognize_label(
     # The gemini client now returns {"error": "..."} on failure
     if "error" in result:
         _LOGGER.warning("Label recognition failed: %s", result["error"])
-        connection.send_result(
-            msg["id"], {"result": None, "error": result["error"]}
-        )
+        error = result["error"]
+        if vivino_error:
+            error = f"{vivino_error}; AI: {error}"
+        connection.send_result(msg["id"], {"result": None, "error": error})
     else:
         # As soon as the wine is recognised, tie it to Vivino (rating, id and
         # Vivino's drinking window). Best effort: the AI's reading stands if
@@ -1326,11 +1430,24 @@ def ws_get_capabilities(
         {
             "has_gemini": "gemini" in domain_data,
             "has_vivino_account": "vivino_account" in domain_data,
+            # Vivino's own label recognition needs the app sign-in (the
+            # cookie client cannot upload scans); AI is its fallback.
+            "vivino_label_scan": hasattr(
+                domain_data.get("vivino_account"), "async_scan_label"
+            ),
             "vivino_mode": _get_vivino_mode(hass),
             "metadata_language": _get_metadata_language(hass),
-            "supported_languages": SUPPORTED_METADATA_LANGUAGES,
+            "metadata_language_setting": hass.data[DOMAIN]["storage"].settings.get(
+                CONF_METADATA_LANGUAGE, ""
+            ),
+            "ha_language": match_language(hass.config.language),
+            "supported_languages": list(LANGUAGE_NAMES),
             "metadata_currency": _get_metadata_currency(hass),
-            "supported_currencies": SUPPORTED_METADATA_CURRENCIES,
+            "metadata_currency_setting": hass.data[DOMAIN]["storage"].settings.get(
+                CONF_METADATA_CURRENCY, ""
+            ),
+            "ha_currency": hass.config.currency,
+            "supported_currencies": CURRENCIES,
             "ai_fallback_always": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_AI_FALLBACK_ALWAYS, False)
             ),
@@ -1379,11 +1496,11 @@ async def ws_update_settings(
     storage = hass.data[DOMAIN]["storage"]
     updates = dict(msg["updates"])
     lang = updates.get(CONF_METADATA_LANGUAGE)
-    if lang is not None and lang not in SUPPORTED_METADATA_LANGUAGES:
+    if lang and lang not in LANGUAGE_NAMES:
         connection.send_result(msg["id"], {"error": f"Unsupported language: {lang}"})
         return
     currency = updates.get(CONF_METADATA_CURRENCY)
-    if currency is not None and currency not in SUPPORTED_METADATA_CURRENCIES:
+    if currency and currency not in CURRENCIES:
         connection.send_result(msg["id"], {"error": f"Unsupported currency: {currency}"})
         return
     disposition_display = updates.get(CONF_DISPOSITION_DISPLAY)
@@ -1530,18 +1647,7 @@ async def ws_refresh_wine(
         # that could replace it with a guess if Vivino is briefly unreachable.
         lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
     elif wine.get("vivino_id") and not _is_whisky(wine):
-        lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
-        if lookup and not _vivino_match_is_trustworthy(wine, lookup):
-            # The stored vivino_id itself points at the wrong variant (e.g.
-            # it was matched to the rosé of a name a producer also sells as
-            # red/white) — a by-id lookup has no query to re-check against,
-            # so this is caught here instead of before it's ever stored.
-            # Don't keep it; fall through to a fresh text search below.
-            _LOGGER.debug(
-                "Vivino by-id lookup for '%s' has the wrong type (%s), re-searching",
-                query, lookup.get("type"),
-            )
-            lookup = None
+        lookup = await _lookup_known_vivino_id(vivino, wine, language)
 
     if not lookup and not _is_whisky(wine) and not wine.get("vivino_linked"):
         if not query:
@@ -1603,7 +1709,10 @@ async def ws_refresh_wine(
     if candidate_image and candidate_image != wine.get("image_url"):
         if not wine.get("image_url"):
             updates["image_url"] = candidate_image
-        elif not storage.settings.get(CONF_VIVINO_KEEP_PHOTO, False):
+        elif not (
+            wine.get("keep_photo")  # refused for this wine
+            or storage.settings.get(CONF_VIVINO_KEEP_PHOTO, False)
+        ):
             vivino_image_url = candidate_image
 
     # Store Vivino price as retail_price (always update — Vivino is real market data)
@@ -1674,7 +1783,10 @@ async def ws_refresh_wine(
     updates["vivino_checked_at"] = now
     if changed_fields:
         updates["vivino_updated_at"] = now
-    if lookup.get("vivino_id"):
+    # Keep an id the wine already has: for an account-synced bottle it is a
+    # vintage id, and it is what matches the bottle to the Vivino cellar.
+    # (A link pasted by the user always wins.)
+    if lookup.get("vivino_id") and (linking or not _keeps_vivino_id(wine)):
         updates["vivino_id"] = lookup["vivino_id"]
     if linking:
         updates["vivino_linked"] = True
@@ -1699,6 +1811,10 @@ async def ws_refresh_wine(
         "price_needs_ai": price_needs_ai,
         "previous": previous,
     })
+    # Vivino profile (taste, flavours, style, awards, critics): a few more
+    # requests, so it follows in the background and the card reloads.
+    if updated_wine and updated_wine.get("vivino_id"):
+        hass.async_create_task(async_apply_vivino_profile(hass, updated_wine["id"]))
 
 
 @websocket_api.websocket_command(
@@ -1737,6 +1853,8 @@ async def ws_revert_vivino_match(
         restore.update({
             "vivino_id": None, "vivino_linked": False,
             "rating": None, "ratings_count": None,
+            # The profile came from that page too.
+            **PROFILE_CLEAR,
         })
     updated = storage.update_wine(msg["wine_id"], restore)
     if updated:
@@ -2037,16 +2155,7 @@ async def ws_batch_refresh_vivino(
                 # User-chosen link: trusted as is, never re-searched.
                 lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
             elif wine.get("vivino_id") and not _is_whisky(wine):
-                lookup = await vivino.get_wine_by_id(wine["vivino_id"], wine.get("vintage"), language)
-                if lookup and not _vivino_match_is_trustworthy(wine, lookup):
-                    # Same guard as the single-wine refresh: a stored
-                    # vivino_id can point at the wrong same-name variant
-                    # (e.g. rosé instead of red) — discard it and re-search.
-                    _LOGGER.debug(
-                        "Batch Vivino: by-id lookup for '%s' has the wrong type (%s), re-searching",
-                        query, lookup.get("type"),
-                    )
-                    lookup = None
+                lookup = await _lookup_known_vivino_id(vivino, wine, language)
 
             if not lookup and not _is_whisky(wine) and not wine.get("vivino_linked"):
                 if not query:
@@ -2187,13 +2296,16 @@ async def ws_batch_refresh_vivino(
             updates["vivino_checked_at"] = now
             if had_changes:
                 updates["vivino_updated_at"] = now
-            if lookup.get("vivino_id"):
+            # Keep an existing id (a vintage id for account-synced bottles).
+            if lookup.get("vivino_id") and not _keeps_vivino_id(wine):
                 updates["vivino_id"] = lookup["vivino_id"]
             if ai_price_used:
                 updates["ai_updated_at"] = now
                 updates["ai_checked_at"] = now
             storage.update_wine(wine["id"], updates)
             _propagate_to_duplicates(storage, wine, updates)
+            # Profile of the vintage (propagated to identical bottles too).
+            await async_apply_vivino_profile(hass, wine["id"], save=False)
             if had_changes:
                 updated += n
             else:

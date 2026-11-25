@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { Wine, Cabinet, TastingNotes, getWineTypeLabels, getSelectableWineTypes, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation, producerLabel, varietyLabel } from "../models";
+import { Wine, VivinoTaste, Cabinet, TastingNotes, getWineTypeLabels, getSelectableWineTypes, WINE_TYPE_COLORS, WineType, getRemovalReasons, getWineLocation, producerLabel, varietyLabel } from "../models";
 import { sharedStyles } from "../styles";
 import { resizeImageForStorage } from "../utils/image";
 import { t } from "../i18n";
@@ -48,7 +48,7 @@ export class WineDetailDialog extends LitElement {
   @state() private _linkOpen = false;
   // What the last Vivino lookup overwrote, kept so "not the right wine" can put it back.
   @state() private _vivinoUndo: { wineId: string; previous: Record<string, unknown> } | null = null;
-  @state() private _keepPhotoAlways = false;
+  @state() private _keepPhotoForWine = false;
   @state() private _unlinking = false;
   @state() private _linkUrl = "";
   @state() private _linkError = "";
@@ -226,6 +226,7 @@ export class WineDetailDialog extends LitElement {
       }
 
       .wine-title {
+        min-width: 0;
         flex: 1;
         min-width: 0;
       }
@@ -607,6 +608,58 @@ export class WineDetailDialog extends LitElement {
           grid-template-columns: 1fr;
         }
       }
+      .vivino-profile {
+        padding: 0 20px 16px;
+      }
+      .vp-style {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .vp-scale {
+        display: grid;
+        grid-template-columns: 5em minmax(0, 1fr) 5em;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8em;
+        color: var(--wc-text-secondary);
+        margin: 4px 0;
+      }
+      .vp-high {
+        text-align: right;
+      }
+      .vp-track {
+        position: relative;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--wc-border);
+      }
+      .vp-fill {
+        position: absolute;
+        top: -2px;
+        width: 22%;
+        height: 10px;
+        border-radius: 5px;
+        background: var(--wc-primary);
+      }
+      .vp-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 4px;
+      }
+      .vp-chip {
+        font-size: 0.8em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(114, 47, 55, 0.12);
+        color: var(--wc-text);
+      }
+      .vp-list {
+        font-size: 0.85em;
+        margin-top: 8px;
+        display: grid;
+        gap: 4px;
+      }
     `,
   ];
 
@@ -969,7 +1022,7 @@ export class WineDetailDialog extends LitElement {
         }
         if (resp.vivino_image_url) {
           this._pendingVivinoImage = resp.vivino_image_url;
-          this._keepPhotoAlways = false;
+          this._keepPhotoForWine = false;
         }
         if (resp.price_needs_ai) {
           this._aiFallbackReason = "no_price";
@@ -1121,13 +1174,25 @@ export class WineDetailDialog extends LitElement {
 
   private _dismissVivinoPhoto() {
     this._pendingVivinoImage = null;
-    if (this._keepPhotoAlways) {
-      this._keepPhotoAlways = false;
-      this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", {
-        detail: { value: true },
-        bubbles: true,
-        composed: true,
-      }));
+    if (this._keepPhotoForWine) {
+      this._keepPhotoForWine = false;
+      this._setKeepPhoto(true);
+    }
+  }
+
+  private async _setKeepPhoto(keep: boolean) {
+    const wineId = this.wine?.id ?? "";
+    if (!this.wine || !this.hass) return;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_wine",
+        wine_id: wineId,
+        updates: { keep_photo: keep },
+      });
+      this._applyIfStillShowing(wineId, { keep_photo: keep });
+      this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+    } catch (err) {
+      console.error("Photo preference update failed", err);
     }
   }
 
@@ -1437,6 +1502,54 @@ export class WineDetailDialog extends LitElement {
     `;
   }
 
+  // What Vivino's app shows on a wine's page: style, taste structure,
+  // main flavours, awards and critic scores (filled by vivino_profile.py).
+  private _renderVivinoProfile(wine: Wine) {
+    const taste = wine.vivino_taste || {};
+    const scales: [keyof VivinoTaste, string, string][] = [
+      ["intensity", "light", "bold"],
+      ["tannin", "smooth", "tannic"],
+      ["sweetness", "dry", "sweet"],
+      ["acidity", "soft", "acidic"],
+      ["fizziness", "gentle", "fizzy"],
+    ];
+    const bars = scales.filter(([k]) => typeof taste[k] === "number");
+    const flavors = wine.vivino_flavors || [];
+    const awards = wine.vivino_awards || [];
+    const critics = wine.vivino_critics || [];
+    if (!wine.vivino_style && !bars.length && !flavors.length && !awards.length && !critics.length) {
+      return nothing;
+    }
+    return html`
+      <div class="vivino-profile">
+        <div class="detail-label" style="margin-bottom: 6px">${this._t("ui.wineDetail.vivinoProfile.title")}</div>
+        ${wine.vivino_style ? html`<div class="vp-style">${wine.vivino_style}</div>` : nothing}
+        ${bars.map(
+          ([k, low, high]) => html`
+            <div class="vp-scale">
+              <span class="vp-low">${this._t(`ui.wineDetail.vivinoProfile.${low}`)}</span>
+              <span class="vp-track"><span class="vp-fill" style="left: ${((Math.min(5, Math.max(1, taste[k]!)) - 1) / 4) * 78}%"></span></span>
+              <span class="vp-high">${this._t(`ui.wineDetail.vivinoProfile.${high}`)}</span>
+            </div>
+          `
+        )}
+        ${flavors.length
+          ? html`<div class="vp-chips">${flavors.map((f) => html`<span class="vp-chip">${f}</span>`)}</div>`
+          : nothing}
+        ${awards.length
+          ? html`<div class="vp-list">${awards.map(
+              (a) => html`<div>🏅 ${[a.medal, a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`
+            )}</div>`
+          : nothing}
+        ${critics.length
+          ? html`<div class="vp-list">${critics.map(
+              (c) => html`<div>✒️ ${c.critic || this._t("ui.wineDetail.vivinoProfile.critic")}: <b>${c.score}</b>${c.score_max ? `/${c.score_max}` : ""}</div>`
+            )}</div>`
+          : nothing}
+      </div>
+    `;
+  }
+
   render() {
     if (!this.open || !this.wine) return nothing;
 
@@ -1543,7 +1656,7 @@ export class WineDetailDialog extends LitElement {
                 : nothing}
               ${this.mode !== "winelist"
                 ? html`
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
                       <span style="font-size:0.8em;color:var(--wc-text-secondary)">${this._t('ui.wineDetail.myRating')}</span>
                       <star-rating
                         .value=${this._userRating}
@@ -1620,6 +1733,11 @@ export class WineDetailDialog extends LitElement {
                         ? html`<a href="#" style="color:#c62828;text-decoration:underline"
                             @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
                           >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`
+                        : nothing}
+                      ${wine.keep_photo
+                        ? html`<a href="#" style="color:#8e24aa;text-decoration:underline"
+                            @click=${(e: Event) => { e.preventDefault(); e.stopPropagation(); this._setKeepPhoto(false); }}
+                          >📷 ${this._t("ui.wineDetail.offerPhotoAgainBtn")}</a>`
                         : nothing}
                     </div>`
                   : nothing}
@@ -1752,6 +1870,8 @@ export class WineDetailDialog extends LitElement {
                     : nothing}
                 </div>
 
+                ${this._renderVivinoProfile(wine)}
+
                 ${wine.notes
                   ? html`
                       <div class="wine-notes">
@@ -1881,9 +2001,9 @@ export class WineDetailDialog extends LitElement {
                   <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
                 <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:0.78em;color:var(--wc-text-secondary);cursor:pointer">
-                  <input type="checkbox" .checked=${this._keepPhotoAlways}
-                    @change=${(e: Event) => (this._keepPhotoAlways = (e.target as HTMLInputElement).checked)} />
-                  ${this._t("ui.wineDetail.alwaysKeepPhoto")}
+                  <input type="checkbox" .checked=${this._keepPhotoForWine}
+                    @change=${(e: Event) => (this._keepPhotoForWine = (e.target as HTMLInputElement).checked)} />
+                  ${this._t("ui.wineDetail.keepPhotoForWine")}
                 </label>
                 ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
                   ? html`<button

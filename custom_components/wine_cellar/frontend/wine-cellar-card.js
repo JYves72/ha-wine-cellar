@@ -783,6 +783,24 @@ var wineLocation$1 = {
 	slot: "Slot"
 };
 var ui$1 = {
+	sectionCard: {
+		loading: "Loading…",
+		unavailable: "Cork Dork is not available.",
+		noSectionNamed: "No section named {name}.",
+		chooseSection: "Choose a section for this card.",
+		sectionsList: "Sections: {names}",
+		bottlesOne: "{n} bottle",
+		bottlesMany: "{n} bottles",
+		free: "{n} free",
+		slotTitle: "Row {row}, slot {col}",
+		addHere: "+ Add a bottle here",
+		fullCardOnly: "Moving and copying bottles is done in the full Cork Dork card.",
+		editor: {
+			section: "Section",
+			title: "Title (optional)",
+			showHeader: "Show bottle count (and title)"
+		}
+	},
 	common: {
 		cancel: "Cancel",
 		empty: "Empty",
@@ -1127,6 +1145,9 @@ var ui$1 = {
 		configureGeminiTitle: "Configure Gemini API key in integration settings",
 		takePhotoOfLabel: "Take a photo of the wine label",
 		requiresGeminiKey: "Requires Gemini API key in settings",
+		recognizingLabelVivino: "Recognizing label with Vivino...",
+		configureLabelScanTitle: "Sign in to Vivino or configure an AI provider in the integration settings",
+		requiresLabelScan: "Requires a Vivino sign-in or an AI provider in settings",
 		orEnterManually: "or enter manually",
 		barcodePlaceholder: "Enter barcode...",
 		lookUpBtn: "Look Up",
@@ -1175,6 +1196,8 @@ var ui$1 = {
 		columnLabel: "Column (1-based)",
 		pickZoneOrRowCol: "Pick a zone, or enter both Row and Column, so the bottle has a findable spot.",
 		slotOutside: "That slot is outside {cabinet} ({rows} rows × {cols} columns).",
+		slotsTotal: "{n} slots",
+		slotOutsideRow: "That slot is outside {cabinet}: row {row} has {n} slots.",
 		rowIsBinOrBox: "That row is a bin or box, not grid slots — pick it from the zone list above.",
 		slotFull: "Row {row}, column {col} is full ({used}/{depth} deep).",
 		bottlesLabel: "Bottles",
@@ -1209,6 +1232,20 @@ var ui$1 = {
 		posRowCol: "Row {row}, Col {col}"
 	},
 	wineDetail: {
+		vivinoProfile: {
+			title: "Vivino profile",
+			light: "Light",
+			bold: "Bold",
+			smooth: "Smooth",
+			tannic: "Tannic",
+			dry: "Dry",
+			sweet: "Sweet",
+			soft: "Soft",
+			acidic: "Acidic",
+			gentle: "Gentle",
+			fizzy: "Fizzy",
+			critic: "Critic"
+		},
 		backLabelSuffix: " (back label)",
 		backLabelBadge: "Back label",
 		frontLabelTitle: "Front label",
@@ -1292,7 +1329,8 @@ var ui$1 = {
 		linkFailed: "The link could not be applied. Try again.",
 		wrongWineBtn: "Not the right wine",
 		wrongWineFailed: "Could not undo the Vivino match. Try again.",
-		alwaysKeepPhoto: "Always keep my photo (don't ask again)",
+		keepPhotoForWine: "Don't offer another photo for this wine",
+		offerPhotoAgainBtn: "Offer Vivino's photo again",
 		linkedLabel: "Linked Vivino page",
 		matchedLabel: "Vivino page (found automatically)",
 		linkCurrent: "Current link",
@@ -1332,6 +1370,10 @@ var ui$1 = {
 		failedToReorderRacks: "Failed to reorder racks.",
 		gridDimensions: "{rows} × {cols} grid",
 		gridDeepSuffix: " × {depth} deep",
+		staggeredRows: "{rows} staggered rows ({pattern})",
+		staggeredBtn: "Staggered rows (e.g. 3/2/3/2)",
+		staggeredReset: "Staggered ✓ — reset to full rows",
+		staggeredHint: "Rows alternate full width and one slot less, offset by half a slot (honeycomb rack)",
 		bottlesCountSuffix: " · {n} bottle{plural}",
 		shelfCountSuffixOne: " · {n} shelf",
 		shelfCountSuffixMany: " · {n} shelves",
@@ -1404,8 +1446,10 @@ var ui$1 = {
 		dispositionDisplayLabel: "Drink Now / Hold / Past Peak display",
 		dispositionDisplayLetter: "Badge with letter",
 		dispositionDisplayDot: "Colored circle",
+		dispositionDisplayOff: "Hidden",
 		languageLabel: "Vivino/AI language",
 		currencyLabel: "Currency",
+		followHa: "Same as Home Assistant: {value}",
 		infoTitle: "Vivino vs AI — What Each Provides",
 		vivinoProvidesTitle: "Vivino provides:",
 		vivinoBottlePhoto: "Bottle photo",
@@ -1430,10 +1474,11 @@ var ui$1 = {
 		notFound: "No camera found on this device.",
 		busy: "The camera is busy or unavailable — another app may be using it.",
 		genericError: "Could not access the camera{detail}.",
-		fallbackHint: "The button below opens your device's own camera, which works either way.",
+		fallbackHint: "\"Take a photo\" opens your device's own camera, which works either way; or pick an existing photo from your library.",
 		pointAtLabel: "Point the camera at the wine label",
 		takePhotoBtn: "📷 Take a photo",
 		uploadGalleryBtn: "📁 Upload from gallery",
+		chooseFromLibraryBtn: "📁 Choose from library",
 		takePhotoTitle: "Take photo"
 	},
 	wineList: {
@@ -1605,6 +1650,24 @@ var wineLocation = {
 	slot: "Emplacement"
 };
 var ui = {
+	sectionCard: {
+		loading: "Chargement…",
+		unavailable: "Cork Dork n'est pas disponible.",
+		noSectionNamed: "Aucune section nommée {name}.",
+		chooseSection: "Choisissez une section pour cette carte.",
+		sectionsList: "Sections : {names}",
+		bottlesOne: "{n} bouteille",
+		bottlesMany: "{n} bouteilles",
+		free: "{n} libres",
+		slotTitle: "Rangée {row}, emplacement {col}",
+		addHere: "+ Ajouter une bouteille ici",
+		fullCardOnly: "Déplacer ou copier une bouteille se fait dans la carte Cork Dork complète.",
+		editor: {
+			section: "Section",
+			title: "Titre (facultatif)",
+			showHeader: "Afficher le nombre de bouteilles (et le titre)"
+		}
+	},
 	common: {
 		cancel: "Annuler",
 		empty: "Vide",
@@ -1949,6 +2012,9 @@ var ui = {
 		configureGeminiTitle: "Configurez la clé API Gemini dans les paramètres de l'intégration",
 		takePhotoOfLabel: "Prenez une photo de l'étiquette du vin",
 		requiresGeminiKey: "Nécessite une clé API Gemini dans les paramètres",
+		recognizingLabelVivino: "Reconnaissance de l'étiquette par Vivino...",
+		configureLabelScanTitle: "Connectez-vous à Vivino ou configurez un fournisseur d'IA dans les paramètres de l'intégration",
+		requiresLabelScan: "Nécessite une connexion Vivino ou un fournisseur d'IA dans les paramètres",
 		orEnterManually: "ou entrez manuellement",
 		barcodePlaceholder: "Entrez le code-barres...",
 		lookUpBtn: "Rechercher",
@@ -1997,6 +2063,8 @@ var ui = {
 		columnLabel: "Colonne (à partir de 1)",
 		pickZoneOrRowCol: "Choisissez une zone, ou renseignez à la fois la ligne et la colonne, pour que la bouteille ait un emplacement repérable.",
 		slotOutside: "Cet emplacement est hors de {cabinet} ({rows} lignes × {cols} colonnes).",
+		slotsTotal: "{n} emplacements",
+		slotOutsideRow: "Cet emplacement est hors de {cabinet} : la ligne {row} a {n} emplacements.",
 		rowIsBinOrBox: "Cette ligne est un casier ou une caisse, pas des emplacements de grille — choisissez-la dans la liste de zones ci-dessus.",
 		slotFull: "Ligne {row}, colonne {col} est pleine ({used}/{depth} de profondeur).",
 		bottlesLabel: "Bouteilles",
@@ -2031,6 +2099,20 @@ var ui = {
 		posRowCol: "Ligne {row}, Col {col}"
 	},
 	wineDetail: {
+		vivinoProfile: {
+			title: "Profil Vivino",
+			light: "Léger",
+			bold: "Puissant",
+			smooth: "Souple",
+			tannic: "Tannique",
+			dry: "Sec",
+			sweet: "Doux",
+			soft: "Peu acide",
+			acidic: "Acide",
+			gentle: "Peu pétillant",
+			fizzy: "Pétillant",
+			critic: "Critique"
+		},
 		backLabelSuffix: " (étiquette arrière)",
 		backLabelBadge: "Étiquette arrière",
 		frontLabelTitle: "Étiquette avant",
@@ -2114,7 +2196,8 @@ var ui = {
 		linkFailed: "Le lien n'a pas pu être appliqué. Réessayez.",
 		wrongWineBtn: "Ce n'est pas le bon vin",
 		wrongWineFailed: "Impossible d'annuler la correspondance Vivino. Réessayez.",
-		alwaysKeepPhoto: "Toujours garder ma photo (ne plus demander)",
+		keepPhotoForWine: "Ne plus me proposer de photo pour ce vin",
+		offerPhotoAgainBtn: "Reproposer la photo Vivino",
 		linkedLabel: "Fiche Vivino liée",
 		matchedLabel: "Fiche Vivino (trouvée automatiquement)",
 		linkCurrent: "Lien actuel",
@@ -2154,6 +2237,10 @@ var ui = {
 		failedToReorderRacks: "Échec de la réorganisation des racks.",
 		gridDimensions: "grille {rows} × {cols}",
 		gridDeepSuffix: " × {depth} en profondeur",
+		staggeredRows: "{rows} lignes en quinconce ({pattern})",
+		staggeredBtn: "Lignes en quinconce (ex. 3/2/3/2)",
+		staggeredReset: "En quinconce ✓ — revenir aux lignes pleines",
+		staggeredHint: "Les lignes alternent pleine largeur et un emplacement de moins, décalées d'un demi-emplacement",
 		bottlesCountSuffix: " · {n} bouteille{plural}",
 		shelfCountSuffixOne: " · {n} tête-bêche",
 		shelfCountSuffixMany: " · {n} tête-bêche",
@@ -2226,8 +2313,10 @@ var ui = {
 		dispositionDisplayLabel: "Affichage à boire/à garder/sur le déclin",
 		dispositionDisplayLetter: "Pastille avec lettre",
 		dispositionDisplayDot: "Cercle de couleur",
+		dispositionDisplayOff: "Masqué",
 		languageLabel: "Langue Vivino/IA",
 		currencyLabel: "Devise",
+		followHa: "Comme Home Assistant : {value}",
 		infoTitle: "Vivino vs IA — Ce que chacun fournit",
 		vivinoProvidesTitle: "Vivino fournit :",
 		vivinoBottlePhoto: "Photo de la bouteille",
@@ -2252,10 +2341,11 @@ var ui = {
 		notFound: "Aucune caméra trouvée sur cet appareil.",
 		busy: "La caméra est occupée ou indisponible — une autre application l'utilise peut-être.",
 		genericError: "Impossible d'accéder à la caméra{detail}.",
-		fallbackHint: "Le bouton ci-dessous ouvre la caméra de votre appareil, qui fonctionne dans tous les cas.",
+		fallbackHint: "« Prendre une photo » ouvre la caméra de votre appareil, qui fonctionne dans tous les cas ; ou choisissez une photo existante dans votre photothèque.",
 		pointAtLabel: "Pointez la caméra vers l'étiquette du vin",
 		takePhotoBtn: "📷 Prendre une photo",
 		uploadGalleryBtn: "📁 Importer depuis la galerie",
+		chooseFromLibraryBtn: "📁 Choisir dans la photothèque",
 		takePhotoTitle: "Prendre une photo"
 	},
 	wineList: {
@@ -2527,6 +2617,21 @@ const WINE_TYPE_LABELS = {
     whisky: "Whisky",
     cider: "Cider",
 };
+// How many slots a grid row has: `cols`, unless `row_cols` gives that row
+// fewer (a staggered rack). Mirrors WineCellarStorage.row_slot_count.
+function rowSlotCount(cabinet, row) {
+    const cols = cabinet.cols || 0;
+    const n = cabinet.row_cols?.[row];
+    return typeof n === "number" && Number.isInteger(n) && n >= 1 && n < cols ? n : cols;
+}
+// True when some row is shorter than the rack is wide.
+function isStaggered(cabinet) {
+    for (let r = 0; r < (cabinet.rows || 0); r++) {
+        if (rowSlotCount(cabinet, r) < (cabinet.cols || 0))
+            return true;
+    }
+    return false;
+}
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
 // — falls back to the English WINE_TYPE_LABELS above for a language with
 // no catalog yet, or for any type not yet translated within one that
@@ -2569,7 +2674,8 @@ function getRackSlots(cabinet) {
     for (let r = 0; r < cabinet.rows; r++) {
         if (storageRowSet.has(r))
             continue;
-        for (let c = 0; c < cabinet.cols; c++)
+        const n = rowSlotCount(cabinet, r);
+        for (let c = 0; c < n; c++)
             slots.push({ row: r, col: c });
     }
     return slots;
@@ -4150,7 +4256,7 @@ let CabinetGrid = class CabinetGrid extends i {
     // as a thicker colored ring around the bottle instead, so the photo
     // stays uncovered.
     _dispositionBadge(dispClass, disp, wine, className = "disposition") {
-        if (!dispClass || this.dispositionDisplay === "dot")
+        if (!dispClass || this.dispositionDisplay !== "letter")
             return A;
         const peakClass = dispClass === "drink" && this._isInOrAfterPeakWindow(wine) ? "peak" : "";
         return b `<span class="${className} ${dispClass} ${peakClass}">${disp}</span>`;
@@ -4615,9 +4721,13 @@ let CabinetGrid = class CabinetGrid extends i {
     }
     _renderGridRow(row, cols) {
         const cabinetDepth = this.cabinet.depth || 1;
+        // A short row (staggered rack) keeps full-width cell size and is centred,
+        // which offsets it by half a slot against its neighbours.
+        const slots = rowSlotCount(this.cabinet, row);
+        const short = slots < cols;
         return b `
-      <div class="row">
-        ${Array.from({ length: cols }, (_, col) => {
+      <div class="row ${short ? "short" : ""}" style=${short ? `--rack-cols: ${cols}` : ""}>
+        ${Array.from({ length: slots }, (_, col) => {
             const wines = this._getWinesAt(row, col);
             const wineCount = wines.length;
             const frontWine = wines.length > 0
@@ -4883,12 +4993,21 @@ CabinetGrid.styles = [
       }
 
       .row {
+        --row-gap: 2px;
         display: flex;
-        gap: 2px;
+        gap: var(--row-gap);
         margin-bottom: 2px;
         padding: 0 4px;
         box-sizing: border-box;
         position: relative;
+      }
+
+      /* Staggered rack: a shorter row keeps full-size cells, centred. */
+      .row.short {
+        justify-content: center;
+      }
+      .row.short .cell {
+        flex: 0 0 calc((100% - (var(--rack-cols) - 1) * var(--row-gap)) / var(--rack-cols));
       }
 
       /* Scalloped shelf appearance */
@@ -5564,7 +5683,7 @@ CabinetGrid.styles = [
           padding: 4px;
         }
         .row {
-          gap: 1px;
+          --row-gap: 1px;
           margin-bottom: 1px;
         }
         .row::after {
@@ -5599,7 +5718,7 @@ CabinetGrid.styles = [
           padding: 5px;
         }
         .row {
-          gap: 2px;
+          --row-gap: 2px;
           margin-bottom: 1px;
         }
       }
@@ -6004,9 +6123,21 @@ let LabelCamera = class LabelCamera extends i {
           `}
 
       <div class="fallback-area">
+        ${this._error
+            ? b `
+              <!-- No live camera (e.g. plain http): capture="environment"
+                   opens the device's own camera without a secure context. -->
+              <label class="file-input-label">
+                ${this._t("ui.camera.takePhotoBtn")}
+                <input type="file" accept="image/*" capture="environment" @change=${this._onFileSelected} />
+              </label>
+            `
+            : A}
+        <!-- Never capture= here: on iOS it skips the photo library and
+             opens the camera, so "gallery" could not pick an existing photo. -->
         <label class="file-input-label">
-          ${this._error ? this._t("ui.camera.takePhotoBtn") : this._t("ui.camera.uploadGalleryBtn")}
-          <input type="file" accept="image/*" capture="environment" @change=${this._onFileSelected} />
+          ${this._error ? this._t("ui.camera.chooseFromLibraryBtn") : this._t("ui.camera.uploadGalleryBtn")}
+          <input type="file" accept="image/*" @change=${this._onFileSelected} />
         </label>
       </div>
     `;
@@ -6091,7 +6222,10 @@ LabelCamera.styles = [
       }
 
       .fallback-area {
-        text-align: center;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
         padding: 8px 0;
       }
 
@@ -6201,7 +6335,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this._linkOpen = false;
         // What the last Vivino lookup overwrote, kept so "not the right wine" can put it back.
         this._vivinoUndo = null;
-        this._keepPhotoAlways = false;
+        this._keepPhotoForWine = false;
         this._unlinking = false;
         this._linkUrl = "";
         this._linkError = "";
@@ -6563,7 +6697,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 }
                 if (resp.vivino_image_url) {
                     this._pendingVivinoImage = resp.vivino_image_url;
-                    this._keepPhotoAlways = false;
+                    this._keepPhotoForWine = false;
                 }
                 if (resp.price_needs_ai) {
                     this._aiFallbackReason = "no_price";
@@ -6723,13 +6857,26 @@ let WineDetailDialog = class WineDetailDialog extends i {
     }
     _dismissVivinoPhoto() {
         this._pendingVivinoImage = null;
-        if (this._keepPhotoAlways) {
-            this._keepPhotoAlways = false;
-            this.dispatchEvent(new CustomEvent("set-vivino-keep-photo", {
-                detail: { value: true },
-                bubbles: true,
-                composed: true,
-            }));
+        if (this._keepPhotoForWine) {
+            this._keepPhotoForWine = false;
+            this._setKeepPhoto(true);
+        }
+    }
+    async _setKeepPhoto(keep) {
+        const wineId = this.wine?.id ?? "";
+        if (!this.wine || !this.hass)
+            return;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_wine",
+                wine_id: wineId,
+                updates: { keep_photo: keep },
+            });
+            this._applyIfStillShowing(wineId, { keep_photo: keep });
+            this.dispatchEvent(new CustomEvent("wine-updated", { bubbles: true, composed: true }));
+        }
+        catch (err) {
+            console.error("Photo preference update failed", err);
         }
     }
     _onDeletePhoto() {
@@ -7059,6 +7206,47 @@ let WineDetailDialog = class WineDetailDialog extends i {
       </div>
     `;
     }
+    // What Vivino's app shows on a wine's page: style, taste structure,
+    // main flavours, awards and critic scores (filled by vivino_profile.py).
+    _renderVivinoProfile(wine) {
+        const taste = wine.vivino_taste || {};
+        const scales = [
+            ["intensity", "light", "bold"],
+            ["tannin", "smooth", "tannic"],
+            ["sweetness", "dry", "sweet"],
+            ["acidity", "soft", "acidic"],
+            ["fizziness", "gentle", "fizzy"],
+        ];
+        const bars = scales.filter(([k]) => typeof taste[k] === "number");
+        const flavors = wine.vivino_flavors || [];
+        const awards = wine.vivino_awards || [];
+        const critics = wine.vivino_critics || [];
+        if (!wine.vivino_style && !bars.length && !flavors.length && !awards.length && !critics.length) {
+            return A;
+        }
+        return b `
+      <div class="vivino-profile">
+        <div class="detail-label" style="margin-bottom: 6px">${this._t("ui.wineDetail.vivinoProfile.title")}</div>
+        ${wine.vivino_style ? b `<div class="vp-style">${wine.vivino_style}</div>` : A}
+        ${bars.map(([k, low, high]) => b `
+            <div class="vp-scale">
+              <span class="vp-low">${this._t(`ui.wineDetail.vivinoProfile.${low}`)}</span>
+              <span class="vp-track"><span class="vp-fill" style="left: ${((Math.min(5, Math.max(1, taste[k])) - 1) / 4) * 78}%"></span></span>
+              <span class="vp-high">${this._t(`ui.wineDetail.vivinoProfile.${high}`)}</span>
+            </div>
+          `)}
+        ${flavors.length
+            ? b `<div class="vp-chips">${flavors.map((f) => b `<span class="vp-chip">${f}</span>`)}</div>`
+            : A}
+        ${awards.length
+            ? b `<div class="vp-list">${awards.map((a) => b `<div>🏅 ${[a.medal, a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`)}</div>`
+            : A}
+        ${critics.length
+            ? b `<div class="vp-list">${critics.map((c) => b `<div>✒️ ${c.critic || this._t("ui.wineDetail.vivinoProfile.critic")}: <b>${c.score}</b>${c.score_max ? `/${c.score_max}` : ""}</div>`)}</div>`
+            : A}
+      </div>
+    `;
+    }
     render() {
         if (!this.open || !this.wine)
             return A;
@@ -7160,7 +7348,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             : A}
               ${this.mode !== "winelist"
             ? b `
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;font-size:0.9em">
                       <span style="font-size:0.8em;color:var(--wc-text-secondary)">${this._t('ui.wineDetail.myRating')}</span>
                       <star-rating
                         .value=${this._userRating}
@@ -7237,6 +7425,11 @@ let WineDetailDialog = class WineDetailDialog extends i {
                     ? b `<a href="#" style="color:#c62828;text-decoration:underline"
                             @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._rejectVivinoMatch(); }}
                           >✕ ${this._t("ui.wineDetail.wrongWineBtn")}</a>`
+                    : A}
+                      ${wine.keep_photo
+                    ? b `<a href="#" style="color:#8e24aa;text-decoration:underline"
+                            @click=${(e) => { e.preventDefault(); e.stopPropagation(); this._setKeepPhoto(false); }}
+                          >📷 ${this._t("ui.wineDetail.offerPhotoAgainBtn")}</a>`
                     : A}
                     </div>`
                 : A}
@@ -7363,6 +7556,8 @@ let WineDetailDialog = class WineDetailDialog extends i {
                 ? b `<div class="detail-item"><span class="detail-label">${this._t("ui.wineDetail.barcodeLabel")}</span><span class="detail-value">${wine.barcode}</span></div>`
                 : A}
                 </div>
+
+                ${this._renderVivinoProfile(wine)}
 
                 ${wine.notes
                 ? b `
@@ -7492,9 +7687,9 @@ let WineDetailDialog = class WineDetailDialog extends i {
                   <button class="btn btn-primary" style="background:#8e24aa" @click=${this._applyVivinoPhoto}>${this._t("ui.wineDetail.useVivinoPhotoBtn")}</button>
                 </div>
                 <label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:0.78em;color:var(--wc-text-secondary);cursor:pointer">
-                  <input type="checkbox" .checked=${this._keepPhotoAlways}
-                    @change=${(e) => (this._keepPhotoAlways = e.target.checked)} />
-                  ${this._t("ui.wineDetail.alwaysKeepPhoto")}
+                  <input type="checkbox" .checked=${this._keepPhotoForWine}
+                    @change=${(e) => (this._keepPhotoForWine = e.target.checked)} />
+                  ${this._t("ui.wineDetail.keepPhotoForWine")}
                 </label>
                 ${this._vivinoUndo && this._vivinoUndo.wineId === wine.id
             ? b `<button
@@ -7772,6 +7967,7 @@ WineDetailDialog.styles = [
       }
 
       .wine-title {
+        min-width: 0;
         flex: 1;
         min-width: 0;
       }
@@ -8153,6 +8349,58 @@ WineDetailDialog.styles = [
           grid-template-columns: 1fr;
         }
       }
+      .vivino-profile {
+        padding: 0 20px 16px;
+      }
+      .vp-style {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .vp-scale {
+        display: grid;
+        grid-template-columns: 5em minmax(0, 1fr) 5em;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8em;
+        color: var(--wc-text-secondary);
+        margin: 4px 0;
+      }
+      .vp-high {
+        text-align: right;
+      }
+      .vp-track {
+        position: relative;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--wc-border);
+      }
+      .vp-fill {
+        position: absolute;
+        top: -2px;
+        width: 22%;
+        height: 10px;
+        border-radius: 5px;
+        background: var(--wc-primary);
+      }
+      .vp-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 4px;
+      }
+      .vp-chip {
+        font-size: 0.8em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(114, 47, 55, 0.12);
+        color: var(--wc-text);
+      }
+      .vp-list {
+        font-size: 0.85em;
+        margin-top: 8px;
+        display: grid;
+        gap: 4px;
+      }
     `,
 ];
 __decorate([
@@ -8235,7 +8483,7 @@ __decorate([
 ], WineDetailDialog.prototype, "_vivinoUndo", void 0);
 __decorate([
     r()
-], WineDetailDialog.prototype, "_keepPhotoAlways", void 0);
+], WineDetailDialog.prototype, "_keepPhotoForWine", void 0);
 __decorate([
     r()
 ], WineDetailDialog.prototype, "_unlinking", void 0);
@@ -8536,6 +8784,9 @@ let AddWineDialog = class AddWineDialog extends i {
         this._wineData = {};
         this._error = "";
         this._hasGemini = false;
+        // Label photos: AI and/or Vivino's own recognition (app sign-in).
+        this._hasLabelScan = false;
+        this._vivinoLabelScan = false;
         this._labelLoading = false;
         this._captureStage = "front";
         this._frontImageRaw = "";
@@ -8603,9 +8854,13 @@ let AddWineDialog = class AddWineDialog extends i {
                 type: "wine_cellar/get_capabilities",
             });
             this._hasGemini = result?.has_gemini || false;
+            this._vivinoLabelScan = !!result?.vivino_label_scan;
+            this._hasLabelScan = this._hasGemini || this._vivinoLabelScan;
         }
         catch {
             this._hasGemini = false;
+            this._hasLabelScan = false;
+            this._vivinoLabelScan = false;
         }
     }
     _close() {
@@ -8668,7 +8923,7 @@ let AddWineDialog = class AddWineDialog extends i {
         // Not every bottle has a scannable/known barcode — fall back to AI
         // label recognition automatically instead of dead-ending on "enter
         // details manually" when it's available.
-        if (this._hasGemini) {
+        if (this._hasLabelScan) {
             this._scanMode = "label";
             this._labelLoading = false;
             this._showBackPrompt = false;
@@ -8766,6 +9021,11 @@ let AddWineDialog = class AddWineDialog extends i {
                 const thumbUrl = await resizeImageForStorage(this._frontImageRaw);
                 const backThumbUrl = backImageRaw ? await resizeImageForStorage(backImageRaw) : "";
                 const r = result.result;
+                // Vivino's own label recognition names the exact Vivino vintage, so
+                // the bottle gets its vivino_id and rating straight away; an AI
+                // reading gets them later from the background Vivino lookup.
+                const fromVivino = r.source === "vivino_label";
+                const now = new Date().toISOString();
                 this._wineData = {
                     ...this._wineData,
                     name: r.name || "",
@@ -8788,17 +9048,18 @@ let AddWineDialog = class AddWineDialog extends i {
                     barcode: r.barcode || this._wineData.barcode || "",
                     image_url: thumbUrl,
                     back_image_url: backThumbUrl,
-                    ai_updated_at: new Date().toISOString(),
-                    ai_checked_at: new Date().toISOString(),
-                    // The backend ties a recognised wine to Vivino when it finds a
-                    // trustworthy match: id, rating and Vivino's drinking window.
+                    ...(fromVivino ? {} : { ai_updated_at: now, ai_checked_at: now }),
+                    // Vivino's own label recognition names the exact vintage; after an
+                    // AI reading, the backend ties the wine to Vivino when it finds a
+                    // trustworthy match. Either way: id, rating and Vivino's window.
                     ...(r.vivino_id
                         ? {
                             vivino_id: r.vivino_id,
                             rating: r.rating ?? null,
                             ratings_count: r.ratings_count || null,
-                            vivino_updated_at: new Date().toISOString(),
-                            vivino_checked_at: new Date().toISOString(),
+                            ...(fromVivino && r.alcohol ? { alcohol: r.alcohol } : {}),
+                            vivino_updated_at: now,
+                            vivino_checked_at: now,
                         }
                         : {}),
                 };
@@ -9023,7 +9284,7 @@ let AddWineDialog = class AddWineDialog extends i {
                 ? b `
                 <div class="label-loading">
                   <span class="loading-spinner"></span>
-                  <div style="margin-top: 8px">${this._t("ui.addWine.analyzingLabel")}</div>
+                  <div style="margin-top: 8px">${this._vivinoLabelScan ? this._t("ui.addWine.recognizingLabelVivino") : this._t("ui.addWine.analyzingLabel")}</div>
                 </div>
               `
                 : this._showBackPrompt
@@ -9080,17 +9341,17 @@ let AddWineDialog = class AddWineDialog extends i {
           </button>
 
           <button
-            class="scan-option ${this._hasGemini ? "" : "disabled"}"
-            @click=${() => this._hasGemini && (() => { this._scanMode = "label"; this._error = ""; })()}
-            title=${this._hasGemini ? "" : this._t("ui.addWine.configureGeminiTitle")}
+            class="scan-option ${this._hasLabelScan ? "" : "disabled"}"
+            @click=${() => this._hasLabelScan && (() => { this._scanMode = "label"; this._error = ""; })()}
+            title=${this._hasLabelScan ? "" : this._t("ui.addWine.configureLabelScanTitle")}
           >
             <span class="scan-option-icon">🤖</span>
             <div class="scan-option-text">
               <div class="scan-option-title">${this._t("ui.addWine.recognizeLabelTitle")}</div>
               <div class="scan-option-desc">
-                ${this._hasGemini
+                ${this._hasLabelScan
             ? this._t("ui.addWine.takePhotoOfLabel")
-            : this._t("ui.addWine.requiresGeminiKey")}
+            : this._t("ui.addWine.requiresLabelScan")}
               </div>
             </div>
           </button>
@@ -9456,7 +9717,9 @@ let AddWineDialog = class AddWineDialog extends i {
         }}
               >
                 <div class="cab-name">${cab.name}</div>
-                <div class="cab-info">${this._t("ui.addWine.slotsCount", { rows: cab.rows, cols: cab.cols })}</div>
+                <div class="cab-info">${isStaggered(cab)
+            ? this._t("ui.addWine.slotsTotal", { n: getRackSlots(cab).length })
+            : this._t("ui.addWine.slotsCount", { rows: cab.rows, cols: cab.cols })}</div>
               </div>
             `)}
         </div>
@@ -9537,8 +9800,10 @@ let AddWineDialog = class AddWineDialog extends i {
         }
         const cabinet = this.cabinets.find((c) => c.id === d.cabinet_id);
         if (cabinet && !d.zone && d.row != null && d.col != null) {
-            if (d.row < 0 || d.row >= cabinet.rows || d.col < 0 || d.col >= cabinet.cols) {
-                this._error = this._t("ui.addWine.slotOutside", { cabinet: cabinet.name, rows: cabinet.rows, cols: cabinet.cols });
+            if (d.row < 0 || d.row >= cabinet.rows || d.col < 0 || d.col >= rowSlotCount(cabinet, d.row)) {
+                this._error = d.row >= 0 && d.row < cabinet.rows && rowSlotCount(cabinet, d.row) < cabinet.cols
+                    ? this._t("ui.addWine.slotOutsideRow", { cabinet: cabinet.name, row: d.row + 1, n: rowSlotCount(cabinet, d.row) })
+                    : this._t("ui.addWine.slotOutside", { cabinet: cabinet.name, rows: cabinet.rows, cols: cabinet.cols });
                 return;
             }
             const isStorageRow = (cabinet.storage_rows || []).some((sr) => sr.row === d.row);
@@ -10288,6 +10553,12 @@ __decorate([
 ], AddWineDialog.prototype, "_hasGemini", void 0);
 __decorate([
     r()
+], AddWineDialog.prototype, "_hasLabelScan", void 0);
+__decorate([
+    r()
+], AddWineDialog.prototype, "_vivinoLabelScan", void 0);
+__decorate([
+    r()
 ], AddWineDialog.prototype, "_labelLoading", void 0);
 __decorate([
     r()
@@ -10310,6 +10581,8 @@ let WineSearchBar = class WineSearchBar extends i {
         super(...arguments);
         this.value = "";
         this.filter = "all";
+        // Drinking status: "" (any), "D", "H" or "P".
+        this.drinkFilter = "";
         this.enableWhisky = false;
         this.enableCider = false;
     }
@@ -10320,7 +10593,7 @@ let WineSearchBar = class WineSearchBar extends i {
     _onInput(e) {
         const value = e.target.value;
         this.dispatchEvent(new CustomEvent("search-change", {
-            detail: { query: value, filter: this.filter },
+            detail: { query: value, filter: this.filter, drinkFilter: this.drinkFilter },
             bubbles: true,
             composed: true,
         }));
@@ -10329,7 +10602,7 @@ let WineSearchBar = class WineSearchBar extends i {
     // enough to see. One tap, and the caret stays where the user can keep typing.
     _clear() {
         this.dispatchEvent(new CustomEvent("search-change", {
-            detail: { query: "", filter: this.filter },
+            detail: { query: "", filter: this.filter, drinkFilter: this.drinkFilter },
             bubbles: true,
             composed: true,
         }));
@@ -10343,7 +10616,17 @@ let WineSearchBar = class WineSearchBar extends i {
         this.filter = filter;
         const input = this.shadowRoot?.querySelector("input");
         this.dispatchEvent(new CustomEvent("search-change", {
-            detail: { query: input?.value || "", filter },
+            detail: { query: input?.value || "", filter, drinkFilter: this.drinkFilter },
+            bubbles: true,
+            composed: true,
+        }));
+    }
+    // A second filter, independent of the type: tap again to clear.
+    _onDrinkFilterChange(code) {
+        this.drinkFilter = this.drinkFilter === code ? "" : code;
+        const input = this.shadowRoot?.querySelector("input");
+        this.dispatchEvent(new CustomEvent("search-change", {
+            detail: { query: input?.value || "", filter: this.filter, drinkFilter: this.drinkFilter },
             bubbles: true,
             composed: true,
         }));
@@ -10389,6 +10672,20 @@ let WineSearchBar = class WineSearchBar extends i {
                 @click=${() => this._onFilterChange(f.id)}
               >
                 ${f.label}
+              </button>
+            `)}
+        </div>
+        <div class="filter-chips drink-chips">
+          ${[
+            { id: "D", key: "drinkNow", color: "#2e7d32" },
+            { id: "H", key: "hold", color: "#1565c0" },
+            { id: "P", key: "pastPeak", color: "#c62828" },
+        ].map((f) => b `
+              <button
+                class="chip ${this.drinkFilter === f.id ? "active" : ""}"
+                @click=${() => this._onDrinkFilterChange(f.id)}
+              >
+                <span class="drink-dot" style="background: ${f.color}"></span>${this._t(`ui.disposition.${f.key}`)}
               </button>
             `)}
         </div>
@@ -10510,6 +10807,19 @@ WineSearchBar.styles = [
         white-space: nowrap;
       }
 
+      .drink-chips {
+        margin-top: 6px;
+      }
+
+      .drink-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+
       .chip:hover {
         background: rgba(114, 47, 55, 0.08);
       }
@@ -10530,6 +10840,9 @@ __decorate([
 __decorate([
     n({ type: String })
 ], WineSearchBar.prototype, "filter", void 0);
+__decorate([
+    n({ type: String })
+], WineSearchBar.prototype, "drinkFilter", void 0);
 __decorate([
     n({ type: Boolean })
 ], WineSearchBar.prototype, "enableWhisky", void 0);
@@ -10571,6 +10884,8 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         // the cabinet's own cols/depth (see _finalCols/_finalDepth) since a rack
         // never has more than one grid-shaped section.
         this._secondaryGridRows = 1;
+        // Slots per row of the primary grid, for a staggered rack (empty: all full).
+        this._rowCols = [];
         this._deleteCabinet = null;
         this._loading = false;
         this._error = "";
@@ -10774,6 +11089,41 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
     _finalCols() {
         return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? this._editCabinet.cols || 8 : 1;
     }
+    // Slots of one primary grid row, as the editor shows it.
+    _primarySlots(row) {
+        return rowSlotCount({ cols: this._editCabinet.cols || 8, row_cols: this._rowCols }, row);
+    }
+    _primaryStaggered() {
+        const cols = this._editCabinet.cols || 8;
+        return Array.from({ length: this._editCabinet.rows || 1 }, (_, r) => this._primarySlots(r)).some((n) => n < cols);
+    }
+    // What gets saved: one entry per rack row, or nothing for a plain
+    // rectangle. The primary grid may sit below a secondary zone.
+    _finalRowCols() {
+        if (this._primaryStyle !== "grid" || !this._primaryStaggered())
+            return [];
+        const result = Array.from({ length: this._finalRows() }, () => this._finalCols());
+        const offset = this._secondaryStyle !== "none" && this._secondaryPosition === "above" ? this._slotRowCount("secondary") : 0;
+        for (let r = 0; r < (this._editCabinet.rows || 1); r++)
+            result[offset + r] = this._primarySlots(r);
+        return result;
+    }
+    _setRowSlots(row, n) {
+        const cols = this._editCabinet.cols || 1;
+        const next = Array.from({ length: this._editCabinet.rows || 1 }, (_, r) => this._primarySlots(r));
+        next[row] = Math.max(1, Math.min(cols, n));
+        this._rowCols = next;
+    }
+    // Staggered (honeycomb) layout: rows alternate full width and one slot
+    // less, e.g. 3/2/3/2. Pressing it again restores full rows.
+    _toggleStagger() {
+        const cols = this._editCabinet.cols || 1;
+        if (this._primaryStaggered() || cols < 2) {
+            this._rowCols = [];
+            return;
+        }
+        this._rowCols = Array.from({ length: this._editCabinet.rows || 1 }, (_, r) => (r % 2 ? cols - 1 : cols));
+    }
     _finalDepth() {
         return this._primaryStyle === "grid" || this._secondaryStyle === "grid" ? this._editCabinet.depth || 1 : 1;
     }
@@ -10805,6 +11155,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const newCols = this._finalCols();
         const newDepth = this._finalDepth();
         const rows = this._finalStorageRows();
+        const shape = { cols: newCols, row_cols: this._finalRowCols() };
         return this.wines.filter((w) => {
             if (w.cabinet_id !== cabinetId)
                 return false;
@@ -10816,7 +11167,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             }
             if (w.row == null || w.col == null)
                 return false;
-            if (w.row >= newRows || w.col >= newCols)
+            if (w.row >= newRows || w.col >= rowSlotCount(shape, w.row))
                 return true;
             if ((w.depth || 0) >= newDepth)
                 return true;
@@ -10840,6 +11191,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         this._secondaryStyle = "none";
         this._secondaryPosition = "below";
         this._secondaryGridRows = 1;
+        this._rowCols = [];
     }
     // Re-derives (primary style, secondary style + position) from a saved
     // cabinet's row layout. Plain grid rows have no storage_rows entry of
@@ -10886,7 +11238,16 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                 clusters.push({ style: type, rows, start, size: cursor - start });
             }
         }
+        this._rowCols = [];
         const applySlot = (slot, cluster) => {
+            if (slot === "primary" && cluster?.style === "grid") {
+                // The rows stepper counts the primary grid's own rows, not the whole
+                // rack's: keeping the total would add the second zone's rows again.
+                this._editCabinet = { ...this._editCabinet, rows: cluster.size };
+                if (isStaggered(cabinet)) {
+                    this._rowCols = Array.from({ length: cluster.size }, (_, r) => rowSlotCount(cabinet, cluster.start + r));
+                }
+            }
             if (!cluster) {
                 if (slot === "primary") {
                     this._primaryStyle = "grid";
@@ -11127,12 +11488,20 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
         const current = this._editCabinet.rows || 1;
         if (current >= 20)
             return;
+        // A staggered rack keeps alternating: the new row copies two rows up.
+        if (this._primaryStaggered()) {
+            this._rowCols = [
+                ...Array.from({ length: current }, (_, r) => this._primarySlots(r)),
+                this._primarySlots(Math.max(0, current - 2)),
+            ];
+        }
         this._editCabinet = { ...this._editCabinet, rows: current + 1 };
     }
     _removeRow() {
         const current = this._editCabinet.rows || 1;
         if (current <= 1)
             return;
+        this._rowCols = this._rowCols.slice(0, current - 1);
         this._editCabinet = { ...this._editCabinet, rows: current - 1 };
     }
     _addCol() {
@@ -11173,6 +11542,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     has_bottom_zone: false,
                     bottom_zone_name: "",
                     storage_rows: this._finalStorageRows(),
+                    row_cols: this._finalRowCols(),
                     order: this.cabinets.length,
                     orientation: "vertical",
                     temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
@@ -11208,6 +11578,7 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                     has_bottom_zone: false,
                     bottom_zone_name: "",
                     storage_rows: this._finalStorageRows(),
+                    row_cols: this._finalRowCols(),
                     orientation: "vertical",
                     temp_sensor_entity_id: this._editCabinet.temp_sensor_entity_id || "",
                     humidity_sensor_entity_id: this._editCabinet.humidity_sensor_entity_id || "",
@@ -11299,6 +11670,11 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
             this._error = this._t("ui.rack.failedToReorderRacks");
         }
     }
+    // "3/2/3/2", cut short for long racks.
+    _rowPattern(cab) {
+        const counts = Array.from({ length: cab.rows }, (_, i) => rowSlotCount(cab, i));
+        return counts.length > 6 ? `${counts.slice(0, 4).join("/")}/…` : counts.join("/");
+    }
     _renderList() {
         const sorted = [...this.cabinets].sort((a, b) => a.order - b.order);
         return b `
@@ -11315,7 +11691,9 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
                   <div class="rack-info">
                     <div class="rack-name">${cab.name}</div>
                     <div class="rack-meta">
-                      ${hasGridRows ? b `${this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}` : A}
+                      ${hasGridRows ? b `${isStaggered(cab)
+                ? this._t("ui.rack.staggeredRows", { rows: cab.rows, pattern: this._rowPattern(cab) })
+                : this._t("ui.rack.gridDimensions", { rows: cab.rows, cols: cab.cols })}${(cab.depth || 1) > 1 ? this._t("ui.rack.gridDeepSuffix", { depth: cab.depth }) : ""}` : A}
                       ${this._t("ui.rack.bottlesCountSuffix", { n: this._winesInCabinet(cab.id), plural: this._winesInCabinet(cab.id) === 1 ? "" : "s" })}
                       ${[...typeCounts.entries()].map(([type, count]) => type === "shelf"
                 ? this._t(count === 1 ? "ui.rack.shelfCountSuffixOne" : "ui.rack.shelfCountSuffixMany", { n: count })
@@ -11413,17 +11791,38 @@ let RackSettingsDialog = RackSettingsDialog_1 = class RackSettingsDialog extends
           </div>
         </div>
 
+        <button
+          class="small-btn stagger-btn ${this._primaryStaggered() ? "active" : ""}"
+          ?disabled=${numCols < 2}
+          @click=${this._toggleStagger}
+          title="${this._t("ui.rack.staggeredHint")}"
+        >${this._primaryStaggered() ? this._t("ui.rack.staggeredReset") : this._t("ui.rack.staggeredBtn")}</button>
+
         <!-- Visual grid preview -->
         <div class="grid-preview">
-          ${Array.from({ length: numRows }, (_, row) => b `
-            <div class="grid-preview-row">
-              <span class="grid-preview-label">R${row + 1}</span>
-              ${Array.from({ length: Math.min(numCols, 15) }, () => b `<div class="grid-preview-cell"></div>`)}
-              ${numCols > 15
-                ? b `<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${numCols - 15}</span>`
-                : A}
-            </div>
-          `)}
+          ${Array.from({ length: numRows }, (_, row) => {
+                const slots = this._primarySlots(row);
+                // A short row is centred: half a missing cell on each side.
+                const indent = ((Math.min(numCols, 15) - Math.min(slots, 15)) * 23) / 2;
+                return b `
+              <div class="grid-preview-row">
+                <span class="grid-preview-label">R${row + 1}</span>
+                ${indent ? b `<span style="width:${indent}px;flex-shrink:0"></span>` : A}
+                ${Array.from({ length: Math.min(slots, 15) }, () => b `<div class="grid-preview-cell"></div>`)}
+                ${slots > 15
+                    ? b `<span style="font-size:0.65em;color:var(--wc-text-secondary)">+${slots - 15}</span>`
+                    : A}
+                ${this._primaryStaggered()
+                    ? b `
+                      <div class="row-cap-stepper" style="margin-left:${indent + 8}px">
+                        <button class="stepper-btn-sm" ?disabled=${slots <= 1} @click=${() => this._setRowSlots(row, slots - 1)}>−</button>
+                        <span class="stepper-val-sm">${slots}</span>
+                        <button class="stepper-btn-sm" ?disabled=${slots >= numCols} @click=${() => this._setRowSlots(row, slots + 1)}>+</button>
+                      </div>`
+                    : A}
+              </div>
+            `;
+            })}
         </div>
       `;
         }
@@ -12000,6 +12399,13 @@ RackSettingsDialog.styles = [
         overflow-x: auto;
       }
 
+      .stagger-btn {
+        margin: 0 0 8px;
+      }
+      .stagger-btn.active {
+        border-color: var(--wc-primary);
+      }
+
       .grid-preview-row {
         display: flex;
         gap: 3px;
@@ -12296,6 +12702,9 @@ __decorate([
 __decorate([
     r()
 ], RackSettingsDialog.prototype, "_secondaryGridRows", void 0);
+__decorate([
+    r()
+], RackSettingsDialog.prototype, "_rowCols", void 0);
 __decorate([
     r()
 ], RackSettingsDialog.prototype, "_deleteCabinet", void 0);
@@ -13189,6 +13598,10 @@ const FOOD_CATEGORIES = [
         keywords: ["aperitif", "tapas", "gougere", "amuse-bouche", "amuse bouche"],
     },
     {
+        label: "Foie gras",
+        keywords: ["foie gras"],
+    },
+    {
         label: "Charcuterie",
         keywords: ["charcuterie", "rillette", "saucisson", "jambon", "pate", "terrine", "salami", "chorizo"],
     },
@@ -13205,8 +13618,8 @@ const FOOD_CATEGORIES = [
         keywords: ["poisson", "saumon", "cabillaud", "sole", "brochet", "truite", "papillote", "thon", "dorade", "morue", "bar"],
     },
     {
-        label: "Canard & foie gras",
-        keywords: ["canard", "magret", "foie gras"],
+        label: "Canard",
+        keywords: ["canard", "magret"],
     },
     {
         label: "Volaille",
@@ -13253,6 +13666,88 @@ const FOOD_CATEGORIES = [
         keywords: ["dessert", "chocolat", "tarte", "patisserie", "gateau", "glace", "sorbet", "fruit"],
     },
 ];
+const ENGLISH_CATEGORIES = [
+    {
+        label: "Aperitif & snacks",
+        keywords: ["aperitif", "appetizer", "appetiser", "tapas", "canape", "nibbles"],
+    },
+    {
+        label: "Foie gras",
+        keywords: ["foie gras"],
+    },
+    {
+        label: "Charcuterie",
+        keywords: ["charcuterie", "ham", "salami", "chorizo", "sausage", "prosciutto", "pate", "terrine", "rillette", "cold cuts", "cured meat"],
+    },
+    {
+        label: "Cheese",
+        keywords: ["cheese", "roquefort", "comte", "brie", "camembert", "parmesan", "cheddar", "gouda", "gruyere", "manchego"],
+    },
+    {
+        label: "Seafood",
+        keywords: ["seafood", "shellfish", "oyster", "shrimp", "prawn", "lobster", "crab", "mussel", "clam", "scallop", "sushi", "sashimi", "calamari"],
+    },
+    {
+        label: "Fish",
+        keywords: ["fish", "salmon", "cod", "sole", "trout", "tuna", "bream", "bass", "halibut", "monkfish"],
+    },
+    {
+        label: "Duck",
+        keywords: ["duck"],
+    },
+    {
+        label: "Poultry",
+        keywords: ["poultry", "chicken", "turkey", "capon", "quail", "guinea fowl"],
+    },
+    {
+        label: "Lamb",
+        keywords: ["lamb", "mutton"],
+    },
+    {
+        label: "Game",
+        keywords: ["game", "venison", "deer", "boar", "pheasant", "partridge", "hare", "rabbit"],
+    },
+    {
+        label: "Pork & veal",
+        keywords: ["pork", "veal"],
+    },
+    {
+        label: "Beef & red meat",
+        keywords: ["beef", "steak", "entrecote", "ribeye", "sirloin", "burger", "hamburger", "red meat"],
+    },
+    {
+        label: "Stews & braised dishes",
+        keywords: ["stew", "braised", "casserole", "ragout", "daube", "bourguignon", "cassoulet", "goulash", "in sauce", "pot roast"],
+    },
+    {
+        label: "Grills & barbecue",
+        keywords: ["grill", "grilled", "barbecue", "bbq", "kebab", "skewer", "roast", "roasted"],
+    },
+    {
+        label: "Spicy & world cuisine",
+        keywords: ["curry", "curries", "spicy", "spiced", "asian", "wok", "tex-mex", "mexican", "indian", "thai", "szechuan", "chinese"],
+    },
+    {
+        label: "Pasta & pizza",
+        keywords: ["pasta", "pizza", "lasagna", "lasagne", "spaghetti", "gnocchi"],
+    },
+    {
+        label: "Mediterranean cuisine",
+        keywords: ["~mediterran", "~provenc", "ratatouille", "tagine", "tajine"],
+    },
+    {
+        label: "Salads",
+        keywords: ["salad"],
+    },
+    {
+        label: "Vegetarian dishes",
+        keywords: ["risotto", "vegetable", "~vegetarian", "asparagus", "mushroom", "quiche"],
+    },
+    {
+        label: "Desserts",
+        keywords: ["dessert", "chocolate", "tart", "pastry", "pastries", "cake", "cheesecake", "fruit", "berry", "berries", "strawberry", "strawberries", "raspberry", "raspberries", "sorbet", "ice cream"],
+    },
+];
 // Two matching modes per keyword:
 // - default: word-boundary match allowing an optional French "e"/"s"/"es"
 //   suffix (singular/plural + masc/fem agreement) without an open wildcard,
@@ -13273,20 +13768,29 @@ function matchesKeyword(haystack, keyword) {
     }
     return new RegExp(`\\b${keyword}(?:e?s?)\\b`).test(haystack);
 }
+const CATEGORY_SETS = {
+    fr: { categories: FOOD_CATEGORIES, other: OTHER_LABEL },
+    en: { categories: ENGLISH_CATEGORIES, other: "Other pairings" },
+};
 // Maps one split pairing ("daube de bœuf") to its generic category label
-// ("Plats mijotés & en sauce"). Falls back to a shared "Autres accords"
-// bucket when nothing matches, rather than showing the raw specific text —
-// keeping the filter list short is the whole point of this function.
-function categorizeFoodPairing(pairing) {
+// ("Plats mijotés & en sauce"). Falls back to a shared "other" bucket when
+// nothing matches, rather than showing the raw specific text — keeping the
+// filter list short is the whole point of this function.
+function categorizeFoodPairing(pairing, language) {
+    const set = CATEGORY_SETS[language];
+    if (!set) {
+        const text = pairing.trim();
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
     const haystack = normalizeText(pairing);
     if (!haystack)
-        return OTHER_LABEL;
-    for (const category of FOOD_CATEGORIES) {
+        return set.other;
+    for (const category of set.categories) {
         if (category.keywords.some((kw) => matchesKeyword(haystack, kw))) {
             return category.label;
         }
     }
-    return OTHER_LABEL;
+    return set.other;
 }
 
 // Persisted so the inventory reopens the way it was left; the search query is
@@ -13317,6 +13821,7 @@ let InventoryDialog = class InventoryDialog extends i {
         this.enableCider = false;
         this.aiFallbackAlways = false;
         this.currency = "USD";
+        this.metadataLanguage = "en";
         this.chamberingRoomSensor = "";
         this.chamberingTimeConstantMinutes = 75;
         this.chamberingEquilibrationHours = 24;
@@ -13538,7 +14043,7 @@ let InventoryDialog = class InventoryDialog extends i {
     // is mapped to a generic category (see foodCategories.ts) so the filter
     // stays short — the wine detail view still shows the original AI text.
     _foodOptions() {
-        return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map(categorizeFoodPairing));
+        return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map((p) => categorizeFoodPairing(p, this.metadataLanguage)));
     }
     _winesWithoutPairings() {
         return this.wines.filter((w) => !splitMulti(w.food_pairings).length).length;
@@ -13661,7 +14166,7 @@ let InventoryDialog = class InventoryDialog extends i {
             wines = wines.filter((w) => normalizeText(w.grape_variety).includes(want));
         }
         if (this._foodFilter !== "all") {
-            wines = wines.filter((w) => splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p) === this._foodFilter));
+            wines = wines.filter((w) => splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p, this.metadataLanguage) === this._foodFilter));
         }
         if (this._cabinetFilter !== "all") {
             const known = new Set(this.cabinets.map((c) => c.id));
@@ -15755,6 +16260,9 @@ __decorate([
 ], InventoryDialog.prototype, "currency", void 0);
 __decorate([
     n({ type: String })
+], InventoryDialog.prototype, "metadataLanguage", void 0);
+__decorate([
+    n({ type: String })
 ], InventoryDialog.prototype, "chamberingRoomSensor", void 0);
 __decorate([
     n({ type: Number })
@@ -15896,9 +16404,12 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.enableCider = false;
         this.defaultWineType = "red";
         this.dispositionDisplay = "letter";
-        this.metadataLanguage = "en";
+        // The stored choices: "" follows Home Assistant.
+        this.metadataLanguage = "";
+        this.haLanguage = "en";
         this.supportedLanguages = ["en", "fr", "de"];
-        this.metadataCurrency = "USD";
+        this.metadataCurrency = "";
+        this.haCurrency = "EUR";
         this.supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
     }
     // Shorthand for t(key, this.hass?.language, params) — see wine-cellar-card.ts.
@@ -15931,6 +16442,32 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
     }
     _setCurrency(currency) {
         this.dispatchEvent(new CustomEvent("set-metadata-currency", { detail: { value: currency } }));
+    }
+    // Language/currency names come from the browser, in the viewer's language.
+    _displayName(type, code) {
+        try {
+            const names = new Intl.DisplayNames([this.hass?.language || "en"], { type });
+            const name = names.of(code) || code;
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+        catch {
+            return code;
+        }
+    }
+    _renderLocaleSelect(type, value, haValue, codes, onChange) {
+        const label = (code) => type === "currency" ? `${code} — ${this._displayName(type, code)}` : this._displayName(type, code);
+        const options = codes
+            .map((code) => ({ code, text: label(code) }))
+            .sort((a, b) => a.text.localeCompare(b.text, this.hass?.language || "en"));
+        return b `
+      <select
+        class="settings-select"
+        @change=${(e) => onChange(e.target.value)}
+      >
+        <option value="" ?selected=${!value}>${this._t("ui.vivinoAiSettings.followHa", { value: label(haValue) })}</option>
+        ${options.map((o) => b `<option value=${o.code} ?selected=${o.code === value}>${o.text}</option>`)}
+      </select>
+    `;
     }
     render() {
         if (!this.open)
@@ -15989,31 +16526,21 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
                 class="pill ${this.dispositionDisplay === "dot" ? "active" : ""}"
                 @click=${() => this._setDispositionDisplay("dot")}
               >${this._t("ui.vivinoAiSettings.dispositionDisplayDot")}</button>
+              <button
+                class="pill ${this.dispositionDisplay === "off" ? "active" : ""}"
+                @click=${() => this._setDispositionDisplay("off")}
+              >${this._t("ui.vivinoAiSettings.dispositionDisplayOff")}</button>
             </div>
           </div>
 
           <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.currencyLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedCurrencies.map((cur) => b `
-                <button
-                  class="pill ${this.metadataCurrency === cur ? "active" : ""}"
-                  @click=${() => this._setCurrency(cur)}
-                >${cur}</button>
-              `)}
-            </div>
+            ${this._renderLocaleSelect("currency", this.metadataCurrency, this.haCurrency, this.supportedCurrencies, (c) => this._setCurrency(c))}
           </div>
 
           <div class="settings-row">
             <span class="settings-label">${this._t("ui.vivinoAiSettings.languageLabel")}</span>
-            <div class="pill-group">
-              ${this.supportedLanguages.map((lang) => b `
-                <button
-                  class="pill ${this.metadataLanguage === lang ? "active" : ""}"
-                  @click=${() => this._setLanguage(lang)}
-                >${lang.toUpperCase()}</button>
-              `)}
-            </div>
+            ${this._renderLocaleSelect("language", this.metadataLanguage, this.haLanguage, this.supportedLanguages, (l) => this._setLanguage(l))}
           </div>
 
           <div class="settings-row">
@@ -16204,17 +16731,634 @@ __decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "metadataLanguage", void 0);
 __decorate([
+    n({ type: String })
+], VivinoAiSettingsDialog.prototype, "haLanguage", void 0);
+__decorate([
     n({ attribute: false })
 ], VivinoAiSettingsDialog.prototype, "supportedLanguages", void 0);
 __decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "metadataCurrency", void 0);
 __decorate([
+    n({ type: String })
+], VivinoAiSettingsDialog.prototype, "haCurrency", void 0);
+__decorate([
     n({ attribute: false })
 ], VivinoAiSettingsDialog.prototype, "supportedCurrencies", void 0);
 VivinoAiSettingsDialog = __decorate([
     t$1("vivino-ai-settings-dialog")
 ], VivinoAiSettingsDialog);
+
+function findSection(cabinets, section) {
+    if (!section)
+        return undefined;
+    const wanted = section.trim().toLowerCase();
+    return (cabinets.find((c) => c.id === section) ||
+        cabinets.find((c) => (c.name || "").trim().toLowerCase() === wanted));
+}
+let WineCellarSectionCard = class WineCellarSectionCard extends i {
+    constructor() {
+        super(...arguments);
+        this._config = { type: "" };
+        this._cabinets = [];
+        this._wines = [];
+        this._loaded = false;
+        this._error = "";
+        this._hasGemini = false;
+        this._aiFallbackAlways = false;
+        this._currency = "USD";
+        this._enableWhisky = false;
+        this._enableCider = false;
+        this._defaultWineType = "red";
+        this._dispositionDisplay = "letter";
+        this._chamberingRoomSensor = "";
+        this._chamberingTimeConstantMinutes = 75;
+        this._chamberingEquilibrationHours = 24;
+        this._selectedWine = null;
+        this._showDetail = false;
+        this._picker = null;
+        this._showAdd = false;
+        this._addAt = null;
+        this._notice = "";
+        this._unsubscribe = null;
+        this._subscribing = false;
+        this._generation = 0;
+    }
+    setConfig(config) {
+        if (!config)
+            throw new Error("Invalid configuration");
+        this._config = { show_header: true, ...config };
+    }
+    static getConfigElement() {
+        return document.createElement("wine-cellar-section-card-editor");
+    }
+    static getStubConfig() {
+        return { type: "custom:wine-cellar-section-card", section: "" };
+    }
+    getCardSize() {
+        const cab = this._cabinet;
+        return cab ? Math.max(2, Math.ceil(cab.rows / 2) + 1) : 3;
+    }
+    // Sections dashboards: default to half width, height follows the rack.
+    getGridOptions() {
+        return { columns: 6, min_columns: 3 };
+    }
+    connectedCallback() {
+        super.connectedCallback();
+        this._load();
+        this._subscribe();
+    }
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._generation++;
+        this._unsubscribe?.();
+        this._unsubscribe = null;
+        window.clearTimeout(this._refreshTimer);
+        window.clearTimeout(this._noticeTimer);
+    }
+    updated(changed) {
+        // hass arrives after connectedCallback on first render.
+        if (changed.has("hass") && this.hass && !this._loaded && !this._error) {
+            this._load();
+            this._subscribe();
+        }
+    }
+    get _cabinet() {
+        return findSection(this._cabinets, this._config.section);
+    }
+    async _load() {
+        if (!this.hass)
+            return;
+        try {
+            const [wines, cabinets, caps] = await Promise.all([
+                this.hass.callWS({ type: "wine_cellar/get_wines" }),
+                this.hass.callWS({ type: "wine_cellar/get_cabinets" }),
+                this.hass.callWS({ type: "wine_cellar/get_capabilities" }).catch(() => ({})),
+            ]);
+            this._wines = wines.wines || [];
+            this._cabinets = (cabinets.cabinets || []).sort((a, b) => a.order - b.order);
+            this._hasGemini = !!caps?.has_gemini;
+            this._aiFallbackAlways = !!caps?.ai_fallback_always;
+            this._currency = caps?.metadata_currency || "USD";
+            // Same settings as the full card passes, so the dialogs behave alike.
+            this._enableWhisky = !!caps?.enable_whisky;
+            this._enableCider = !!caps?.enable_cider;
+            this._defaultWineType = caps?.default_wine_type || "red";
+            this._dispositionDisplay = caps?.disposition_display || "letter";
+            this._chamberingRoomSensor = caps?.chambering_room_sensor || "";
+            this._chamberingTimeConstantMinutes = caps?.chambering_time_constant_minutes ?? 75;
+            this._chamberingEquilibrationHours = caps?.chambering_equilibration_hours ?? 24;
+            this._error = "";
+            this._loaded = true;
+            if (this._selectedWine) {
+                this._selectedWine = this._wines.find((w) => w.id === this._selectedWine.id) || null;
+                if (!this._selectedWine)
+                    this._showDetail = false;
+            }
+        }
+        catch (err) {
+            this._error = err?.message || this._t("ui.sectionCard.unavailable");
+        }
+    }
+    async _subscribe() {
+        if (!this.hass?.connection || this._unsubscribe || this._subscribing)
+            return;
+        this._subscribing = true;
+        const generation = this._generation;
+        try {
+            const unsub = await this.hass.connection.subscribeEvents(() => {
+                // Background work fires bursts of events; one reload covers them.
+                window.clearTimeout(this._refreshTimer);
+                this._refreshTimer = window.setTimeout(() => this._load(), 400);
+            }, "wine_cellar_updated");
+            // Detached while subscribing (dashboard tab switch): drop it.
+            if (generation !== this._generation) {
+                unsub();
+                return;
+            }
+            this._unsubscribe = unsub;
+        }
+        catch {
+            // Still usable; it just will not notice changes made elsewhere.
+        }
+        finally {
+            this._subscribing = false;
+        }
+    }
+    _t(key, params) {
+        return t(key, this.hass?.language, params);
+    }
+    _toast(text) {
+        this._notice = text;
+        window.clearTimeout(this._noticeTimer);
+        this._noticeTimer = window.setTimeout(() => (this._notice = ""), 4000);
+    }
+    _openWine(wine) {
+        this._picker = null;
+        this._selectedWine = wine;
+        this._showDetail = true;
+    }
+    _openAdd(at) {
+        this._picker = null;
+        this._addAt = at;
+        this._showAdd = true;
+    }
+    _onCellClick(e) {
+        const { wine, wines = [], cabinet, row, col, wineCount = 0, cabinetDepth = 1 } = e.detail;
+        const stack = [...(wines.length ? wines : wine ? [wine] : [])].sort((a, b) => (a.depth || 0) - (b.depth || 0));
+        const add = wineCount < cabinetDepth
+            ? { cabinet: cabinet.id, row, col, zone: "", depth: this._firstFreeDepth(stack) }
+            : undefined;
+        if (stack.length === 1 && cabinetDepth < 2)
+            return this._openWine(stack[0]);
+        if (stack.length === 0 && add)
+            return this._openAdd(add);
+        this._picker = { title: this._t("ui.sectionCard.slotTitle", { row: row + 1, col: col + 1 }), wines: stack, add };
+    }
+    _onZoneClick(e) {
+        const { wine, cabinet, zone, depth } = e.detail;
+        if (wine)
+            return this._openWine(wine);
+        const z = zone || "bottom";
+        // Slot zones (shelf/quinconce) send the exact slot clicked: land there,
+        // as the full card does; bins take their first free slot.
+        const occupants = this._wines.filter((w) => w.cabinet_id === cabinet.id && w.zone === z);
+        const at = depth !== undefined ? depth : this._firstFreeDepth(occupants);
+        this._openAdd({ cabinet: cabinet.id, row: null, col: null, zone: z, depth: at });
+    }
+    _onZoneContainerClick(e) {
+        const { cabinet, zone, storageRow } = e.detail;
+        const occupants = this._wines
+            .filter((w) => w.cabinet_id === cabinet.id && w.zone === zone)
+            .sort((a, b) => (a.depth || 0) - (b.depth || 0));
+        // Shared capacity rules (boxes, shelves, stepped rows) from utils/location.
+        const usage = containerUsage({ cabinetId: cabinet.id, kind: "zone", zone, row: null, col: null }, cabinet, this._wines);
+        const add = usage.full
+            ? undefined
+            : { cabinet: cabinet.id, row: null, col: null, zone, depth: usage.nextDepth };
+        const name = storageRow?.name || storageRowFor(cabinet, zone)?.name || tGroup("wineLocation", this.hass?.language).storage;
+        this._picker = { title: name, wines: occupants, add };
+    }
+    // First depth no bottle uses, so a gap left by a removed bottle is reused
+    // (the same rule as the full card).
+    _firstFreeDepth(wines) {
+        const used = new Set(wines.map((w) => w.depth || 0));
+        let d = 0;
+        while (used.has(d))
+            d++;
+        return d;
+    }
+    async _onRemoveWine(e) {
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/remove_wine",
+                wine_id: e.detail.wine_id,
+                reason: e.detail.reason || "other",
+            });
+            this._showDetail = false;
+            await this._load();
+        }
+        catch (err) {
+            console.error("Wine Cellar: failed to remove wine", err);
+        }
+    }
+    // "Always fall back to AI" ticked in the wine sheet: save it, as the full card does.
+    async _setAiFallbackAlways(value) {
+        if (value === this._aiFallbackAlways)
+            return;
+        const previous = this._aiFallbackAlways;
+        this._aiFallbackAlways = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { ai_fallback_always: value },
+            });
+        }
+        catch {
+            this._aiFallbackAlways = previous;
+            this._toast(this._t("toast.changeAiFallbackFailed"));
+        }
+    }
+    _onFullCardOnly() {
+        this._showDetail = false;
+        this._toast(this._t("ui.sectionCard.fullCardOnly"));
+    }
+    render() {
+        const cab = this._cabinet;
+        const header = this._config.show_header !== false;
+        if (this._error) {
+            return b `<ha-card><div class="message">${this._error}</div></ha-card>`;
+        }
+        if (!this._loaded) {
+            return b `<ha-card><div class="message">${this._t("ui.sectionCard.loading")}</div></ha-card>`;
+        }
+        if (!cab) {
+            const names = this._cabinets.map((c) => c.name).join(", ");
+            return b `
+        <ha-card>
+          <div class="message">
+            ${this._config.section
+                ? this._t("ui.sectionCard.noSectionNamed", { name: this._config.section })
+                : this._t("ui.sectionCard.chooseSection")}
+            ${names ? b `<br />${this._t("ui.sectionCard.sectionsList", { names })}` : A}
+          </div>
+        </ha-card>
+      `;
+        }
+        const wines = this._wines.filter((w) => w.cabinet_id === cab.id);
+        // Grid slots × depth plus every bin, box and shelf (the bottom zone has
+        // no limit and is left out), using the shared capacity rules.
+        const capacity = containersOf(cab).reduce((sum, c) => sum + containerCapacity(c, cab), 0);
+        return b `
+      <ha-card>
+        ${header
+            ? b `
+              <div class="header">
+                <!-- The grid already shows the rack's name; only a custom
+                     title is worth a line of its own. -->
+                <span class="title">${this._config.title || ""}</span>
+                <span class="counts">
+                  ${this._t(wines.length === 1 ? "ui.sectionCard.bottlesOne" : "ui.sectionCard.bottlesMany", { n: wines.length })}
+                  ${capacity ? b ` · ${this._t("ui.sectionCard.free", { n: Math.max(0, capacity - wines.length) })}` : A}
+                </span>
+              </div>
+            `
+            : A}
+        <div class="grid-wrap">
+          <cabinet-grid
+            .hass=${this.hass}
+            .cabinet=${cab}
+            .wines=${wines}
+            .dispositionDisplay=${this._dispositionDisplay}
+            @cell-click=${this._onCellClick}
+            @zone-click=${this._onZoneClick}
+            @zone-container-click=${this._onZoneContainerClick}
+            @cabinet-updated=${() => this._load()}
+          ></cabinet-grid>
+        </div>
+        ${this._notice ? b `<div class="notice">${this._notice}</div>` : A}
+      </ha-card>
+
+      ${this._picker ? this._renderPicker(this._picker) : A}
+
+      <wine-detail-dialog
+        .wine=${this._selectedWine}
+        .wines=${this._wines}
+        .hass=${this.hass}
+        .cabinets=${this._cabinets}
+        .open=${this._showDetail}
+        .hasGemini=${this._hasGemini}
+        .aiFallbackAlways=${this._aiFallbackAlways}
+        .enableWhisky=${this._enableWhisky}
+        .enableCider=${this._enableCider}
+        .currency=${this._currency}
+        .mode=${"cellar"}
+        .chamberingRoomSensor=${this._chamberingRoomSensor}
+        .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
+        .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
+        @close=${() => (this._showDetail = false)}
+        @remove-wine=${this._onRemoveWine}
+        @wine-updated=${() => this._load()}
+        @move-wine=${this._onFullCardOnly}
+        @copy-wine=${this._onFullCardOnly}
+        @locate-wine=${() => (this._showDetail = false)}
+        @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
+      ></wine-detail-dialog>
+
+      <add-wine-dialog
+        .open=${this._showAdd}
+        .hass=${this.hass}
+        .cabinets=${this._cabinets}
+        .wines=${this._wines}
+        .preselectedCabinet=${this._addAt?.cabinet || ""}
+        .preselectedRow=${this._addAt?.row ?? null}
+        .preselectedCol=${this._addAt?.col ?? null}
+        .preselectedZone=${this._addAt?.zone || ""}
+        .preselectedDepth=${this._addAt?.depth || 0}
+        .enableWhisky=${this._enableWhisky}
+        .enableCider=${this._enableCider}
+        .defaultWineType=${this._defaultWineType}
+        @close=${() => (this._showAdd = false)}
+        @wine-added=${() => this._load()}
+      ></add-wine-dialog>
+    `;
+    }
+    _renderPicker(p) {
+        return b `
+      <div class="picker-backdrop" @click=${() => (this._picker = null)}>
+        <div class="picker" @click=${(e) => e.stopPropagation()}>
+          <h3>${p.title}</h3>
+          ${p.wines.length
+            ? p.wines.map((w, i) => b `
+                  <button class="picker-item" @click=${() => this._openWine(w)}>
+                    <span>${w.winery ? `${w.winery} — ` : ""}${w.name}${w.vintage ? ` ${w.vintage}` : ""}</span>
+                    <small>${i + 1}</small>
+                  </button>
+                `)
+            : b `<div class="message">${this._t("ui.common.empty")}</div>`}
+          <div class="picker-actions">
+            <button @click=${() => (this._picker = null)}>${this._t("ui.common.close")}</button>
+            ${p.add
+            ? b `<button class="primary" @click=${() => this._openAdd(p.add)}>${this._t("ui.sectionCard.addHere")}</button>`
+            : A}
+          </div>
+        </div>
+      </div>
+    `;
+    }
+};
+WineCellarSectionCard.styles = [
+    sharedStyles,
+    i$3 `
+      ha-card {
+        overflow: hidden;
+      }
+      .header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 16px 0;
+      }
+      .title {
+        font-weight: 600;
+        font-size: 1.05em;
+        color: var(--wc-text);
+      }
+      .counts {
+        font-size: 0.85em;
+        color: var(--wc-text-secondary);
+        white-space: nowrap;
+      }
+      .grid-wrap {
+        padding: 8px 12px 12px;
+      }
+      .message {
+        padding: 16px;
+        color: var(--wc-text-secondary);
+        font-size: 0.9em;
+      }
+      .message b {
+        color: var(--wc-text);
+      }
+      .notice {
+        margin: 0 12px 12px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(114, 47, 55, 0.12);
+        color: var(--wc-text);
+        font-size: 0.85em;
+      }
+      .picker-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 7;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      .picker {
+        background: var(--wc-surface);
+        color: var(--wc-text);
+        width: min(480px, 100%);
+        max-height: 70vh;
+        overflow: auto;
+        border-radius: 16px 16px 0 0;
+        padding: 12px 16px 20px;
+      }
+      .picker h3 {
+        margin: 4px 0 10px;
+        font-size: 1em;
+      }
+      .picker-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 8px;
+        border: none;
+        border-bottom: 1px solid var(--wc-border);
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .picker-item small {
+        color: var(--wc-text-secondary);
+      }
+      .picker-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .picker-actions button {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--wc-border);
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      .picker-actions button.primary {
+        background: var(--wc-primary);
+        border-color: var(--wc-primary);
+        color: #fff;
+      }
+    `,
+];
+__decorate([
+    n({ attribute: false })
+], WineCellarSectionCard.prototype, "hass", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_config", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_cabinets", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_wines", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_loaded", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_error", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_hasGemini", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_aiFallbackAlways", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_currency", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_enableWhisky", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_enableCider", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_defaultWineType", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_dispositionDisplay", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_chamberingRoomSensor", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_chamberingTimeConstantMinutes", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_chamberingEquilibrationHours", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_selectedWine", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_showDetail", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_picker", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_showAdd", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_addAt", void 0);
+__decorate([
+    r()
+], WineCellarSectionCard.prototype, "_notice", void 0);
+WineCellarSectionCard = __decorate([
+    t$1("wine-cellar-section-card")
+], WineCellarSectionCard);
+// Visual editor: pick the section from the cellar's racks.
+let WineCellarSectionCardEditor = class WineCellarSectionCardEditor extends i {
+    constructor() {
+        super(...arguments);
+        this._config = { type: "" };
+        this._cabinets = [];
+        this._fetched = false;
+        this._label = (s) => {
+            const key = { section: "section", title: "title", show_header: "showHeader" }[s.name];
+            return key ? t(`ui.sectionCard.editor.${key}`, this.hass?.language) : s.name;
+        };
+    }
+    setConfig(config) {
+        this._config = config;
+    }
+    updated(changed) {
+        if (changed.has("hass") && this.hass && !this._fetched) {
+            this._fetched = true;
+            this.hass
+                .callWS({ type: "wine_cellar/get_cabinets" })
+                .then((r) => {
+                this._cabinets = (r.cabinets || []).sort((a, b) => a.order - b.order);
+            })
+                .catch(() => (this._cabinets = []));
+        }
+    }
+    _schema() {
+        return [
+            {
+                name: "section",
+                required: true,
+                selector: {
+                    select: {
+                        mode: "dropdown",
+                        options: this._cabinets.map((c) => ({ value: c.id, label: c.name })),
+                    },
+                },
+            },
+            { name: "title", selector: { text: {} } },
+            { name: "show_header", selector: { boolean: {} } },
+        ];
+    }
+    render() {
+        if (!this.hass)
+            return A;
+        return b `
+      <ha-form
+        .hass=${this.hass}
+        .data=${{ show_header: true, ...this._config }}
+        .schema=${this._schema()}
+        .computeLabel=${this._label}
+        @value-changed=${(e) => {
+            const config = { ...this._config, ...e.detail.value };
+            if (!config.title)
+                delete config.title;
+            this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
+        }}
+      ></ha-form>
+    `;
+    }
+};
+__decorate([
+    n({ attribute: false })
+], WineCellarSectionCardEditor.prototype, "hass", void 0);
+__decorate([
+    r()
+], WineCellarSectionCardEditor.prototype, "_config", void 0);
+__decorate([
+    r()
+], WineCellarSectionCardEditor.prototype, "_cabinets", void 0);
+WineCellarSectionCardEditor = __decorate([
+    t$1("wine-cellar-section-card-editor")
+], WineCellarSectionCardEditor);
+window.customCards = window.customCards || [];
+window.customCards.push({
+    type: "wine-cellar-section-card",
+    name: "Cork Dork — Section",
+    description: "One rack of your cellar as a tile: its bottles, tap for details, add to a free slot",
+    preview: false,
+});
 
 // How long an incoming change waits before the card re-fetches, and the floor
 // on how often it may do so at all.
@@ -16274,6 +17418,11 @@ let WineCellarCard = class WineCellarCard extends i {
         // verification can take several seconds)
         this._conflictResolving = null;
         this._metadataLanguage = "en";
+        // "" means "follow Home Assistant"; _metadata* holds what is in effect.
+        this._metadataLanguageSetting = "";
+        this._haLanguage = "en";
+        this._metadataCurrencySetting = "";
+        this._haCurrency = "EUR";
         this._supportedLanguages = ["en", "fr", "de"];
         this._metadataCurrency = "USD";
         this._supportedCurrencies = ["USD", "EUR", "GBP", "CHF"];
@@ -16283,6 +17432,8 @@ let WineCellarCard = class WineCellarCard extends i {
         this._enableCider = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
+        // Main view filter on the drinking status: "" (any), "D", "H" or "P".
+        this._drinkFilter = "";
         this._chamberingRoomSensor = "";
         this._chamberingTimeConstantMinutes = 75;
         this._chamberingEquilibrationHours = 24;
@@ -16454,7 +17605,11 @@ let WineCellarCard = class WineCellarCard extends i {
             this._hasVivinoAccount = capResult?.has_vivino_account || false;
             this._vivinoMode = capResult?.vivino_mode || "import";
             this._metadataLanguage = capResult?.metadata_language || "en";
+            this._metadataLanguageSetting = capResult?.metadata_language_setting || "";
+            this._haLanguage = capResult?.ha_language || "en";
             this._supportedLanguages = capResult?.supported_languages || ["en", "fr", "de"];
+            this._metadataCurrencySetting = capResult?.metadata_currency_setting || "";
+            this._haCurrency = capResult?.ha_currency || "EUR";
             this._metadataCurrency = capResult?.metadata_currency || "USD";
             this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
             this._aiFallbackAlways = capResult?.ai_fallback_always || false;
@@ -16507,6 +17662,9 @@ let WineCellarCard = class WineCellarCard extends i {
         if (this._searchFilter !== "all") {
             wines = wines.filter((w) => w.type === this._searchFilter);
         }
+        if (this._drinkFilter) {
+            wines = wines.filter((w) => w.disposition === this._drinkFilter);
+        }
         // Filter by search query — same matcher as the inventory dialog, so a
         // query never gives different results depending on which screen it was
         // typed into.
@@ -16525,7 +17683,7 @@ let WineCellarCard = class WineCellarCard extends i {
     // panels) — same letter-vs-dot choice as cabinet-grid.ts's own helper,
     // reading the same _dispositionDisplay state so both stay in sync.
     _dispositionBadge(dispClass, disp) {
-        if (!dispClass)
+        if (!dispClass || this._dispositionDisplay === "off")
             return A;
         const isDot = this._dispositionDisplay === "dot";
         return b `<span class="depth-slot-disposition ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
@@ -17057,6 +18215,7 @@ let WineCellarCard = class WineCellarCard extends i {
         // bottle's own rack.
         this._searchQuery = "";
         this._searchFilter = "all";
+        this._drinkFilter = "";
         this._activeTab = loc.cabinet.id;
         // Mark the bottle on the rack drawing regardless of whether a side panel
         // opens — for a plain bottom-zone bottle the drawing is the only place it
@@ -17242,14 +18401,29 @@ let WineCellarCard = class WineCellarCard extends i {
     _getRackSlots() {
         return this._rackPanelCabinet ? getRackSlots(this._rackPanelCabinet) : [];
     }
-    // Adds exactly one new slot. A rack is a strict rows×cols rectangle, so
+    // Adds exactly one new slot. A plain rack is a rows×cols rectangle (a
+    // staggered one grows its last row instead), so
     // growing either axis by 1 adds that many slots (all of the other axis).
     // Grow whichever axis is smaller to add as few slots as possible — for the
     // common single-row rack (rows=1) this always adds exactly 1 slot.
     _addRackSlot() {
         if (!this._rackPanelCabinet)
             return;
-        const { rows, cols } = this._rackPanelCabinet;
+        const cab = this._rackPanelCabinet;
+        const { rows, cols } = cab;
+        if (isStaggered(cab)) {
+            // Staggered rack: fill the last row up to full width, else start a
+            // new row continuing the alternation with a single slot.
+            const counts = Array.from({ length: rows }, (_, r) => rowSlotCount(cab, r));
+            if (counts[rows - 1] < cols) {
+                counts[rows - 1] += 1;
+                this._resizeRack({ row_cols: counts });
+            }
+            else {
+                this._resizeRack({ rows: rows + 1, row_cols: [...counts, 1] });
+            }
+            return;
+        }
         if (rows <= cols) {
             this._resizeRack({ cols: cols + 1 });
         }
@@ -17273,7 +18447,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.rackResizeFailed"));
         }
     }
-    // A rack is a strict rows×cols rectangle, so only the trailing slot can be
+    // A rack is a rows×cols rectangle (or staggered rows), so only the trailing slot can be
     // removed without leaving a hole the grid can't represent.
     _isLastRackSlot(row, col) {
         const slots = this._getRackSlots();
@@ -17304,7 +18478,19 @@ let WineCellarCard = class WineCellarCard extends i {
                     updates: { cabinet_id: "", row: null, col: null, zone: "", depth: 0 },
                 });
             }
-            if (cols >= rows && cols > 1) {
+            if (isStaggered(this._rackPanelCabinet)) {
+                // Staggered rack: take the slot off the last row; an emptied row goes.
+                const cab = this._rackPanelCabinet;
+                const counts = Array.from({ length: rows }, (_, r) => rowSlotCount(cab, r));
+                if (counts[rows - 1] > 1) {
+                    counts[rows - 1] -= 1;
+                    await this._resizeRack({ row_cols: counts });
+                }
+                else {
+                    await this._resizeRack({ rows: rows - 1, row_cols: counts.slice(0, -1) });
+                }
+            }
+            else if (cols >= rows && cols > 1) {
                 await this._resizeRack({ cols: cols - 1 });
             }
             else {
@@ -17760,6 +18946,8 @@ let WineCellarCard = class WineCellarCard extends i {
                     ai_updated_at: this._copiedWine.ai_updated_at,
                     ai_checked_at: this._copiedWine.ai_checked_at,
                     vivino_id: this._copiedWine.vivino_id,
+                    vivino_sync_id: this._copiedWine.vivino_sync_id,
+                    vivino_linked: this._copiedWine.vivino_linked,
                     // Keep the source: a copy of a Vivino-synced bottle must stay part
                     // of the reconciliation (count pushes, removal candidates), or it
                     // becomes an invisible manual bottle with a vivino_id.
@@ -17854,10 +19042,11 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Metadata language (Vivino/AI) ---
     async _setMetadataLanguage(lang) {
-        if (lang === this._metadataLanguage)
+        if (lang === this._metadataLanguageSetting)
             return;
-        const previous = this._metadataLanguage;
-        this._metadataLanguage = lang;
+        const previous = this._metadataLanguageSetting;
+        this._metadataLanguageSetting = lang;
+        this._metadataLanguage = lang || this._haLanguage;
         try {
             await this.hass.callWS({
                 type: "wine_cellar/update_settings",
@@ -17865,15 +19054,17 @@ let WineCellarCard = class WineCellarCard extends i {
             });
         }
         catch (err) {
-            this._metadataLanguage = previous;
+            this._metadataLanguageSetting = previous;
+            this._metadataLanguage = previous || this._haLanguage;
             this._showToast(this._t("toast.changeLanguageFailed"));
         }
     }
     async _setMetadataCurrency(currency) {
-        if (currency === this._metadataCurrency)
+        if (currency === this._metadataCurrencySetting)
             return;
-        const previous = this._metadataCurrency;
-        this._metadataCurrency = currency;
+        const previous = this._metadataCurrencySetting;
+        this._metadataCurrencySetting = currency;
+        this._metadataCurrency = currency || this._haCurrency;
         try {
             await this.hass.callWS({
                 type: "wine_cellar/update_settings",
@@ -17881,7 +19072,8 @@ let WineCellarCard = class WineCellarCard extends i {
             });
         }
         catch (err) {
-            this._metadataCurrency = previous;
+            this._metadataCurrencySetting = previous;
+            this._metadataCurrency = previous || this._haCurrency;
             this._showToast(this._t("toast.changeCurrencyFailed"));
         }
     }
@@ -18027,7 +19219,7 @@ let WineCellarCard = class WineCellarCard extends i {
     }
     // --- Pending Vivino removals: the user picks the actual bottle ---
     _removalCandidates(vid) {
-        return this._wines.filter((w) => String(w.vivino_id || "") === vid &&
+        return this._wines.filter((w) => String(w.vivino_sync_id || w.vivino_id || "") === vid &&
             String(w.source || "").startsWith("vivino"));
     }
     get _removalHighlightIds() {
@@ -18235,6 +19427,7 @@ let WineCellarCard = class WineCellarCard extends i {
     _onSearch(e) {
         this._searchQuery = e.detail.query;
         this._searchFilter = e.detail.filter;
+        this._drinkFilter = e.detail.drinkFilter || "";
     }
     _getCabinetWines(cabinetId) {
         return this._wines.filter((w) => w.cabinet_id === cabinetId);
@@ -18253,7 +19446,7 @@ let WineCellarCard = class WineCellarCard extends i {
         }
         const title = this._config?.title || "Cork Dork";
         const filteredWines = this._getFilteredWines();
-        const isSearching = !!(this._searchQuery || this._searchFilter !== "all");
+        const isSearching = !!(this._searchQuery || this._searchFilter !== "all" || this._drinkFilter);
         const unassignedWines = this._getUnassignedWines();
         const showGrid = !isSearching && this._activeTab !== "buy-list" && this._activeTab !== "unassigned" && (this._activeTab === "all" || this._cabinets.some((c) => c.id === this._activeTab));
         const showBuyList = this._activeTab === "buy-list" && !isSearching;
@@ -18467,6 +19660,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
+          .drinkFilter=${this._drinkFilter}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           @search-change=${this._onSearch}
@@ -18921,7 +20115,6 @@ let WineCellarCard = class WineCellarCard extends i {
           @copy-wine=${(e) => this._copyWine(e.detail.wine)}
           @locate-wine=${(e) => this._locateWine(e.detail.wine)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @move-wine=${(e) => {
             this._showDetail = false;
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
@@ -18988,12 +20181,12 @@ let WineCellarCard = class WineCellarCard extends i {
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
+          .metadataLanguage=${this._metadataLanguage}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           .aiFallbackAlways=${this._aiFallbackAlways}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e) => {
@@ -19036,9 +20229,11 @@ let WineCellarCard = class WineCellarCard extends i {
           .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
-          .metadataLanguage=${this._metadataLanguage}
+          .metadataLanguage=${this._metadataLanguageSetting}
+          .haLanguage=${this._haLanguage}
           .supportedLanguages=${this._supportedLanguages}
-          .metadataCurrency=${this._metadataCurrency}
+          .metadataCurrency=${this._metadataCurrencySetting}
+          .haCurrency=${this._haCurrency}
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e) => this._setAiFallbackAlways(e.detail.value)}
@@ -20125,6 +21320,18 @@ __decorate([
 ], WineCellarCard.prototype, "_metadataLanguage", void 0);
 __decorate([
     r()
+], WineCellarCard.prototype, "_metadataLanguageSetting", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_haLanguage", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_metadataCurrencySetting", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_haCurrency", void 0);
+__decorate([
+    r()
 ], WineCellarCard.prototype, "_supportedLanguages", void 0);
 __decorate([
     r()
@@ -20150,6 +21357,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_dispositionDisplay", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_drinkFilter", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_chamberingRoomSensor", void 0);
@@ -20276,7 +21486,6 @@ __decorate([
 WineCellarCard = __decorate([
     t$1("wine-cellar-card")
 ], WineCellarCard);
-// Register the card with Home Assistant
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "wine-cellar-card",

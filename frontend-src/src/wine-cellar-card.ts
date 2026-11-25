@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { sharedStyles } from "./styles";
-import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "./models";
+import { Wine, Cabinet, CellarStats, WINE_TYPE_COLORS, WineType, StorageRow, StorageRowType, BOX_SIZES, getRackSlots, getWineLocation, isStaggered, rowSlotCount, getShelfSlotGroups, ShelfSlotGroup, getSteppedSlotGroups, SteppedSlotGroup } from "./models";
 import { t } from "./i18n";
 import { matchesQuery } from "./utils/search";
 import { Finding, analyzeArrangement } from "./utils/arrange";
@@ -83,6 +83,11 @@ export class WineCellarCard extends LitElement {
   // verification can take several seconds)
   @state() private _conflictResolving: string | null = null;
   @state() private _metadataLanguage = "en";
+  // "" means "follow Home Assistant"; _metadata* holds what is in effect.
+  @state() private _metadataLanguageSetting = "";
+  @state() private _haLanguage = "en";
+  @state() private _metadataCurrencySetting = "";
+  @state() private _haCurrency = "EUR";
   @state() private _supportedLanguages: string[] = ["en", "fr", "de"];
   @state() private _metadataCurrency = "USD";
   @state() private _supportedCurrencies: string[] = ["USD", "EUR", "GBP", "CHF"];
@@ -91,7 +96,9 @@ export class WineCellarCard extends LitElement {
   @state() private _enableWhisky = false;
   @state() private _enableCider = false;
   @state() private _defaultWineType: WineType = "red";
-  @state() private _dispositionDisplay: "letter" | "dot" = "letter";
+  @state() private _dispositionDisplay: "letter" | "dot" | "off" = "letter";
+  // Main view filter on the drinking status: "" (any), "D", "H" or "P".
+  @state() private _drinkFilter = "";
   @state() private _chamberingRoomSensor = "";
   @state() private _chamberingTimeConstantMinutes = 75;
   @state() private _chamberingEquilibrationHours = 24;
@@ -677,7 +684,11 @@ export class WineCellarCard extends LitElement {
       this._hasVivinoAccount = capResult?.has_vivino_account || false;
       this._vivinoMode = capResult?.vivino_mode || "import";
       this._metadataLanguage = capResult?.metadata_language || "en";
+      this._metadataLanguageSetting = capResult?.metadata_language_setting || "";
+      this._haLanguage = capResult?.ha_language || "en";
       this._supportedLanguages = capResult?.supported_languages || ["en", "fr", "de"];
+      this._metadataCurrencySetting = capResult?.metadata_currency_setting || "";
+      this._haCurrency = capResult?.ha_currency || "EUR";
       this._metadataCurrency = capResult?.metadata_currency || "USD";
       this._supportedCurrencies = capResult?.supported_currencies || ["USD", "EUR", "GBP", "CHF"];
       this._aiFallbackAlways = capResult?.ai_fallback_always || false;
@@ -736,6 +747,10 @@ export class WineCellarCard extends LitElement {
       wines = wines.filter((w) => w.type === this._searchFilter);
     }
 
+    if (this._drinkFilter) {
+      wines = wines.filter((w) => w.disposition === this._drinkFilter);
+    }
+
     // Filter by search query — same matcher as the inventory dialog, so a
     // query never gives different results depending on which screen it was
     // typed into.
@@ -757,7 +772,7 @@ export class WineCellarCard extends LitElement {
   // panels) — same letter-vs-dot choice as cabinet-grid.ts's own helper,
   // reading the same _dispositionDisplay state so both stay in sync.
   private _dispositionBadge(dispClass: string, disp: string) {
-    if (!dispClass) return nothing;
+    if (!dispClass || this._dispositionDisplay === "off") return nothing;
     const isDot = this._dispositionDisplay === "dot";
     return html`<span class="depth-slot-disposition ${dispClass}${isDot ? " dot-style" : ""}">${isDot ? "" : disp}</span>`;
   }
@@ -1332,6 +1347,7 @@ export class WineCellarCard extends LitElement {
     // bottle's own rack.
     this._searchQuery = "";
     this._searchFilter = "all";
+    this._drinkFilter = "";
     this._activeTab = loc.cabinet.id;
 
     // Mark the bottle on the rack drawing regardless of whether a side panel
@@ -1522,13 +1538,27 @@ export class WineCellarCard extends LitElement {
     return this._rackPanelCabinet ? getRackSlots(this._rackPanelCabinet) : [];
   }
 
-  // Adds exactly one new slot. A rack is a strict rows×cols rectangle, so
+  // Adds exactly one new slot. A plain rack is a rows×cols rectangle (a
+  // staggered one grows its last row instead), so
   // growing either axis by 1 adds that many slots (all of the other axis).
   // Grow whichever axis is smaller to add as few slots as possible — for the
   // common single-row rack (rows=1) this always adds exactly 1 slot.
   private _addRackSlot() {
     if (!this._rackPanelCabinet) return;
-    const { rows, cols } = this._rackPanelCabinet;
+    const cab = this._rackPanelCabinet;
+    const { rows, cols } = cab;
+    if (isStaggered(cab)) {
+      // Staggered rack: fill the last row up to full width, else start a
+      // new row continuing the alternation with a single slot.
+      const counts = Array.from({ length: rows }, (_, r) => rowSlotCount(cab, r));
+      if (counts[rows - 1] < cols) {
+        counts[rows - 1] += 1;
+        this._resizeRack({ row_cols: counts });
+      } else {
+        this._resizeRack({ rows: rows + 1, row_cols: [...counts, 1] });
+      }
+      return;
+    }
     if (rows <= cols) {
       this._resizeRack({ cols: cols + 1 });
     } else {
@@ -1536,7 +1566,7 @@ export class WineCellarCard extends LitElement {
     }
   }
 
-  private async _resizeRack(updates: { rows?: number; cols?: number }) {
+  private async _resizeRack(updates: { rows?: number; cols?: number; row_cols?: number[] }) {
     if (!this._rackPanelCabinet) return;
     try {
       await this.hass.callWS({
@@ -1551,7 +1581,7 @@ export class WineCellarCard extends LitElement {
     }
   }
 
-  // A rack is a strict rows×cols rectangle, so only the trailing slot can be
+  // A rack is a rows×cols rectangle (or staggered rows), so only the trailing slot can be
   // removed without leaving a hole the grid can't represent.
   private _isLastRackSlot(row: number, col: number): boolean {
     const slots = this._getRackSlots();
@@ -1581,7 +1611,17 @@ export class WineCellarCard extends LitElement {
           updates: { cabinet_id: "", row: null, col: null, zone: "", depth: 0 },
         });
       }
-      if (cols >= rows && cols > 1) {
+      if (isStaggered(this._rackPanelCabinet)) {
+        // Staggered rack: take the slot off the last row; an emptied row goes.
+        const cab = this._rackPanelCabinet;
+        const counts = Array.from({ length: rows }, (_, r) => rowSlotCount(cab, r));
+        if (counts[rows - 1] > 1) {
+          counts[rows - 1] -= 1;
+          await this._resizeRack({ row_cols: counts });
+        } else {
+          await this._resizeRack({ rows: rows - 1, row_cols: counts.slice(0, -1) });
+        }
+      } else if (cols >= rows && cols > 1) {
         await this._resizeRack({ cols: cols - 1 });
       } else {
         await this._resizeRack({ rows: rows - 1 });
@@ -2057,6 +2097,8 @@ export class WineCellarCard extends LitElement {
           ai_updated_at: this._copiedWine.ai_updated_at,
           ai_checked_at: this._copiedWine.ai_checked_at,
           vivino_id: this._copiedWine.vivino_id,
+          vivino_sync_id: this._copiedWine.vivino_sync_id,
+          vivino_linked: this._copiedWine.vivino_linked,
           // Keep the source: a copy of a Vivino-synced bottle must stay part
           // of the reconciliation (count pushes, removal candidates), or it
           // becomes an invisible manual bottle with a vivino_id.
@@ -2156,31 +2198,35 @@ export class WineCellarCard extends LitElement {
 
   // --- Metadata language (Vivino/AI) ---
   private async _setMetadataLanguage(lang: string) {
-    if (lang === this._metadataLanguage) return;
-    const previous = this._metadataLanguage;
-    this._metadataLanguage = lang;
+    if (lang === this._metadataLanguageSetting) return;
+    const previous = this._metadataLanguageSetting;
+    this._metadataLanguageSetting = lang;
+    this._metadataLanguage = lang || this._haLanguage;
     try {
       await this.hass.callWS({
         type: "wine_cellar/update_settings",
         updates: { metadata_language: lang },
       });
     } catch (err) {
-      this._metadataLanguage = previous;
+      this._metadataLanguageSetting = previous;
+      this._metadataLanguage = previous || this._haLanguage;
       this._showToast(this._t("toast.changeLanguageFailed"));
     }
   }
 
   private async _setMetadataCurrency(currency: string) {
-    if (currency === this._metadataCurrency) return;
-    const previous = this._metadataCurrency;
-    this._metadataCurrency = currency;
+    if (currency === this._metadataCurrencySetting) return;
+    const previous = this._metadataCurrencySetting;
+    this._metadataCurrencySetting = currency;
+    this._metadataCurrency = currency || this._haCurrency;
     try {
       await this.hass.callWS({
         type: "wine_cellar/update_settings",
         updates: { metadata_currency: currency },
       });
     } catch (err) {
-      this._metadataCurrency = previous;
+      this._metadataCurrencySetting = previous;
+      this._metadataCurrency = previous || this._haCurrency;
       this._showToast(this._t("toast.changeCurrencyFailed"));
     }
   }
@@ -2260,7 +2306,7 @@ export class WineCellarCard extends LitElement {
     }
   }
 
-  private async _setDispositionDisplay(value: "letter" | "dot") {
+  private async _setDispositionDisplay(value: "letter" | "dot" | "off") {
     if (value === this._dispositionDisplay) return;
     const previous = this._dispositionDisplay;
     this._dispositionDisplay = value;
@@ -2319,7 +2365,7 @@ export class WineCellarCard extends LitElement {
   private _removalCandidates(vid: string): Wine[] {
     return this._wines.filter(
       (w) =>
-        String(w.vivino_id || "") === vid &&
+        String(w.vivino_sync_id || w.vivino_id || "") === vid &&
         String(w.source || "").startsWith("vivino")
     );
   }
@@ -2541,6 +2587,7 @@ export class WineCellarCard extends LitElement {
   private _onSearch(e: CustomEvent) {
     this._searchQuery = e.detail.query;
     this._searchFilter = e.detail.filter;
+    this._drinkFilter = e.detail.drinkFilter || "";
   }
 
   private _getCabinetWines(cabinetId: string): Wine[] {
@@ -2563,7 +2610,7 @@ export class WineCellarCard extends LitElement {
 
     const title = this._config?.title || "Cork Dork";
     const filteredWines = this._getFilteredWines();
-    const isSearching = !!(this._searchQuery || this._searchFilter !== "all");
+    const isSearching = !!(this._searchQuery || this._searchFilter !== "all" || this._drinkFilter);
     const unassignedWines = this._getUnassignedWines();
     const showGrid = !isSearching && this._activeTab !== "buy-list" && this._activeTab !== "unassigned" && (this._activeTab === "all" || this._cabinets.some((c) => c.id === this._activeTab));
     const showBuyList = this._activeTab === "buy-list" && !isSearching;
@@ -2780,6 +2827,7 @@ export class WineCellarCard extends LitElement {
           .hass=${this.hass}
           .value=${this._searchQuery}
           .filter=${this._searchFilter}
+          .drinkFilter=${this._drinkFilter}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           @search-change=${this._onSearch}
@@ -3244,7 +3292,6 @@ export class WineCellarCard extends LitElement {
           @copy-wine=${(e: CustomEvent) => this._copyWine(e.detail.wine)}
           @locate-wine=${(e: CustomEvent) => this._locateWine(e.detail.wine)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @move-wine=${(e: CustomEvent) => {
             this._showDetail = false;
             // Close any open side panel and show every rack, so any rack/zone in the cellar is reachable as a target.
@@ -3311,12 +3358,12 @@ export class WineCellarCard extends LitElement {
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
+          .metadataLanguage=${this._metadataLanguage}
           .chamberingRoomSensor=${this._chamberingRoomSensor}
           .chamberingTimeConstantMinutes=${this._chamberingTimeConstantMinutes}
           .chamberingEquilibrationHours=${this._chamberingEquilibrationHours}
           .aiFallbackAlways=${this._aiFallbackAlways}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
-          @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @close=${() => (this._showInventory = false)}
           @wine-updated=${() => this._loadData()}
           @locate-wine=${(e: CustomEvent) => {
@@ -3359,9 +3406,11 @@ export class WineCellarCard extends LitElement {
           .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
           .dispositionDisplay=${this._dispositionDisplay}
-          .metadataLanguage=${this._metadataLanguage}
+          .metadataLanguage=${this._metadataLanguageSetting}
+          .haLanguage=${this._haLanguage}
           .supportedLanguages=${this._supportedLanguages}
-          .metadataCurrency=${this._metadataCurrency}
+          .metadataCurrency=${this._metadataCurrencySetting}
+          .haCurrency=${this._haCurrency}
           .supportedCurrencies=${this._supportedCurrencies}
           @close=${() => (this._showVivinoAiSettings = false)}
           @set-ai-fallback-always=${(e: CustomEvent) => this._setAiFallbackAlways(e.detail.value)}
@@ -3951,6 +4000,9 @@ export class WineCellarCard extends LitElement {
 }
 
 // Register the card with Home Assistant
+// Ships in the same bundle: one rack as its own dashboard card.
+import "./wine-cellar-section-card";
+
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: "wine-cellar-card",

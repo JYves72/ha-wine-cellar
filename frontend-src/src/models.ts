@@ -26,6 +26,8 @@ export interface Wine {
   retail_price_currency: string | null;
   /** When true, no AI/Vivino scan (single or batch) may change retail_price. */
   price_locked?: boolean;
+  // The user refused Vivino's photo for this wine: don't offer it again.
+  keep_photo?: boolean;
   purchase_date: string;
   drink_by: string;
   notes: string;
@@ -56,6 +58,16 @@ export interface Wine {
   // never overwrites.
   disposition_source?: string;
   drink_window: string;
+  // What Vivino's app shows on the wine's page (vivino_profile.py).
+  vivino_taste?: VivinoTaste | null;
+  vivino_flavors?: string[];
+  vivino_style?: string;
+  vivino_awards?: { competition?: string; medal?: string; score?: string; year?: number | string }[];
+  vivino_critics?: { critic?: string; score?: string; score_max?: number }[];
+  vivino_profile_at?: string;
+  // Set once a synced bottle's Vivino page is changed: the id the Vivino
+  // cellar knows it by.
+  vivino_sync_id?: string;
   // Specific peak maturity window (when the wine is at its absolute best),
   // distinct from drink_window (entire suitable-to-drink period).
   // Format: "YYYY-YYYY" or "YYYY" for a single year. AI-filled only.
@@ -173,6 +185,15 @@ export function getShelfSlotGroups(levels: { front: number; back: number }[] | u
   return groups;
 }
 
+// Vivino taste structure, each on a 1-5 scale.
+export interface VivinoTaste {
+  intensity?: number;
+  sweetness?: number;
+  tannin?: number;
+  acidity?: number;
+  fizziness?: number;
+}
+
 export interface Cabinet {
   id: string;
   name: string;
@@ -183,6 +204,9 @@ export interface Cabinet {
   has_bottom_zone: boolean;
   bottom_zone_name: string;
   storage_rows: StorageRow[];
+  // Slots in each row, when rows differ — a staggered (honeycomb) rack
+  // alternates e.g. 3/2/3/2. Missing, < 1 or >= cols means a full row.
+  row_cols?: number[];
   order: number;
   // Live temp/humidity sensors of this zone (the whole rack card) — shown in
   // its title banner, and what bottles stored here are assumed to be at
@@ -324,6 +348,25 @@ export const WINE_TYPE_LABELS: Record<WineType, string> = {
   cider: "Cider",
 };
 
+// How many slots a grid row has: `cols`, unless `row_cols` gives that row
+// fewer (a staggered rack). Mirrors WineCellarStorage.row_slot_count.
+export function rowSlotCount(
+  cabinet: Pick<Cabinet, "cols" | "row_cols">,
+  row: number,
+): number {
+  const cols = cabinet.cols || 0;
+  const n = cabinet.row_cols?.[row];
+  return typeof n === "number" && Number.isInteger(n) && n >= 1 && n < cols ? n : cols;
+}
+
+// True when some row is shorter than the rack is wide.
+export function isStaggered(cabinet: Pick<Cabinet, "rows" | "cols" | "row_cols">): boolean {
+  for (let r = 0; r < (cabinet.rows || 0); r++) {
+    if (rowSlotCount(cabinet, r) < (cabinet.cols || 0)) return true;
+  }
+  return false;
+}
+
 // Same labels, translated per HA's display language (src/i18n/{en,fr}.json)
 // — falls back to the English WINE_TYPE_LABELS above for a language with
 // no catalog yet, or for any type not yet translated within one that
@@ -371,7 +414,8 @@ export function getRackSlots(cabinet: Cabinet): { row: number; col: number }[] {
   const slots: { row: number; col: number }[] = [];
   for (let r = 0; r < cabinet.rows; r++) {
     if (storageRowSet.has(r)) continue;
-    for (let c = 0; c < cabinet.cols; c++) slots.push({ row: r, col: c });
+    const n = rowSlotCount(cabinet, r);
+    for (let c = 0; c < n; c++) slots.push({ row: r, col: c });
   }
   return slots;
 }

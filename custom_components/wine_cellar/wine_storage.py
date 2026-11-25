@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    VINTAGE_ID_SOURCES,
     BARCODE_CACHE_MAX,
     CONF_BARCODE_CACHE,
     CONF_BUY_LIST,
@@ -22,6 +23,7 @@ from .const import (
     STORAGE_VERSION,
 )
 from .disposition import DISPOSITION_SOURCE_AUTO, compute_disposition
+from .vivino_reconcile import sync_id
 
 
 class WineCellarStorage:
@@ -194,6 +196,7 @@ class WineCellarStorage:
             "rating": wine_data.get("rating"),
             "image_url": wine_data.get("image_url", ""),
             "back_image_url": wine_data.get("back_image_url", ""),
+            "keep_photo": bool(wine_data.get("keep_photo", False)),
             "price": wine_data.get("price"),
             "retail_price": wine_data.get("retail_price"),
             "retail_price_currency": wine_data.get("retail_price_currency"),
@@ -225,6 +228,16 @@ class WineCellarStorage:
             "ai_updated_at": wine_data.get("ai_updated_at"),
             "ai_checked_at": wine_data.get("ai_checked_at"),
             "vivino_id": wine_data.get("vivino_id"),
+            "vivino_sync_id": wine_data.get("vivino_sync_id", ""),
+            "vivino_linked": bool(wine_data.get("vivino_linked", False)),
+            # Vivino profile (see vivino_profile.py); kept when a bottle is
+            # copied/pasted or restored, filled later otherwise.
+            "vivino_taste": wine_data.get("vivino_taste"),
+            "vivino_flavors": wine_data.get("vivino_flavors") or [],
+            "vivino_style": wine_data.get("vivino_style", ""),
+            "vivino_awards": wine_data.get("vivino_awards") or [],
+            "vivino_critics": wine_data.get("vivino_critics") or [],
+            "vivino_profile_at": wine_data.get("vivino_profile_at", ""),
         }
         # Never trust disposition as handed in (from a label-scan AI result,
         # a buy-list item, wherever) — recompute it from this same wine's own
@@ -296,6 +309,16 @@ class WineCellarStorage:
                     key in updates and updates[key] != wine.get(key)
                     for key in self._LOCATION_KEYS
                 )
+                # Whatever changes a synced bottle's Vivino page, remember the
+                # id the Vivino cellar knows it by (see vivino_reconcile.sync_id).
+                if (
+                    "vivino_id" in updates
+                    and wine.get("source") in VINTAGE_ID_SOURCES
+                    and wine.get("vivino_id")
+                    and not wine.get("vivino_sync_id")
+                    and updates["vivino_id"] != wine["vivino_id"]
+                ):
+                    wine["vivino_sync_id"] = wine["vivino_id"]
                 for key, value in updates.items():
                     if key != "id":
                         wine[key] = value
@@ -367,6 +390,7 @@ class WineCellarStorage:
             "has_bottom_zone": cabinet_data.get("has_bottom_zone", False),
             "bottom_zone_name": cabinet_data.get("bottom_zone_name", "Storage"),
             "storage_rows": cabinet_data.get("storage_rows", []),
+            "row_cols": cabinet_data.get("row_cols", []),
             "order": cabinet_data.get("order", len(self.cabinets)),
             "temp_sensor_entity_id": cabinet_data.get("temp_sensor_entity_id", ""),
             "humidity_sensor_entity_id": cabinet_data.get("humidity_sensor_entity_id", ""),
@@ -410,6 +434,22 @@ class WineCellarStorage:
         return False
 
     @staticmethod
+    def row_slot_count(cabinet: dict[str, Any], row: int) -> int:
+        """How many grid slots a row has.
+
+        A rack is ``rows`` x ``cols`` unless ``row_cols`` gives some rows fewer
+        slots, as in a staggered (honeycomb) rack whose rows alternate, e.g.
+        3/2/3/2. Entries missing, below 1 or above ``cols`` mean a full row.
+        """
+        cols = cabinet.get("cols", 0) or 0
+        row_cols = cabinet.get("row_cols") or []
+        if 0 <= row < len(row_cols):
+            n = row_cols[row]
+            if isinstance(n, int) and not isinstance(n, bool) and 1 <= n < cols:
+                return n
+        return cols
+
+    @staticmethod
     def cabinet_capacity(cabinet: dict[str, Any]) -> int:
         """Return a single cabinet's total bottle capacity.
 
@@ -420,8 +460,13 @@ class WineCellarStorage:
         if cabinet.get("type") != "grid":
             return 0
         storage_rows = cabinet.get("storage_rows", [])
-        grid_rows = max(0, cabinet.get("rows", 0) - len(storage_rows))
-        capacity = grid_rows * cabinet.get("cols", 0) * cabinet.get("depth", 1)
+        storage_row_indices = {sr.get("row") for sr in storage_rows}
+        slots = sum(
+            WineCellarStorage.row_slot_count(cabinet, r)
+            for r in range(cabinet.get("rows", 0))
+            if r not in storage_row_indices
+        )
+        capacity = slots * cabinet.get("depth", 1)
         for sr in storage_rows:
             capacity += WineCellarStorage._storage_row_capacity(sr)
         return capacity
@@ -479,7 +524,7 @@ class WineCellarStorage:
         row, col = wine.get("row"), wine.get("col")
         if row is None or col is None:
             return None
-        if row >= cabinet.get("rows", 0) or col >= cabinet.get("cols", 0):
+        if row >= cabinet.get("rows", 0) or col >= self.row_slot_count(cabinet, row):
             return "the rack was shrunk past its slot"
         if depth >= (cabinet.get("depth", 1) or 1):
             return "the rack was made shallower than its slot"
@@ -660,7 +705,7 @@ class WineCellarStorage:
             return 0
         matching = [
             w for w in self._data.get(CONF_WINES, [])
-            if w.get("vivino_id") == vivino_id
+            if sync_id(w) == vivino_id
             and str(w.get("source", "")).startswith("vivino")
         ]
         # Unassigned (no cabinet) first, then oldest added first
@@ -691,7 +736,7 @@ class WineCellarStorage:
             return (0, 0)
         matching = [
             w for w in self._data.get(CONF_WINES, [])
-            if w.get("vivino_id") == vivino_id
+            if sync_id(w) == vivino_id
             and str(w.get("source", "")).startswith("vivino")
         ]
         if count >= len(matching):
@@ -918,7 +963,7 @@ class WineCellarStorage:
                 return None
             if not (0 <= row_idx < cabinet.get("rows", 0)):
                 return None
-            if not (0 <= col_idx < cabinet.get("cols", 0)):
+            if not (0 <= col_idx < self.row_slot_count(cabinet, row_idx)):
                 return None
             if row_idx in storage_row_indices:
                 # That row was converted to a bin/box; it has no grid slots.

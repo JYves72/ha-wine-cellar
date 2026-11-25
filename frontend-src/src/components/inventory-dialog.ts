@@ -60,6 +60,7 @@ export class InventoryDialog extends LitElement {
   @property({ type: Boolean }) enableCider = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: String }) currency = "USD";
+  @property({ type: String }) metadataLanguage = "en";
   @property({ type: String }) chamberingRoomSensor = "";
   @property({ type: Number }) chamberingTimeConstantMinutes = 75;
   @property({ type: Number }) chamberingEquilibrationHours = 24;
@@ -934,7 +935,7 @@ export class InventoryDialog extends LitElement {
   // is mapped to a generic category (see foodCategories.ts) so the filter
   // stays short — the wine detail view still shows the original AI text.
   private _foodOptions(): string[] {
-    return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map(categorizeFoodPairing));
+    return collectFacet(this.wines, (w) => splitMulti(w.food_pairings).map((p) => categorizeFoodPairing(p, this.metadataLanguage)));
   }
 
   private _winesWithoutPairings(): number {
@@ -1074,7 +1075,7 @@ export class InventoryDialog extends LitElement {
 
     if (this._foodFilter !== "all") {
       wines = wines.filter((w) =>
-        splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p) === this._foodFilter)
+        splitMulti(w.food_pairings).some((p) => categorizeFoodPairing(p, this.metadataLanguage) === this._foodFilter)
       );
     }
 

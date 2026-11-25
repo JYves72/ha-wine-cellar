@@ -35,6 +35,7 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Wine Boxes** — Multi-box rows with configurable box sizes (e.g., [6, 12, 3]). CSS-drawn box shapes with wine count displayed inside each box (e.g., "2/6") and pack size labels.
 - **Zone Side Panel** — Click any storage zone container to open a slide-out panel (same UX as the depth panel) showing all wines in that zone with add/remove capability.
 - **Per-Row Type Selector** — Each rack row can be independently set to Slots (grid), Bulk Bin, or Wine Box via the rack settings dialog.
+- **Staggered (Honeycomb) Racks** — Each slot row can hold fewer bottles than the rack is wide; shorter rows are drawn offset by half a slot, like a diamond/honeycomb rack where bottles rest in the gaps of the row below. One click on **Staggered rows** alternates full and one-short rows (e.g. 3/2/3/2), or set each row's count with its own stepper.
 
 ### Inventory Browser & Wine History
 - **Full Inventory Dialog** — Browse, search, sort, and export your entire cellar collection from the 📦 Inventory button
@@ -46,6 +47,8 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Presets** — One-tap views for the questions actually worth asking: Drink this year, Past peak, Not rated, Missing data, Added recently
 - **Summary Stats** — Total bottles, estimated collection value, and type breakdown with colored indicators
 - **Disposition Search** — Search by "Drink", "Hold", or "Past Peak" to filter by disposition; also searches drink window field
+- **Drinking Status Filters** — *Drink now / Hold / Past peak* chips under the search bar filter the main view; the status on the racks can be shown as a letter, a coloured ring, or hidden.
+- **Your Currency and Language** — AI and Vivino texts and prices follow Home Assistant's own currency and language by default; any ISO 4217 currency and some 60 languages can be picked in the Vivino/AI settings. (The card's interface itself is translated into English and French.)
 - **CSV Export** — Download your filtered/sorted inventory as a date-stamped CSV file with 26 data columns
 - **Server Backup** — Save timestamped backups to the HA server (config/wine_cellar_backups/) with one click
 - **Server Restore** — Browse and restore from any previous server backup with a date/size picker
@@ -73,8 +76,18 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Gemini Price Fallback** — When Vivino has no pricing data, Gemini AI provides estimated retail prices as a fallback for single wine refresh and batch scans
 - **Auto-Enrich on Add** — When you add a wine, Vivino data (rating, price, description, food pairings) is automatically fetched in the background
 
+### Dashboard Tiles
+- **Section Card** — Put a single rack on any dashboard as its own tile with `custom:wine-cellar-section-card` (or pick **Cork Dork — Section** in the card picker and choose the section). It shows that rack's grid, sensor reading and bottle count; tap a bottle for its details, tap a free slot to add a bottle there. It stays in sync with the full card; moving and copying bottles stay in the full card.
+
+  ```yaml
+  type: custom:wine-cellar-section-card
+  section: Kitchen        # rack name or id
+  title: Wine fridge      # optional
+  show_header: true       # optional, bottle count line
+  ```
+
 ### Vivino Integration
-- **Cellar Connection** — Connect your Vivino cellar by pasting your cellar URL and session cookie once (see **[docs/vivino-import.md](docs/vivino-import.md)**). One tap on the card's button then brings in every bottle you own (with ratings, images, region, grape data, and your personal star ratings/notes) as unassigned wines. Bottle counts are respected and already-imported bottles are never duplicated.
+- **Cellar Connection** — Connect your Vivino cellar by signing in with your Vivino email and password, or by pasting your cellar URL and session cookie (see **[docs/vivino-import.md](docs/vivino-import.md)**). One tap on the card's button then brings in every bottle you own (with ratings, images, region, grape data, and your personal star ratings/notes) as unassigned wines. Bottle counts are respected and already-imported bottles are never duplicated.
 - **Vivino Mode: Import or Synchronize** — Chosen in the integration's options. **Import** (the default) is a one-way mirror: Vivino is the source of truth and Cork Dork follows it; nothing is ever written to your Vivino account. **Synchronize** is a two-way reconcile: bottles you add or drink in Cork Dork are pushed back to your Vivino cellar as cellar events (visible and undoable in Vivino's history), guarded so a bad fetch can't wipe Cork Dork and corrupt local data can't wipe Vivino. The card's button reflects the mode — ⬇️ Vivino Import or 🔄 Vivino Sync.
 - **You Pick the Bottle** — When Vivino loses a bottle and the choice of which physical bottle to remove is obvious (the wine is gone entirely, or unplaced bottles cover it), Cork Dork handles it and the sync toast reports the count. When a placed bottle would have to go and there are several to choose from, nothing is deleted: the card shows a panel, selecting the wine rings every candidate bottle in your racks in orange, and you click the bottle that is actually gone and confirm. Removed bottles are archived to history either way.
 - **Conflicts Are Yours to Settle** — If both sides changed the same wine between syncs (say a bottle drunk on Vivino while one was added in Cork Dork), the sync changes nothing and the card shows the conflict. Selecting it rings all of your local bottles for review; after correcting anything that's off, one confirmed click declares Cork Dork's count the truth and updates Vivino to match.
@@ -82,6 +95,7 @@ A custom Home Assistant integration for managing your wine collection. Track bot
 - **Sync Service & Sensor** — `wine_cellar.sync_vivino` service for automations plus a `Cork Dork Vivino Cellar` sensor reporting the last sync
 - **Vivino Batch Scan** — Refresh all wines from Vivino in one click: ratings, review counts, market pricing, descriptions, food pairings, alcohol content, and grape variety. Falls back to Gemini AI pricing when Vivino has no price.
 - **Individual Vivino Refresh** — Update any single wine's Vivino data from the detail dialog
+- **Vivino Profile** — For wines linked to Vivino, the wine sheet also shows what the Vivino app shows on the wine's page: the **wine style**, the **taste profile** (light↔bold, smooth↔tannic, dry↔sweet, soft↔acidic, gentle↔fizzy), the **main flavours**, and any **awards and critic scores**, in your metadata language. Fetched on refresh (single or batch), when a bottle is added, and in the background after a Vivino account sync.
 - **Wine Search** — Search Vivino by name to find and add wines without a barcode
 - **Wine List Vivino Enrichment** — After scanning a wine list, optionally click "Get Vivino Scores" to add Vivino ratings and images to your results
 
@@ -142,16 +156,27 @@ To enable label recognition, AI analysis, wine list scanning, and batch AI scann
 
 ### Connecting Your Vivino Cellar
 
-Vivino has no public read API for your own cellar — the site uses a Rails
-session cookie and serves the cellar from an Inertia.js endpoint on
-`www.vivino.com` (not the `api.vivino.com` mobile backend). Cork Dork reads it
-by replaying a session cookie you paste from your browser.
+There are two ways to connect your Vivino account:
 
-- **[docs/vivino-import.md](docs/vivino-import.md)** has full instructions for
-  both methods:
-  - **Integration sync (recommended):** paste your cellar URL and session cookie
-    in **Cork Dork → Configure**, then use **🔄 Vivino Sync** (or enable twice-daily
-    auto-sync). When the cookie expires, a notification prompts you to refresh it.
+- **Sign in with email and password (recommended).** Cork Dork signs in the way
+  the Vivino mobile app does (OAuth against `api.vivino.com`) and reads the
+  cellar from the app's own endpoints. The session renews itself, so there is
+  nothing to paste and nothing to refresh by hand. The password is used once to
+  sign in and is never stored. Signed in this way, **label photos are
+  recognised by Vivino itself** (the same recognition as the app's camera),
+  which names the exact Vivino wine and vintage; AI label reading becomes
+  the fallback for labels Vivino does not know, and is optional.
+- **Session cookie.** Paste your cellar URL and a session cookie copied from
+  your browser; Cork Dork replays it against the website's Inertia.js cellar
+  endpoint on `www.vivino.com`. When the cookie expires, a notification prompts
+  you to paste a fresh one.
+
+- **[docs/vivino-import.md](docs/vivino-import.md)** has full instructions:
+  - **Integration sync:** sign in (or paste your cellar URL and session cookie)
+    in **Cork Dork → Configure**, pick the Vivino mode there (Import, the default,
+    never writes to your Vivino account), then use the card's button — **⬇️ Vivino
+    Import** or **🔄 Vivino Sync**, whichever the mode gives you — or enable
+    twice-daily auto-sync.
   - **One-time CSV export:** run a browser-console snippet and load the file via
     **📦 Inventory → Import CSV**.
 - After importing, **🍇 Vivino Batch Scan** enriches wines with ratings, pricing,
@@ -159,7 +184,7 @@ by replaying a session cookie you paste from your browser.
 
 ## Default Cabinet Layout
 
-The integration ships with 3 cabinet sections, each with 10 rows and 9 columns (90 slots per section, 270 total). The bottom row of each section defaults to a bulk bin storage zone. Rack dimensions (up to 20×20), names, depth (1-6 bottles deep), and per-row storage types (Slots, Bulk Bin, Wine Box) can all be customized through the **Manage Racks** button in the tab bar.
+The integration ships with 3 cabinet sections, each with 10 rows and 9 columns (90 slots per section, 270 total). The bottom row of each section defaults to a bulk bin storage zone. Rack dimensions (up to 20×20), names, depth (1-6 bottles deep), per-row storage types (Slots, Bulk Bin, Wine Box) and per-row slot counts for staggered racks can all be customized through the **Manage Racks** button in the tab bar.
 
 ## Data Sources
 

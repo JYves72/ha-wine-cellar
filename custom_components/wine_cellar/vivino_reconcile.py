@@ -77,6 +77,16 @@ def build_vivino_state(wines: list[dict[str, Any]]) -> dict[str, dict[str, Any]]
     return state
 
 
+def sync_id(wine: dict[str, Any]) -> Any:
+    """The id that ties a bottle to the Vivino cellar.
+
+    Usually its ``vivino_id``. When a synced bottle's page is changed or
+    removed (manual link, "wrong wine", unlink), the id the cellar knows it by
+    is kept in ``vivino_sync_id`` and still decides reconciliation.
+    """
+    return wine.get("vivino_sync_id") or wine.get("vivino_id")
+
+
 def build_corkdork_state(stored_wines: list[dict[str, Any]]) -> dict[str, int]:
     """Count Cork Dork's Vivino-sourced bottles per vivino_id.
 
@@ -86,7 +96,7 @@ def build_corkdork_state(stored_wines: list[dict[str, Any]]) -> dict[str, int]:
     """
     counts: dict[str, int] = {}
     for w in stored_wines:
-        vid = w.get("vivino_id")
+        vid = sync_id(w)
         if not vid:
             continue
         if not str(w.get("source", "")).startswith("vivino"):

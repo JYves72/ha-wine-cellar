@@ -22,6 +22,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import NON_WINE_TYPES, WINE_TYPES
+from .locales import LANGUAGE_NAMES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,9 +138,6 @@ def parse_json_response(raw_text: str) -> Any:
     raise json.JSONDecodeError("Unable to parse AI response", raw_text, 0)
 
 
-LANGUAGE_NAMES = {"en": "English", "fr": "French", "de": "German"}
-
-
 def _language_prefix(language: str) -> str:
     """Leading prompt directive so free-text fields come back in the chosen language.
 
@@ -154,8 +152,8 @@ def _language_prefix(language: str) -> str:
         f"Respond in {name}. Every free-text field in your JSON output "
         f"(description, notes, food pairings, tasting profile) MUST be written "
         f"in {name} — not English. This also applies to \"region\" and \"country\": "
-        f"use the {name} exonym for the place (e.g. \"Vallée de la Loire\" not "
-        f"\"Loire Valley\", \"Toscane\" not \"Tuscany\" for French) whenever one is "
+        f"use the {name} exonym for the place (as French writes \"Toscane\" "
+        f"rather than \"Tuscany\") whenever one is "
         f"in common use, since the same wine's region/country must always come "
         f"back as the exact same string regardless of which lookup filled it — "
         f"the app groups and filters by this text. This instruction overrides "

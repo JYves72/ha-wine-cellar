@@ -16,6 +16,8 @@ import aiohttp
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.core import HomeAssistant
 
+from .country_names import COUNTRY_CODE_NAMES
+
 _LOGGER = logging.getLogger(__name__)
 
 VIVINO_API_URL = "https://www.vivino.com/api/explore/explore"
@@ -83,40 +85,30 @@ CURRENCY_COUNTRY_CODE = {
     "EUR": "DE",
     "GBP": "GB",
     "CHF": "CH",
+    "AUD": "AU",
+    "BRL": "BR",
+    "CAD": "CA",
+    "CNY": "CN",
+    "CZK": "CZ",
+    "DKK": "DK",
+    "HKD": "HK",
+    "HUF": "HU",
+    "JPY": "JP",
+    "MXN": "MX",
+    "NOK": "NO",
+    "NZD": "NZ",
+    "PLN": "PL",
+    "RON": "RO",
+    "SEK": "SE",
+    "SGD": "SG",
+    "ZAR": "ZA",
 }
 
 # The mobile API's region.country is a bare ISO code ("fr"), not a display
-# name — common wine-producing countries only, good enough since region/
-# country are always-overwrite fields on a manual refresh (see
-# ws_refresh_wine), so a stale name from before this map existed still
-# gets corrected. Keyed by the country code, then by the configured
-# metadata language — a name that comes back in the wrong language means
-# the exact same country ends up as two different filter entries in the
-# app (English from here, French from Gemini's already-localized output),
-# so this must track _language_prefix's language set.
-COUNTRY_CODE_NAMES: dict[str, dict[str, str]] = {
-    "fr": {"en": "France", "fr": "France"},
-    "it": {"en": "Italy", "fr": "Italie"},
-    "es": {"en": "Spain", "fr": "Espagne"},
-    "pt": {"en": "Portugal", "fr": "Portugal"},
-    "de": {"en": "Germany", "fr": "Allemagne"},
-    "at": {"en": "Austria", "fr": "Autriche"},
-    "ch": {"en": "Switzerland", "fr": "Suisse"},
-    "us": {"en": "United States", "fr": "États-Unis"},
-    "ca": {"en": "Canada", "fr": "Canada"},
-    "mx": {"en": "Mexico", "fr": "Mexique"},
-    "au": {"en": "Australia", "fr": "Australie"},
-    "nz": {"en": "New Zealand", "fr": "Nouvelle-Zélande"},
-    "ar": {"en": "Argentina", "fr": "Argentine"},
-    "cl": {"en": "Chile", "fr": "Chili"},
-    "uy": {"en": "Uruguay", "fr": "Uruguay"},
-    "za": {"en": "South Africa", "fr": "Afrique du Sud"},
-    "gr": {"en": "Greece", "fr": "Grèce"},
-    "hu": {"en": "Hungary", "fr": "Hongrie"},
-    "ge": {"en": "Georgia", "fr": "Géorgie"},
-    "gb": {"en": "United Kingdom", "fr": "Royaume-Uni"},
-    "uk": {"en": "United Kingdom", "fr": "Royaume-Uni"},
-}
+# name. COUNTRY_CODE_NAMES covers the common wine-producing countries in every
+# offered language: a name that comes back in the wrong language means the
+# same country ends up as two filter entries (one from here, one from the AI's
+# already-localized output).
 
 
 def _country_name(code: str, language: str) -> str:
@@ -164,15 +156,12 @@ HEADERS = {
 # description) comes back server-side-localized based on IP/session
 # heuristics rather than a fixed language — pin it to whatever the user has
 # picked instead of leaving it to chance.
-ACCEPT_LANGUAGE_BY_CODE = {
-    "en": "en-US,en;q=0.9",
-    "fr": "fr-FR,fr;q=0.9,en;q=0.5",
-    "de": "de-DE,de;q=0.9,en;q=0.5",
-}
-
-
 def _accept_language(language: str) -> str:
-    return ACCEPT_LANGUAGE_BY_CODE.get(language, ACCEPT_LANGUAGE_BY_CODE["en"])
+    if language == "en":
+        return "en-US,en;q=0.9"
+    base = language.split("-")[0]
+    preferred = language if base == language else f"{language},{base};q=0.9"
+    return f"{preferred},en;q=0.5"
 
 
 # Generic wine-domain words carry no identifying signal on their own, so
@@ -294,6 +283,83 @@ def _prefer_matching_vintage(
     return results
 
 
+# Vivino wine type id -> red, white, sparkling, rosé, dessert, fortified.
+_STYLE_TYPE_IDS = (1, 2, 3, 4, 7, 24)
+_STYLE_TYPE_WORDS = {
+    "cs": ("Červené", "Bílé", "Šumivé", "Růžové", "Dezertní", "Fortifikované"),
+    "da": ("Rød", "Hvid", "Mousserende", "Rosé", "Dessert", "Hedvin"),
+    "de": ("Rot", "Weiß", "Schaumwein", "Rosé", "Dessertwein", "Likörwein"),
+    "es": ("Tinto", "Blanco", "Espumoso", "Rosado", "Dulce", "Generoso"),
+    "fi": ("Punaviini", "Valkoviini", "Kuohuviini", "Roseeviini", "Jälkiruokaviini", "Väkevä viini"),
+    "fr": ("Rouge", "Blanc", "Effervescent", "Rosé", "Sucré", "Muté"),
+    "it": ("Rosso", "Bianco", "Spumante", "Rosato", "Dolce", "Liquoroso"),
+    "nb": ("Rød", "Hvit", "Musserende", "Rosé", "Dessert", "Sterkvin"),
+    "nl": ("Rood", "Wit", "Mousserend", "Rosé", "Dessert", "Versterkt"),
+    "pl": ("Czerwone", "Białe", "Musujące", "Różowe", "Deserowe", "Wzmacniane"),
+    "pt": ("Tinto", "Branco", "Espumante", "Rosé", "Doce", "Fortificado"),
+    "sv": ("Rött", "Vitt", "Mousserande", "Rosé", "Dessert", "Starkvin"),
+}
+# How an English style name starts or ends, as opposed to a proper name
+# such as "Champagne" or "Cornas".
+_ENGLISH_STYLE = re.compile(
+    r"^(French|Italian|Spanish|Portuguese|German|Austrian|Swiss|Greek|Hungarian"
+    r"|American|Californian|Oregon|Washington|Argentinian|Chilean|Australian"
+    r"|New Zealand|South African) "
+    r"| (Red|White|Sparkling|Rosé|Dessert Wine|Fortified Wine)$"
+)
+
+
+# Regions Vivino translates word for word, by (language, region seo_name):
+# use the names the local wine trade does.
+_REGION_NAMES = {
+    ("fr", "upper-loire"): "Centre-Loire",
+    ("fr", "middle-loire"): "Anjou-Saumur et Touraine",
+    ("fr", "lower-loire"): "Pays Nantais",
+}
+
+
+def _style_name(style: dict[str, Any], language: str) -> str:
+    """The style's name, composed from its parts when Vivino has no translation.
+
+    Some styles are only named in English whatever language is asked for
+    ("French Middle Loire Cabernet Franc Red"). Their parts still come
+    through usably: the region is localized ("Loire moyenne") and grapes are
+    proper names, so the name becomes "Rouge · Cabernet franc · Loire
+    moyenne". An untranslated name slugs to the style's (English) ``seo_name``.
+    """
+    name = style.get("name") or ""
+    base = language.split("-")[0]
+    if base == "en" or not _ENGLISH_STYLE.search(name):
+        return name
+    plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    if re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-") != style.get("seo_name"):
+        return name
+
+    kind = ""
+    type_id = style.get("wine_type_id")
+    if base in _STYLE_TYPE_WORDS and type_id in _STYLE_TYPE_IDS:
+        kind = _STYLE_TYPE_WORDS[base][_STYLE_TYPE_IDS.index(type_id)]
+    variety = (style.get("varietal_name") or "").casefold()
+    grape = next(
+        (g["name"] for g in style.get("grapes") or []
+         if (g.get("name") or "").casefold() == variety and variety),
+        "",
+    )
+    region = style.get("region") or {}
+    place = (
+        _REGION_NAMES.get((base, region.get("seo_name")))
+        or region.get("name")
+        or _country_name(style.get("country") or "", language)
+    )
+    if not (grape or place):
+        return name
+    return " · ".join(part for part in (kind, grape, place) if part)
+
+
+async def _none() -> None:
+    return None
+
+
 class VivinoClient:
     """Client for looking up wine data from multiple sources."""
 
@@ -335,6 +401,177 @@ class VivinoClient:
         return None
 
     # ── Vivino Mobile API (by-id lookup) ──────────────────────────────
+
+    async def _get_json(self, path: str, params: Any = None, timeout: int = 15) -> Any:
+        """GET a public api.vivino.com path; None on any failure."""
+        session = async_get_clientsession(self._hass)
+        try:
+            async with session.get(
+                f"{VIVINO_MOBILE_API_URL}{path}",
+                params=params,
+                headers={"Accept": "application/json"},
+                timeout=aiohttp.ClientTimeout(total=timeout),
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                return await resp.json(content_type=None)
+        except Exception as err:  # noqa: BLE001 - best-effort details
+            _LOGGER.debug("Vivino %s failed: %s", path, err)
+            return None
+
+    async def find_vintage_id(self, wine_id: int | str, year: int | str | None) -> int | None:
+        """The vintage id of a wine for a given year (or its only/newest one)."""
+        data = await self._get_json(f"/wines/{wine_id}")
+        vintages = [v for v in ((data or {}).get("vintages") or []) if isinstance(v, dict)]
+        if not vintages:
+            return None
+        if year:
+            for v in vintages:
+                if str(v.get("year")) == str(year):
+                    return v.get("id")
+            return None
+        # Non-vintage or unknown year: a single vintage is unambiguous.
+        return vintages[0].get("id") if len(vintages) == 1 else None
+
+    async def get_vivino_profile(self, vintage_id: int | str, language: str = "en") -> dict[str, Any] | None:
+        """What Vivino's app shows about a vintage beyond the basics.
+
+        All public endpoints:
+        - ``/v/9.1.1/_vintages?full=1`` — recommended drinking window, awards,
+          critic reviews, the wine's style id (and name/winery, so the caller
+          can check this is the right wine);
+        - ``/v/9.0.0/wines/{wine_id}/tastes`` — taste structure (1-5 scales)
+          and the community's flavour keywords;
+        - ``/wine-styles/{id}`` — the style's name.
+
+        Returns None if the vintage itself cannot be read; every other part is
+        optional and simply missing when Vivino has nothing.
+        """
+        body = await self._get_json(
+            "/v/9.1.1/_vintages", params=[("full", 1), ("ids[]", vintage_id)]
+        )
+        vintage = None
+        if isinstance(body, dict):
+            vintage = body.get(str(vintage_id)) or next(
+                (v for v in body.values() if isinstance(v, dict) and str(v.get("id")) == str(vintage_id)),
+                None,
+            )
+        if not isinstance(vintage, dict):
+            return None
+        wine = vintage.get("wine") or {}
+        profile: dict[str, Any] = {
+            "vintage_id": vintage.get("id"),
+            "wine_id": wine.get("id"),
+            "name": wine.get("name") or vintage.get("name"),
+            "winery": (wine.get("winery") or {}).get("name", ""),
+        }
+
+        window = vintage.get("recommended_drinking_window") or {}
+        start, end = window.get("start_year"), window.get("end_year")
+        if isinstance(start, int) and isinstance(end, int) and 1900 < start <= end < 2200:
+            profile["drink_window"] = f"{start}-{end}"
+            profile["drink_by"] = str(end)
+            profile["drink_from"] = start
+
+        awards = []
+        for a in vintage.get("awards") or []:
+            if not isinstance(a, dict):
+                continue
+            comp = a.get("competition") or {}
+            awards.append({
+                k: v for k, v in {
+                    "competition": comp.get("name") if isinstance(comp, dict) else None,
+                    "medal": a.get("medal") or a.get("trophy"),
+                    "score": a.get("score"),
+                    "year": a.get("year") or a.get("edition"),
+                }.items() if v not in (None, "")
+            })
+        profile["vivino_awards"] = [a for a in awards if a]
+
+        critics = []
+        for r in vintage.get("wine_critic_reviews") or []:
+            if not isinstance(r, dict):
+                continue
+            critic = r.get("wine_critic") or r.get("critic") or {}
+            entry = {
+                k: v for k, v in {
+                    "critic": critic.get("name") if isinstance(critic, dict) else None,
+                    "score": r.get("score"),
+                    "score_max": critic.get("score_max") if isinstance(critic, dict) else None,
+                }.items() if v not in (None, "")
+            }
+            if entry.get("score"):
+                critics.append(entry)
+        profile["vivino_critics"] = critics
+
+        style_id = wine.get("style_id")
+        wine_id = wine.get("id")
+        style, tastes = await asyncio.gather(
+            self._get_json(f"/wine-styles/{style_id}", params={"language": language}) if style_id else _none(),
+            self._get_json(f"/v/9.0.0/wines/{wine_id}/tastes", params={"language": language}) if wine_id else _none(),
+        )
+        if isinstance(style, dict) and style.get("name"):
+            profile["vivino_style"] = _style_name(style, language)
+
+        tastes = (tastes or {}).get("tastes", tastes) if isinstance(tastes, dict) else None
+        if isinstance(tastes, dict):
+            structure = tastes.get("structure") or {}
+            taste = {
+                key: round(float(structure[key]), 1)
+                for key in ("intensity", "sweetness", "tannin", "acidity", "fizziness")
+                if isinstance(structure.get(key), (int, float))
+            }
+            if taste:
+                profile["vivino_taste"] = taste
+            flavors: list[str] = []
+            groups = sorted(
+                (g for g in tastes.get("flavor") or [] if isinstance(g, dict)),
+                key=lambda g: -((g.get("stats") or {}).get("count") or 0),
+            )
+            for group in groups[:4]:
+                keywords = sorted(
+                    (k for k in group.get("primary_keywords") or [] if isinstance(k, dict) and k.get("name")),
+                    key=lambda k: -(k.get("count") or 0),
+                )
+                for k in keywords[:3]:
+                    if k["name"] not in flavors:
+                        flavors.append(k["name"])
+            if flavors:
+                profile["vivino_flavors"] = flavors[:10]
+        return profile
+
+
+    async def get_wine_by_vintage_id(
+        self, vintage_id: int | str, vintage: int | None = None, language: str = "en"
+    ) -> dict[str, Any] | None:
+        """Look up a wine from a Vivino *vintage* id.
+
+        The account sync stores the vintage id in ``vivino_id`` (that is how
+        Vivino's cellar identifies a bottle), while the rest of the app
+        stores the wine id. The two id spaces overlap, so a vintage id passed
+        to ``get_wine_by_id`` silently returns an unrelated wine. This
+        resolves the vintage to its wine first, then looks that up.
+        """
+        session = async_get_clientsession(self._hass)
+        try:
+            async with session.get(
+                f"{VIVINO_MOBILE_API_URL}/vintages/{vintage_id}",
+                headers={"Accept": "application/json"},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+        except Exception as err:
+            _LOGGER.debug("Vivino vintage lookup failed for id %s: %s", vintage_id, err)
+            return None
+        wine_id = ((data or {}).get("wine") or {}).get("id")
+        if not wine_id:
+            return None
+        year = data.get("year")
+        if vintage is None and isinstance(year, int):
+            vintage = year
+        return await self.get_wine_by_id(wine_id, vintage, language)
 
     async def get_wine_by_id(
         self, vivino_id: int, vintage: int | None = None, language: str = "en"
@@ -885,7 +1122,10 @@ class VivinoClient:
                     # Extract price from explore API response
                     price = None
                     price_info = match.get("price") or {}
-                    if price_info:
+                    # A market Vivino has no prices for can answer in another
+                    # currency; an unconverted number would be mislabelled.
+                    price_code = (price_info.get("currency") or {}).get("code")
+                    if price_info and price_code in (None, currency):
                         amt = price_info.get("amount")
                         if amt and isinstance(amt, (int, float)) and amt >= 6.0:
                             price = round(float(amt), 2)

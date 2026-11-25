@@ -91,12 +91,10 @@ DEFAULT_AI_PROVIDER = "gemini"
 AI_PROVIDERS = ["gemini", "openai_compatible"]
 
 CONF_METADATA_LANGUAGE = "metadata_language"
-DEFAULT_METADATA_LANGUAGE = "en"
-SUPPORTED_METADATA_LANGUAGES = ["en", "fr", "de"]
+# Language and currency lists live in locales.py. Nothing stored (or "") means
+# "follow Home Assistant's own setting".
 
 CONF_METADATA_CURRENCY = "metadata_currency"
-DEFAULT_METADATA_CURRENCY = "USD"
-SUPPORTED_METADATA_CURRENCIES = ["USD", "EUR", "GBP", "CHF"]
 
 # When Vivino finds no confident match, offer AI as a fallback instead of
 # applying automatically. "always" skips asking and just uses AI every time.
@@ -128,7 +126,12 @@ DEFAULT_WINE_TYPE = "red"
 CONF_DISPOSITION_DISPLAY = "disposition_display"
 DISPOSITION_DISPLAY_LETTER = "letter"
 DISPOSITION_DISPLAY_DOT = "dot"
-DISPOSITION_DISPLAY_CHOICES = [DISPOSITION_DISPLAY_LETTER, DISPOSITION_DISPLAY_DOT]
+DISPOSITION_DISPLAY_OFF = "off"
+DISPOSITION_DISPLAY_CHOICES = [
+    DISPOSITION_DISPLAY_LETTER,
+    DISPOSITION_DISPLAY_DOT,
+    DISPOSITION_DISPLAY_OFF,
+]
 DEFAULT_DISPOSITION_DISPLAY = DISPOSITION_DISPLAY_LETTER
 
 # How many timestamped server backups to keep on disk. Older ones are pruned
@@ -144,6 +147,18 @@ SERVER_BACKUP_KEEP_CHOICES = [0, 5, 10, 20, 50]
 CONF_VIVINO_SESSION_COOKIE = "vivino_session_cookie"
 CONF_VIVINO_CELLAR_URL = "vivino_cellar_url"
 CONF_VIVINO_AUTO_SYNC = "vivino_auto_sync"
+
+# Alternative to the cookie: sign in like the Vivino mobile app (OAuth password
+# grant against api.vivino.com). Only the email is kept in the options; the
+# password is used once to obtain tokens and never stored. When an email is
+# set it takes precedence over the cookie + cellar URL.
+CONF_VIVINO_EMAIL = "vivino_email"
+CONF_VIVINO_PASSWORD = "vivino_password"
+
+# Bottle sources written by the account sync: their vivino_id is a Vivino
+# *vintage* id. Public search results are marked "vivino"/"vivino_search"/
+# "vivino_api" and carry wine ids, so a "vivino" prefix does not tell them apart.
+VINTAGE_ID_SOURCES = ("vivino_account", "vivino_cellar")
 
 # What the Vivino connection is allowed to do. "import" mirrors the Vivino
 # cellar into Cork Dork and never writes to the user's Vivino account;
@@ -178,4 +193,4 @@ DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20261115a"
+FRONTEND_VERSION = "20261125j"

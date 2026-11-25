@@ -36,11 +36,15 @@
   <div style="width: 100%; max-width: 1200px;">
     <wine-cellar-card></wine-cellar-card>
   </div>
+  <!-- One rack as its own tile (wine-cellar-section-card). -->
+  <div style="display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;">
+    <div style="width: 380px;"><wine-cellar-section-card id="section-preview"></wine-cellar-section-card></div>
+  </div>
 
   <script>
     // Mock Home Assistant hass object for preview
     const mockWines = [
-      { id: "1", barcode: "3760083360017", name: "Château Margaux 2015", winery: "Château Margaux", region: "Margaux, Bordeaux", country: "France", vintage: 2015, type: "red", grape_variety: "Cabernet Sauvignon", rating: 4.6, ratings_count: 4832, image_url: "https://images.vivino.com/thumbs/ApnxEJsiSaCuFadP5WMFKQ_375x500.jpg", price: 450, purchase_date: "2024-01-15", drink_by: "2040", notes: "Investment bottle", description: "A powerful, complex wine with layers of dark fruit, cedar, and tobacco. Incredibly refined tannins.", food_pairings: "Beef, Lamb, Game", alcohol: "13.5%", cabinet_id: "cabinet-1", row: 0, col: 0, depth: 0, zone: "", disposition: "H", added_at: "2024-01-15T10:00:00Z" },
+      { id: "1", barcode: "3760083360017", name: "Château Margaux 2015", winery: "Château Margaux", region: "Margaux, Bordeaux", country: "France", vintage: 2015, type: "red", grape_variety: "Cabernet Sauvignon", rating: 4.6, ratings_count: 4832, image_url: "https://images.vivino.com/thumbs/ApnxEJsiSaCuFadP5WMFKQ_375x500.jpg", price: 450, purchase_date: "2024-01-15", drink_by: "2040", notes: "Investment bottle", description: "A powerful, complex wine with layers of dark fruit, cedar, and tobacco. Incredibly refined tannins.", food_pairings: "Beef, Lamb, Game", alcohol: "13.5%", cabinet_id: "cabinet-1", row: 0, col: 0, depth: 0, zone: "", disposition: "H", added_at: "2024-01-15T10:00:00Z", vivino_style: "Bordeaux Margaux Red", vivino_taste: { intensity: 4.4, tannin: 3.9, sweetness: 1.6, acidity: 3.5 }, vivino_flavors: ["blackcurrant", "oak", "tobacco", "cedar", "plum", "leather"], vivino_awards: [{ medal: "Gold", competition: "Decanter World Wine Awards", year: 2019 }], vivino_critics: [{ critic: "James Suckling", score: "99", score_max: 100 }] },
       { id: "2", barcode: "", name: "Opus One 2018", winery: "Opus One", region: "Napa Valley", country: "USA", vintage: 2018, type: "red", grape_variety: "Bordeaux Blend", rating: 4.5, ratings_count: 3215, image_url: "https://images.vivino.com/thumbs/uPSbEkRKQJmmlsmtgBMpwQ_375x500.jpg", price: 380, purchase_date: "2024-02-10", drink_by: "2038", notes: "", description: "Rich and opulent with cassis, blackberry, and hints of violet. Silky texture.", food_pairings: "Beef, Lamb, Poultry", alcohol: "14.5%", cabinet_id: "cabinet-1", row: 0, col: 1, depth: 0, zone: "", disposition: "H", added_at: "2024-02-10T10:00:00Z" },
       { id: "3", barcode: "", name: "Cloudy Bay Sauvignon Blanc 2022", winery: "Cloudy Bay", region: "Marlborough", country: "New Zealand", vintage: 2022, type: "white", grape_variety: "Sauvignon Blanc", rating: 4.1, ratings_count: 8920, image_url: "https://images.vivino.com/thumbs/nJLfB4FiTk639gJwqDJMdw_375x500.jpg", price: 25, purchase_date: "2024-03-01", drink_by: "2026", notes: "", description: "Vibrant citrus and tropical notes with a crisp, refreshing finish.", food_pairings: "Shellfish, Salad, Goat Cheese", alcohol: "13.0%", cabinet_id: "cabinet-2", row: 0, col: 0, depth: 0, zone: "", disposition: "D", added_at: "2024-03-01T10:00:00Z" },
       { id: "3b", barcode: "", name: "Sancerre 2021", winery: "Pascal Jolivet", region: "Loire Valley", country: "France", vintage: 2021, type: "white", grape_variety: "Sauvignon Blanc", rating: 4.0, ratings_count: 2100, image_url: "", price: 28, purchase_date: "2024-03-10", drink_by: "2027", notes: "Behind Cloudy Bay", description: "Crisp and mineral with citrus and floral notes.", food_pairings: "Shellfish, Goat Cheese", alcohol: "13.0%", cabinet_id: "cabinet-2", row: 0, col: 0, depth: 1, zone: "", disposition: "D", added_at: "2024-03-10T10:00:00Z" },
@@ -72,6 +76,9 @@
       // reproduces the "can overfill a full bin" class of bug (see history
       // entry "Fix drag-and-drop into bulk bins/boxes bypassing capacity
       // check") without needing to hand-populate a bin to capacity yourself.
+      { id: "stag-1", barcode: "", name: "Staggered Test Red", winery: "Test Winery", region: "", country: "", vintage: 2020, type: "red", grape_variety: "", rating: 4.0, ratings_count: null, image_url: "", price: 20, purchase_date: "", drink_by: "", notes: "", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-5", row: 0, col: 1, depth: 0, zone: "", disposition: "D", added_at: "2026-01-01T10:00:00Z" },
+      { id: "stag-2", barcode: "", name: "Staggered Test White", winery: "Test Winery", region: "", country: "", vintage: 2021, type: "white", grape_variety: "", rating: 3.8, ratings_count: null, image_url: "", price: 20, purchase_date: "", drink_by: "", notes: "", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-5", row: 1, col: 0, depth: 0, zone: "", disposition: "H", added_at: "2026-01-01T10:00:00Z" },
+      { id: "stag-3", barcode: "", name: "Staggered Test Rosé", winery: "Test Winery", region: "", country: "", vintage: 2022, type: "rosé", grape_variety: "", rating: null, ratings_count: null, image_url: "", price: 20, purchase_date: "", drink_by: "", notes: "", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-5", row: 1, col: 1, depth: 0, zone: "", disposition: "D", added_at: "2026-01-01T10:00:00Z" },
       { id: "cap-1", barcode: "", name: "Capacity Test Wine 1", winery: "Test Winery", region: "", country: "", vintage: 2022, type: "red", grape_variety: "", rating: null, ratings_count: null, image_url: "", price: 20, purchase_date: "", drink_by: "", notes: "", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-4", row: null, col: null, depth: 0, zone: "storage-0", disposition: "D", added_at: "2026-01-01T10:00:00Z" },
       { id: "cap-2", barcode: "", name: "Capacity Test Wine 2", winery: "Test Winery", region: "", country: "", vintage: 2022, type: "white", grape_variety: "", rating: null, ratings_count: null, image_url: "", price: 20, purchase_date: "", drink_by: "", notes: "", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-4", row: null, col: null, depth: 1, zone: "storage-0", disposition: "H", added_at: "2026-01-01T10:00:00Z" },
       { id: "cap-3", barcode: "", name: "Capacity Test Wine 3", winery: "Test Winery", region: "", country: "", vintage: 2022, type: "rosé", grape_variety: "", rating: null, ratings_count: null, image_url: "", price: 20, purchase_date: "", drink_by: "", notes: "", description: "", food_pairings: "", alcohol: "", cabinet_id: "cabinet-4", row: null, col: null, depth: 2, zone: "storage-0", disposition: "D", added_at: "2026-01-01T10:00:00Z" },
@@ -86,6 +93,8 @@
         { row: 0, name: "Full Bin", type: "bulk", capacity: 3 },
         { row: 1, name: "Spare Bin", type: "bulk", capacity: 5 },
       ], order: 3 },
+      // Staggered (honeycomb) rack: rows alternate 3 and 2 slots.
+      { id: "cabinet-5", name: "Staggered Test", type: "grid", rows: 6, cols: 3, depth: 1, has_bottom_zone: false, bottom_zone_name: "", storage_rows: [], row_cols: [3, 2, 3, 2, 3, 2], order: 4 },
     ];
 
     let mockIdSeq = 1;
@@ -159,6 +168,12 @@
           case "wine_cellar/get_capabilities":
             return {
               has_gemini: true,
+              ha_language: "fr",
+              ha_currency: "EUR",
+              metadata_language: "fr",
+              metadata_currency: "EUR",
+              supported_languages: ["de", "en", "es", "fr", "it", "ja", "nl", "pt-BR", "zh-Hans"],
+              supported_currencies: ["CHF", "EUR", "GBP", "JPY", "SEK", "USD", "XOF"],
               dismissed_arrangements: mockSettings.dismissed_arrangements || [],
               chambering_room_sensor: "sensor.salon_temp",
               chambering_time_constant_minutes: 75,
@@ -416,6 +431,11 @@
       if (card) {
         card.setConfig({ type: "custom:wine-cellar-card", title: "Cork Dork" });
         card.hass = mockHass;
+      }
+      const section = document.getElementById("section-preview");
+      if (section) {
+        section.setConfig({ type: "custom:wine-cellar-section-card", section: "Section 1" });
+        section.hass = mockHass;
       }
     });
   </script>

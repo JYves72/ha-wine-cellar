@@ -8,6 +8,8 @@ export class WineSearchBar extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ type: String }) value = "";
   @property({ type: String }) filter = "all";
+  // Drinking status: "" (any), "D", "H" or "P".
+  @property({ type: String }) drinkFilter = "";
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: Boolean }) enableCider = false;
 
@@ -125,6 +127,19 @@ export class WineSearchBar extends LitElement {
         white-space: nowrap;
       }
 
+      .drink-chips {
+        margin-top: 6px;
+      }
+
+      .drink-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+
       .chip:hover {
         background: rgba(114, 47, 55, 0.08);
       }
@@ -146,7 +161,7 @@ export class WineSearchBar extends LitElement {
     const value = (e.target as HTMLInputElement).value;
     this.dispatchEvent(
       new CustomEvent("search-change", {
-        detail: { query: value, filter: this.filter },
+        detail: { query: value, filter: this.filter, drinkFilter: this.drinkFilter },
         bubbles: true,
         composed: true,
       })
@@ -158,7 +173,7 @@ export class WineSearchBar extends LitElement {
   private _clear() {
     this.dispatchEvent(
       new CustomEvent("search-change", {
-        detail: { query: "", filter: this.filter },
+        detail: { query: "", filter: this.filter, drinkFilter: this.drinkFilter },
         bubbles: true,
         composed: true,
       })
@@ -175,7 +190,20 @@ export class WineSearchBar extends LitElement {
     const input = this.shadowRoot?.querySelector("input") as HTMLInputElement;
     this.dispatchEvent(
       new CustomEvent("search-change", {
-        detail: { query: input?.value || "", filter },
+        detail: { query: input?.value || "", filter, drinkFilter: this.drinkFilter },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  // A second filter, independent of the type: tap again to clear.
+  private _onDrinkFilterChange(code: string) {
+    this.drinkFilter = this.drinkFilter === code ? "" : code;
+    const input = this.shadowRoot?.querySelector("input") as HTMLInputElement;
+    this.dispatchEvent(
+      new CustomEvent("search-change", {
+        detail: { query: input?.value || "", filter: this.filter, drinkFilter: this.drinkFilter },
         bubbles: true,
         composed: true,
       })
@@ -225,6 +253,22 @@ export class WineSearchBar extends LitElement {
                 @click=${() => this._onFilterChange(f.id)}
               >
                 ${f.label}
+              </button>
+            `
+          )}
+        </div>
+        <div class="filter-chips drink-chips">
+          ${[
+            { id: "D", key: "drinkNow", color: "#2e7d32" },
+            { id: "H", key: "hold", color: "#1565c0" },
+            { id: "P", key: "pastPeak", color: "#c62828" },
+          ].map(
+            (f) => html`
+              <button
+                class="chip ${this.drinkFilter === f.id ? "active" : ""}"
+                @click=${() => this._onDrinkFilterChange(f.id)}
+              >
+                <span class="drink-dot" style="background: ${f.color}"></span>${this._t(`ui.disposition.${f.key}`)}
               </button>
             `
           )}
