@@ -15,7 +15,7 @@
     "step": {
       "init": {
         "title": "Options de Cork Dork",
-        "description": "Pour synchroniser votre cave Vivino, collez l'URL de la page de votre cave ainsi que votre cookie de session Vivino (voir la documentation : docs/vivino-import.md). Le cookie est vérifié par rapport à votre cave lors de l'enregistrement.",
+        "description": "Pour synchroniser votre cave Vivino, connectez-vous avec l'e-mail et le mot de passe de votre compte Vivino (recommandé : la connexion se renouvelle ensuite toute seule), ou collez l'URL de la page de votre cave et un cookie de session Vivino (voir docs/vivino-import.md). Le mot de passe sert uniquement à se connecter et n'est jamais enregistré.",
         "data": {
           "ai_provider": "Fournisseur IA",
           "gemini_api_key": "Clé API Google Gemini (utilisée si le fournisseur est Google Gemini)",
@@ -23,6 +23,8 @@
           "ai_base_url": "URL de base de l'IA (utilisée si le fournisseur est compatible OpenAI)",
           "ai_api_key": "Clé API de l'IA (jeton Bearer)",
           "ai_model": "Nom du modèle IA",
+          "vivino_email": "E-mail Vivino",
+          "vivino_password": "Mot de passe Vivino (seulement pour se connecter ou se reconnecter)",
           "vivino_cellar_url": "URL de la page de la cave Vivino",
           "vivino_session_cookie": "Cookie de session Vivino (depuis votre navigateur connecté)",
           "vivino_mode": "Mode Vivino",
@@ -36,6 +38,8 @@
           "ai_base_url": "Format : https://host ou https://host/votre-chemin — avec ou sans /v1/chat/completions final, les deux fonctionnent",
           "ai_api_key": "Envoyée dans l'en-tête : Authorization: Bearer '{key}'",
           "ai_model": "Format : le nom exact du modèle attendu par votre fournisseur, par ex. gemini-2.5-flash",
+          "vivino_email": "Connexion comme dans l'application Vivino. Laissez vide pour utiliser plutôt le cookie de session ci-dessous. Si vous vous connectez à Vivino avec Google ou Apple, définissez d'abord un mot de passe via « Mot de passe oublié » dans l'application Vivino.",
+          "vivino_password": "Utilisé une seule fois pour ouvrir une session qui se renouvelle toute seule ; jamais enregistré. Laissez vide quand vous modifiez d'autres options.",
           "vivino_cellar_url": "Ouvrez votre cave dans un navigateur et copiez l'adresse depuis la barre d'adresse. Elle se termine par /cellars/ suivi de votre numéro de cave.",
           "vivino_mode": "Import reproduit votre cave Vivino dans Cork Dork sans jamais écrire dans votre compte Vivino. Synchroniser renvoie aussi vers Vivino les bouteilles ajoutées ou bues dans Cork Dork — en mode Import, gérez vos quantités directement dans Vivino.",
           "chambering_room_sensor": "La pièce où les bouteilles sont amenées à température de service. Sert à estimer combien de temps avant le service une bouteille doit être sortie de sa zone de stockage.",
@@ -50,7 +54,9 @@
       "ai_provider_cannot_connect": "Impossible de se connecter à l'URL de base de l'IA. Vérifiez l'adresse et réessayez.",
       "vivino_invalid_auth": "Vivino a rejeté le cookie de session — il est peut-être expiré ou incorrect. Collez-en un nouveau depuis votre navigateur connecté.",
       "vivino_cannot_connect": "Impossible de joindre Vivino — vérifiez votre connexion réseau et réessayez.",
-      "vivino_incomplete": "Renseignez à la fois l'URL de la cave et le cookie de session, ou laissez les deux vides pour désactiver la connexion."
+      "vivino_incomplete": "Renseignez à la fois l'URL de la cave et le cookie de session, ou laissez les deux vides pour désactiver la connexion.",
+      "vivino_invalid_login": "Vivino a refusé l'e-mail ou le mot de passe.",
+      "vivino_password_required": "Saisissez votre mot de passe Vivino pour vous connecter."
     }
   },
   "selector": {
