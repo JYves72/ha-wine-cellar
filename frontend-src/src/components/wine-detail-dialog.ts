@@ -57,6 +57,7 @@ export class WineDetailDialog extends LitElement {
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: Boolean }) enableCider = false;
+  @property({ type: Boolean }) showVivinoAwards = false;
   @property({ type: String }) currency = "USD";
   @property({ type: String }) chamberingRoomSensor = "";
   @property({ type: Number }) chamberingTimeConstantMinutes = 75;
@@ -1502,6 +1503,15 @@ export class WineDetailDialog extends LitElement {
     `;
   }
 
+  // Medal names come from Vivino in English; unknown ones are shown as is.
+  private _awardLabel(name?: string) {
+    if (!name) return "";
+    const slug = name.toLowerCase().replace(/œ/g, "oe").replace(/ /g, "_");
+    const key = `ui.wineDetail.vivinoProfile.medals.${slug}`;
+    const label = this._t(key);
+    return label === key ? name : label;
+  }
+
   // What Vivino's app shows on a wine's page: style, taste structure,
   // main flavours, awards and critic scores (filled by vivino_profile.py).
   private _renderVivinoProfile(wine: Wine) {
@@ -1515,7 +1525,7 @@ export class WineDetailDialog extends LitElement {
     ];
     const bars = scales.filter(([k]) => typeof taste[k] === "number");
     const flavors = wine.vivino_flavors || [];
-    const awards = wine.vivino_awards || [];
+    const awards = this.showVivinoAwards ? wine.vivino_awards || [] : [];
     const critics = wine.vivino_critics || [];
     if (!wine.vivino_style && !bars.length && !flavors.length && !awards.length && !critics.length) {
       return nothing;
@@ -1538,7 +1548,7 @@ export class WineDetailDialog extends LitElement {
           : nothing}
         ${awards.length
           ? html`<div class="vp-list">${awards.map(
-              (a) => html`<div>🏅 ${[a.medal, a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`
+              (a) => html`<div>🏅 ${[this._awardLabel(a.medal), this._awardLabel(a.trophy), a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`
             )}</div>`
           : nothing}
         ${critics.length

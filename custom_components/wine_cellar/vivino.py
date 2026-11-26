@@ -196,6 +196,53 @@ def _search_significant_words(text: str) -> set[str]:
     return {w for w in _fold(text).split() if w not in _GENERIC_SEARCH_WORDS and len(w) > 2}
 
 
+# api.vivino.com/competitions: an award only carries the competition's id.
+_COMPETITIONS = {
+    1: "Decanter World Wine Awards",
+    2: "International Wine Challenge",
+    3: "San Francisco Chronicle Wine Competition",
+    4: "International Wine & Spirit Competition",
+    5: "Le Guide Hachette des Vins",
+    6: "Mundus Vini",
+    7: "Decanter Asia Wine Awards",
+    8: "Chardonnay du Monde",
+    9: "Concours Général Agricole",
+    10: "Concours Mondial de Bruxelles",
+    11: "Hong Kong International Wine & Spirit Competition",
+    12: "Vinalies Internationales",
+    13: "Six Nations Wine Challenge",
+    14: "Concurso Internacional de Vinos Akatavino Sumilleres de España",
+    15: "Dan Berger's International Wine and Cider Competitions",
+    16: "50 Great Greek Wines",
+    17: "Concours International de Lyon",
+}
+
+
+def _parse_awards(raw: Any) -> list[dict[str, str]]:
+    """Competition awards of a vintage, newest first."""
+    awards = []
+    for a in raw or []:
+        if not isinstance(a, dict) or a.get("Visible") is False:
+            continue
+        entry = {
+            key: _fix_mojibake(str(value))
+            for key, value in (
+                ("medal", a.get("Medal")),
+                ("trophy", a.get("Trophy")),
+                ("score", a.get("Score")),
+                ("year", a.get("Edition")),
+            )
+            if value not in (None, "")
+        }
+        if not entry.get("medal") and not entry.get("trophy"):
+            continue
+        competition = _COMPETITIONS.get(a.get("CompetitionID"))
+        if competition:
+            entry["competition"] = competition
+        awards.append(entry)
+    return sorted(awards, key=lambda e: e.get("year", ""), reverse=True)
+
+
 def _explore_result_matches_query(query: str, result: dict[str, Any]) -> bool:
     """Guard against the explore API silently ignoring `q`.
 
@@ -291,7 +338,7 @@ _STYLE_TYPE_WORDS = {
     "de": ("Rot", "Weiß", "Schaumwein", "Rosé", "Dessertwein", "Likörwein"),
     "es": ("Tinto", "Blanco", "Espumoso", "Rosado", "Dulce", "Generoso"),
     "fi": ("Punaviini", "Valkoviini", "Kuohuviini", "Roseeviini", "Jälkiruokaviini", "Väkevä viini"),
-    "fr": ("Rouge", "Blanc", "Effervescent", "Rosé", "Sucré", "Muté"),
+    "fr": ("Rouge", "Blanc", "Mousseux", "Rosé", "Sucré", "Muté"),
     "it": ("Rosso", "Bianco", "Spumante", "Rosato", "Dolce", "Liquoroso"),
     "nb": ("Rød", "Hvit", "Musserende", "Rosé", "Dessert", "Sterkvin"),
     "nl": ("Rood", "Wit", "Mousserend", "Rosé", "Dessert", "Versterkt"),
@@ -360,6 +407,16 @@ async def _none() -> None:
     return None
 
 
+def _rating_stats(vintage_stats: Any, wine_stats: Any) -> dict[str, Any]:
+    """The vintage's own statistics when Vivino rates it, else the wine's.
+
+    A vintage with too few ratings answers with an average of 0.
+    """
+    if isinstance(vintage_stats, dict) and (vintage_stats.get("ratings_average") or 0) > 0:
+        return vintage_stats
+    return wine_stats or {}
+
+
 class VivinoClient:
     """Client for looking up wine data from multiple sources."""
 
@@ -420,7 +477,11 @@ class VivinoClient:
             return None
 
     async def find_vintage_id(self, wine_id: int | str, year: int | str | None) -> int | None:
-        """The vintage id of a wine for a given year (or its only/newest one)."""
+        """The vintage id of a wine for a given year.
+
+        Without a year, the wine's only vintage or its non-vintage entry
+        (listed with an empty year, e.g. most Champagnes).
+        """
         data = await self._get_json(f"/wines/{wine_id}")
         vintages = [v for v in ((data or {}).get("vintages") or []) if isinstance(v, dict)]
         if not vintages:
@@ -430,8 +491,14 @@ class VivinoClient:
                 if str(v.get("year")) == str(year):
                     return v.get("id")
             return None
-        # Non-vintage or unknown year: a single vintage is unambiguous.
-        return vintages[0].get("id") if len(vintages) == 1 else None
+        # Non-vintage or unknown year: a single vintage is unambiguous;
+        # otherwise only the non-vintage entry is not a guess.
+        if len(vintages) == 1:
+            return vintages[0].get("id")
+        return next(
+            (v.get("id") for v in vintages if str(v.get("year") or "0") in ("0", "N.V.")),
+            None,
+        )
 
     async def get_vivino_profile(self, vintage_id: int | str, language: str = "en") -> dict[str, Any] | None:
         """What Vivino's app shows about a vintage beyond the basics.
@@ -473,20 +540,7 @@ class VivinoClient:
             profile["drink_by"] = str(end)
             profile["drink_from"] = start
 
-        awards = []
-        for a in vintage.get("awards") or []:
-            if not isinstance(a, dict):
-                continue
-            comp = a.get("competition") or {}
-            awards.append({
-                k: v for k, v in {
-                    "competition": comp.get("name") if isinstance(comp, dict) else None,
-                    "medal": a.get("medal") or a.get("trophy"),
-                    "score": a.get("score"),
-                    "year": a.get("year") or a.get("edition"),
-                }.items() if v not in (None, "")
-            })
-        profile["vivino_awards"] = [a for a in awards if a]
+        profile["vivino_awards"] = _parse_awards(vintage.get("awards"))
 
         critics = []
         for r in vintage.get("wine_critic_reviews") or []:
@@ -606,7 +660,12 @@ class VivinoClient:
         region = region_obj.get("name", "")
         country = _country_name(region_obj.get("country") or "", language)
         wine_type = _map_wine_type(wine_data.get("type_id"))
-        stats = wine_data.get("statistics") or {}
+        year_stats = next(
+            (v.get("statistics") for v in wine_data.get("vintages") or []
+             if vintage and str(v.get("year")) == str(vintage)),
+            None,
+        )
+        stats = _rating_stats(year_stats, wine_data.get("statistics"))
         rating = stats.get("ratings_average")
         if rating and isinstance(rating, (int, float)) and rating > 0:
             rating = round(float(rating), 1)
@@ -614,8 +673,8 @@ class VivinoClient:
             rating = None
 
         # Find the entry for the wine's actual vintage year, if given —
-        # the wine-level id/statistics above are aggregated across every
-        # vintage, but image/description/alcohol/grapes are per-vintage.
+        # the wine-level id above covers every vintage, but
+        # image/description/alcohol/grapes are per-vintage.
         vintage_id = None
         if vintage:
             for v in wine_data.get("vintages") or []:
@@ -1139,7 +1198,7 @@ class VivinoClient:
                         )
 
                     # Extract ratings count
-                    stats = wine.get("statistics") or {}
+                    stats = _rating_stats(vintage.get("statistics"), wine.get("statistics"))
                     rating = stats.get("ratings_average")
                     if rating and isinstance(rating, (int, float)) and rating > 0:
                         rating = round(float(rating), 1)

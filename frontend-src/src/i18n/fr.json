@@ -498,7 +498,8 @@
         "acidic": "Acide",
         "gentle": "Peu pétillant",
         "fizzy": "Pétillant",
-        "critic": "Critique"
+        "critic": "Critique",
+        "medals": {"gold": "Or", "double_gold": "Double or", "silver": "Argent", "bronze": "Bronze", "commended": "Mention", "excellent": "Excellent", "remarkable": "Remarquable", "exceptional": "Exceptionnel", "coup_de_coeur": "Coup de cœur"}
       },
       "backLabelSuffix": " (étiquette arrière)",
       "backLabelBadge": "Étiquette arrière",
@@ -696,6 +697,7 @@
       "keepMyPhoto": "Toujours garder ma photo quand Vivino en propose une autre",
       "enableWhisky": "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
       "enableCider": "Suivre les bouteilles de cidre (proposer \"Cidre\" comme type)",
+      "showVivinoAwards": "Afficher les médailles de concours dans le profil Vivino",
       "defaultWineTypeLabel": "Type de vin par défaut",
       "dispositionDisplayLabel": "Affichage à boire/à garder/sur le déclin",
       "dispositionDisplayLetter": "Pastille avec lettre",
@@ -815,6 +817,7 @@
     "changeAiFallbackFailed": "Échec du changement du paramètre de secours IA",
     "changeEnableWhiskyFailed": "Échec du changement du paramètre whisky",
     "changeEnableCiderFailed": "Échec du changement du paramètre cidre",
+    "changeShowVivinoAwardsFailed": "Échec du changement du paramètre des médailles",
     "changeDispositionDisplayFailed": "Échec du changement d'affichage de la pastille",
     "changeDefaultWineTypeFailed": "Échec du changement du type de vin par défaut",
     "vivinoRefreshing": "Rafraîchissement de tous les vins depuis Vivino...",

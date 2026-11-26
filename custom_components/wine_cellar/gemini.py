@@ -22,6 +22,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import NON_WINE_TYPES, WINE_TYPES
+from .disposition import clamp_peak_window
 from .locales import LANGUAGE_NAMES
 
 _LOGGER = logging.getLogger(__name__)
@@ -848,7 +849,7 @@ Rules:
 - "disposition": "D" = Drink Now, "H" = Hold, "P" = Past Peak. This MUST be based ONLY on the drink_window dates below and the current year {current_year}: if today is within or before the window, answer "D" or "H" (whichever fits the window start); if after the window, answer "P".
 - "drink_by": the LAST year of the drinking window (the year after which the wine will likely be in decline). This MUST be a 4-digit year.
 - "drink_window": optimal drinking window as "YYYY-YYYY" range (earliest to latest year the wine should be consumed). This is the ENTIRE period when the wine is suitable to drink. This MUST be "YYYY-YYYY" format.
-- "peak_window": (NEW) the specific 1-2 year window when the wine is at its BEST (apex of maturity). Format "YYYY-YYYY" or "YYYY" for a single year. For most young wines, this is 1 year after vintage. For age-worthy wines, it peaks 2-5 years in. **CRITICAL: peak_window MUST ALWAYS be entirely within drink_window — the peak years cannot be before, after, or outside the drinking period.**
+- "peak_window": the period when the wine is at its BEST. It starts the year the wine reaches its apex and ALWAYS ends on the LAST year of drink_window. Format "YYYY-YYYY", or "YYYY" when it starts in that last year. Young wines usually start 1 year after vintage, age-worthy wines 2-5 years in or later. **CRITICAL: peak_window is inside drink_window and ends when drink_window ends.**
 - IMPORTANT: drink_window MUST be internally consistent across calls for the same wine (same vintage/type/price/region).
 - **PRIORITY:** Base the window on YOUR KNOWLEDGE of this specific wine (cuvée, producer, appellation, vintage) and of what critics and wine communities such as Vivino say about its aging potential — not on the generic guidelines below. This applies to any wine you know, not only classics: a producer's regional or village wine often ages longer than the generic rules suggest. Give a realistic window; do not shorten it out of caution.
 - Use these aging guidelines ONLY as a fallback when you know nothing specific about the wine (unknown or generic wines):
@@ -861,7 +862,7 @@ Rules:
   - Sparkling/Champagne NV: drink 2-3 years, peak immediately. "D".
   - Vintage Champagne: drink 5-10 years, peak ~6 years in. "H" or "D".
   - Dessert wines (Sauternes, Port): drink 10-20+ years, peak ~10 years in. "H".
-  - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}", disposition "D".
+  - NV (non-vintage) wines: assume current year, drink_window "{current_year}-{next_year}", peak_window "{current_year}-{next_year}", disposition "D".
 - The stored drink_by date, if any, is only a prior (possibly generic) assessment: replace it whenever your knowledge of this wine gives a different, better-founded window.
 {storage_rule}- CRITICAL: Your answer must be stable: analyzing the same wine again must give the same drink_window and peak_window. Do not vary them based on mood or context; derive them from what you know about the wine, falling back on vintage, type, price tier and region.
 - CRITICAL: If the wine is already past its intended drinking window (current year {current_year} is AFTER the drink_by year you would normally assign), the drink_window MUST end in a year BEFORE {current_year}, and disposition MUST be "P" (Past Peak). Do not backdate the window to a future year just because it seems safer to drink it now — if the vintage has already aged past its prime, show that honestly.
@@ -879,10 +880,10 @@ Rules:
 - "serving_temp": the ideal serving temperature range in Celsius for this wine's type and style (e.g. "16-18°C" for a full-bodied red, "8-10°C" for a light white, "6-8°C" for sparkling, "10-12°C" for dessert/fortified) — always give a range, this is standard sommelier knowledge independent of the specific bottle.
 
 Examples (current year {current_year}):
-- 2023 Saint-Joseph Syrah (quality red): drink_window="2025-2030", peak_window="2027-2028", disposition="H" (Hold—peak is in the future within the window)
-- 2015 Bordeaux Pauillac (premium): drink_window="2018-2032", peak_window="2022-2026", disposition="D" (Drink Now—peak is happening now, within the window)
-- 2000 Bordeaux (aged, past peak): drink_window="2008-2020", peak_window="2010-2015", disposition="P" (Past Peak—{current_year} is after window; peak WAS during 2010-2015, fully contained in window)
-- 2024 Sauvignon Blanc (everyday white): drink_window="{{current_year}}-{{current_year + 1}}", peak_window="{{current_year}}", disposition="D" (Drink Now—young white, peak is now)""" + (
+- 2023 Saint-Joseph Syrah (quality red): drink_window="2025-2030", peak_window="2027-2030", disposition="H" (Hold—peak is in the future within the window)
+- 2015 Bordeaux Pauillac (premium): drink_window="2018-2032", peak_window="2022-2032", disposition="D" (Drink Now—peak is happening now, within the window)
+- 2000 Bordeaux (aged, past peak): drink_window="2008-2020", peak_window="2010-2020", disposition="P" (Past Peak—{current_year} is after window; peak WAS from 2010 to the end of the window)
+- 2024 Sauvignon Blanc (everyday white): drink_window="{{current_year}}-{{current_year + 1}}", peak_window="{{current_year}}-{{current_year + 1}}", disposition="D" (Drink Now—young white, peak is now)""" + (
             "\n\nA photo of the bottle/label is attached"
             + (" (front, then back)" if back_photo else " (front label)")
             + ". If you don't recognize this specific wine from general knowledge "
@@ -932,7 +933,10 @@ Examples (current year {current_year}):
             # answer null as often as "" — str(None) would store "None".
             "drink_by": str(result.get("drink_by") or "").strip(),
             "drink_window": str(result.get("drink_window") or "").strip(),
-            "peak_window": str(result.get("peak_window") or "").strip(),
+            "peak_window": clamp_peak_window(
+                str(result.get("peak_window") or "").strip(),
+                str(result.get("drink_window") or "").strip(),
+            ),
             "description": str(result.get("description") or "").strip(),
             "food_pairings": str(result.get("food_pairings") or "").strip(),
             "estimated_price": est_price,

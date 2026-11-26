@@ -95,6 +95,7 @@ export class WineCellarCard extends LitElement {
   @state() private _vivinoKeepPhoto = false;
   @state() private _enableWhisky = false;
   @state() private _enableCider = false;
+  @state() private _showVivinoAwards = false;
   @state() private _defaultWineType: WineType = "red";
   @state() private _dispositionDisplay: "letter" | "dot" | "off" = "letter";
   // Main view filter on the drinking status: "" (any), "D", "H" or "P".
@@ -695,6 +696,7 @@ export class WineCellarCard extends LitElement {
       this._vivinoKeepPhoto = capResult?.vivino_keep_photo || false;
       this._enableWhisky = capResult?.enable_whisky || false;
       this._enableCider = capResult?.enable_cider || false;
+      this._showVivinoAwards = capResult?.show_vivino_awards || false;
       this._defaultWineType = capResult?.default_wine_type || "red";
       this._dispositionDisplay = capResult?.disposition_display || "letter";
       this._chamberingRoomSensor = capResult?.chambering_room_sensor || "";
@@ -2291,6 +2293,21 @@ export class WineCellarCard extends LitElement {
     }
   }
 
+  private async _setShowVivinoAwards(value: boolean) {
+    if (value === this._showVivinoAwards) return;
+    const previous = this._showVivinoAwards;
+    this._showVivinoAwards = value;
+    try {
+      await this.hass.callWS({
+        type: "wine_cellar/update_settings",
+        updates: { show_vivino_awards: value },
+      });
+    } catch (err) {
+      this._showVivinoAwards = previous;
+      this._showToast(this._t("toast.changeShowVivinoAwardsFailed"));
+    }
+  }
+
   private async _setDefaultWineType(value: WineType) {
     if (value === this._defaultWineType) return;
     const previous = this._defaultWineType;
@@ -3275,6 +3292,7 @@ export class WineCellarCard extends LitElement {
           .open=${this._showDetail}
           .hasGemini=${this._hasGemini}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .showVivinoAwards=${this._showVivinoAwards}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
@@ -3355,6 +3373,7 @@ export class WineCellarCard extends LitElement {
           .wines=${this._wines}
           .cabinets=${this._cabinets}
           .hasGemini=${this._hasGemini}
+          .showVivinoAwards=${this._showVivinoAwards}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
@@ -3402,6 +3421,7 @@ export class WineCellarCard extends LitElement {
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .vivinoKeepPhoto=${this._vivinoKeepPhoto}
+          .showVivinoAwards=${this._showVivinoAwards}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
@@ -3417,6 +3437,7 @@ export class WineCellarCard extends LitElement {
           @set-vivino-keep-photo=${(e: CustomEvent) => this._setVivinoKeepPhoto(e.detail.value)}
           @set-enable-whisky=${(e: CustomEvent) => this._setEnableWhisky(e.detail.value)}
           @set-enable-cider=${(e: CustomEvent) => this._setEnableCider(e.detail.value)}
+          @set-show-vivino-awards=${(e: CustomEvent) => this._setShowVivinoAwards(e.detail.value)}
           @set-default-wine-type=${(e: CustomEvent) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e: CustomEvent) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e: CustomEvent) => this._setMetadataLanguage(e.detail.value)}

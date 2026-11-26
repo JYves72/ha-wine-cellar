@@ -12,6 +12,7 @@ export class VivinoAiSettingsDialog extends LitElement {
   @property({ type: Boolean }) vivinoKeepPhoto = false;
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: Boolean }) enableCider = false;
+  @property({ type: Boolean }) showVivinoAwards = false;
   @property({ type: String }) defaultWineType: WineType = "red";
   @property({ type: String }) dispositionDisplay: "letter" | "dot" | "off" = "letter";
   // The stored choices: "" follows Home Assistant.
@@ -226,6 +227,21 @@ export class VivinoAiSettingsDialog extends LitElement {
                 @change=${(e: Event) => this._setEnableCider((e.target as HTMLInputElement).checked)}
               />
               ${this._t("ui.vivinoAiSettings.enableCider")}
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.showVivinoAwards}
+                @change=${(e: Event) => this.dispatchEvent(new CustomEvent("set-show-vivino-awards", {
+                  detail: { value: (e.target as HTMLInputElement).checked },
+                  bubbles: true,
+                  composed: true,
+                }))}
+              />
+              ${this._t("ui.vivinoAiSettings.showVivinoAwards")}
             </label>
           </div>
 

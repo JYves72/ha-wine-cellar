@@ -1244,7 +1244,18 @@ var ui$1 = {
 			acidic: "Acidic",
 			gentle: "Gentle",
 			fizzy: "Fizzy",
-			critic: "Critic"
+			critic: "Critic",
+			medals: {
+				gold: "Gold",
+				double_gold: "Double gold",
+				silver: "Silver",
+				bronze: "Bronze",
+				commended: "Commended",
+				excellent: "Excellent",
+				remarkable: "Remarkable",
+				exceptional: "Exceptional",
+				coup_de_coeur: "Coup de cœur"
+			}
 		},
 		backLabelSuffix: " (back label)",
 		backLabelBadge: "Back label",
@@ -1442,6 +1453,7 @@ var ui$1 = {
 		keepMyPhoto: "Always keep my photo when Vivino offers a different one",
 		enableWhisky: "Track whisky bottles (offer \"Whisky\" as a type)",
 		enableCider: "Track cider bottles (offer \"Cider\" as a type)",
+		showVivinoAwards: "Show competition medals in the Vivino profile",
 		defaultWineTypeLabel: "Default wine type",
 		dispositionDisplayLabel: "Drink Now / Hold / Past Peak display",
 		dispositionDisplayLetter: "Badge with letter",
@@ -1561,6 +1573,7 @@ var toast$1 = {
 	changeAiFallbackFailed: "Failed to change AI fallback setting",
 	changeEnableWhiskyFailed: "Failed to change the whisky setting",
 	changeEnableCiderFailed: "Failed to change the cider setting",
+	changeShowVivinoAwardsFailed: "Failed to change the medals setting",
 	changeDispositionDisplayFailed: "Failed to change the disposition badge setting",
 	changeDefaultWineTypeFailed: "Failed to change the default wine type",
 	vivinoRefreshing: "Refreshing all wines from Vivino...",
@@ -2111,7 +2124,18 @@ var ui = {
 			acidic: "Acide",
 			gentle: "Peu pétillant",
 			fizzy: "Pétillant",
-			critic: "Critique"
+			critic: "Critique",
+			medals: {
+				gold: "Or",
+				double_gold: "Double or",
+				silver: "Argent",
+				bronze: "Bronze",
+				commended: "Mention",
+				excellent: "Excellent",
+				remarkable: "Remarquable",
+				exceptional: "Exceptionnel",
+				coup_de_coeur: "Coup de cœur"
+			}
 		},
 		backLabelSuffix: " (étiquette arrière)",
 		backLabelBadge: "Étiquette arrière",
@@ -2309,6 +2333,7 @@ var ui = {
 		keepMyPhoto: "Toujours garder ma photo quand Vivino en propose une autre",
 		enableWhisky: "Suivre les bouteilles de whisky (proposer \"Whisky\" comme type)",
 		enableCider: "Suivre les bouteilles de cidre (proposer \"Cidre\" comme type)",
+		showVivinoAwards: "Afficher les médailles de concours dans le profil Vivino",
 		defaultWineTypeLabel: "Type de vin par défaut",
 		dispositionDisplayLabel: "Affichage à boire/à garder/sur le déclin",
 		dispositionDisplayLetter: "Pastille avec lettre",
@@ -2428,6 +2453,7 @@ var toast = {
 	changeAiFallbackFailed: "Échec du changement du paramètre de secours IA",
 	changeEnableWhiskyFailed: "Échec du changement du paramètre whisky",
 	changeEnableCiderFailed: "Échec du changement du paramètre cidre",
+	changeShowVivinoAwardsFailed: "Échec du changement du paramètre des médailles",
 	changeDispositionDisplayFailed: "Échec du changement d'affichage de la pastille",
 	changeDefaultWineTypeFailed: "Échec du changement du type de vin par défaut",
 	vivinoRefreshing: "Rafraîchissement de tous les vins depuis Vivino...",
@@ -6344,6 +6370,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         this.aiFallbackAlways = false;
         this.enableWhisky = false;
         this.enableCider = false;
+        this.showVivinoAwards = false;
         this.currency = "USD";
         this.chamberingRoomSensor = "";
         this.chamberingTimeConstantMinutes = 75;
@@ -7206,6 +7233,15 @@ let WineDetailDialog = class WineDetailDialog extends i {
       </div>
     `;
     }
+    // Medal names come from Vivino in English; unknown ones are shown as is.
+    _awardLabel(name) {
+        if (!name)
+            return "";
+        const slug = name.toLowerCase().replace(/œ/g, "oe").replace(/ /g, "_");
+        const key = `ui.wineDetail.vivinoProfile.medals.${slug}`;
+        const label = this._t(key);
+        return label === key ? name : label;
+    }
     // What Vivino's app shows on a wine's page: style, taste structure,
     // main flavours, awards and critic scores (filled by vivino_profile.py).
     _renderVivinoProfile(wine) {
@@ -7219,7 +7255,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
         ];
         const bars = scales.filter(([k]) => typeof taste[k] === "number");
         const flavors = wine.vivino_flavors || [];
-        const awards = wine.vivino_awards || [];
+        const awards = this.showVivinoAwards ? wine.vivino_awards || [] : [];
         const critics = wine.vivino_critics || [];
         if (!wine.vivino_style && !bars.length && !flavors.length && !awards.length && !critics.length) {
             return A;
@@ -7239,7 +7275,7 @@ let WineDetailDialog = class WineDetailDialog extends i {
             ? b `<div class="vp-chips">${flavors.map((f) => b `<span class="vp-chip">${f}</span>`)}</div>`
             : A}
         ${awards.length
-            ? b `<div class="vp-list">${awards.map((a) => b `<div>🏅 ${[a.medal, a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`)}</div>`
+            ? b `<div class="vp-list">${awards.map((a) => b `<div>🏅 ${[this._awardLabel(a.medal), this._awardLabel(a.trophy), a.score, a.competition, a.year].filter(Boolean).join(" · ")}</div>`)}</div>`
             : A}
         ${critics.length
             ? b `<div class="vp-list">${critics.map((c) => b `<div>✒️ ${c.critic || this._t("ui.wineDetail.vivinoProfile.critic")}: <b>${c.score}</b>${c.score_max ? `/${c.score_max}` : ""}</div>`)}</div>`
@@ -8508,6 +8544,9 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], WineDetailDialog.prototype, "enableCider", void 0);
+__decorate([
+    n({ type: Boolean })
+], WineDetailDialog.prototype, "showVivinoAwards", void 0);
 __decorate([
     n({ type: String })
 ], WineDetailDialog.prototype, "currency", void 0);
@@ -13819,6 +13858,7 @@ let InventoryDialog = class InventoryDialog extends i {
         this.hasGemini = false;
         this.enableWhisky = false;
         this.enableCider = false;
+        this.showVivinoAwards = false;
         this.aiFallbackAlways = false;
         this.currency = "USD";
         this.metadataLanguage = "en";
@@ -15535,6 +15575,7 @@ let InventoryDialog = class InventoryDialog extends i {
         .currency=${this.currency}
         .enableWhisky=${this.enableWhisky}
         .enableCider=${this.enableCider}
+        .showVivinoAwards=${this.showVivinoAwards}
         .aiFallbackAlways=${this.aiFallbackAlways}
         .chamberingRoomSensor=${this.chamberingRoomSensor}
         .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}
@@ -16254,6 +16295,9 @@ __decorate([
 ], InventoryDialog.prototype, "enableCider", void 0);
 __decorate([
     n({ type: Boolean })
+], InventoryDialog.prototype, "showVivinoAwards", void 0);
+__decorate([
+    n({ type: Boolean })
 ], InventoryDialog.prototype, "aiFallbackAlways", void 0);
 __decorate([
     n({ type: String })
@@ -16402,6 +16446,7 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
         this.vivinoKeepPhoto = false;
         this.enableWhisky = false;
         this.enableCider = false;
+        this.showVivinoAwards = false;
         this.defaultWineType = "red";
         this.dispositionDisplay = "letter";
         // The stored choices: "" follows Home Assistant.
@@ -16499,6 +16544,21 @@ let VivinoAiSettingsDialog = class VivinoAiSettingsDialog extends i {
                 @change=${(e) => this._setEnableCider(e.target.checked)}
               />
               ${this._t("ui.vivinoAiSettings.enableCider")}
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <label class="fallback-label">
+              <input
+                type="checkbox"
+                .checked=${this.showVivinoAwards}
+                @change=${(e) => this.dispatchEvent(new CustomEvent("set-show-vivino-awards", {
+            detail: { value: e.target.checked },
+            bubbles: true,
+            composed: true,
+        }))}
+              />
+              ${this._t("ui.vivinoAiSettings.showVivinoAwards")}
             </label>
           </div>
 
@@ -16722,6 +16782,9 @@ __decorate([
     n({ type: Boolean })
 ], VivinoAiSettingsDialog.prototype, "enableCider", void 0);
 __decorate([
+    n({ type: Boolean })
+], VivinoAiSettingsDialog.prototype, "showVivinoAwards", void 0);
+__decorate([
     n({ type: String })
 ], VivinoAiSettingsDialog.prototype, "defaultWineType", void 0);
 __decorate([
@@ -16769,6 +16832,7 @@ let WineCellarSectionCard = class WineCellarSectionCard extends i {
         this._currency = "USD";
         this._enableWhisky = false;
         this._enableCider = false;
+        this._showVivinoAwards = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
         this._chamberingRoomSensor = "";
@@ -16843,6 +16907,7 @@ let WineCellarSectionCard = class WineCellarSectionCard extends i {
             // Same settings as the full card passes, so the dialogs behave alike.
             this._enableWhisky = !!caps?.enable_whisky;
             this._enableCider = !!caps?.enable_cider;
+            this._showVivinoAwards = !!caps?.show_vivino_awards;
             this._defaultWineType = caps?.default_wine_type || "red";
             this._dispositionDisplay = caps?.disposition_display || "letter";
             this._chamberingRoomSensor = caps?.chambering_room_sensor || "";
@@ -17049,6 +17114,7 @@ let WineCellarSectionCard = class WineCellarSectionCard extends i {
         .open=${this._showDetail}
         .hasGemini=${this._hasGemini}
         .aiFallbackAlways=${this._aiFallbackAlways}
+        .showVivinoAwards=${this._showVivinoAwards}
         .enableWhisky=${this._enableWhisky}
         .enableCider=${this._enableCider}
         .currency=${this._currency}
@@ -17245,6 +17311,9 @@ __decorate([
 ], WineCellarSectionCard.prototype, "_enableCider", void 0);
 __decorate([
     r()
+], WineCellarSectionCard.prototype, "_showVivinoAwards", void 0);
+__decorate([
+    r()
 ], WineCellarSectionCard.prototype, "_defaultWineType", void 0);
 __decorate([
     r()
@@ -17430,6 +17499,7 @@ let WineCellarCard = class WineCellarCard extends i {
         this._vivinoKeepPhoto = false;
         this._enableWhisky = false;
         this._enableCider = false;
+        this._showVivinoAwards = false;
         this._defaultWineType = "red";
         this._dispositionDisplay = "letter";
         // Main view filter on the drinking status: "" (any), "D", "H" or "P".
@@ -17616,6 +17686,7 @@ let WineCellarCard = class WineCellarCard extends i {
             this._vivinoKeepPhoto = capResult?.vivino_keep_photo || false;
             this._enableWhisky = capResult?.enable_whisky || false;
             this._enableCider = capResult?.enable_cider || false;
+            this._showVivinoAwards = capResult?.show_vivino_awards || false;
             this._defaultWineType = capResult?.default_wine_type || "red";
             this._dispositionDisplay = capResult?.disposition_display || "letter";
             this._chamberingRoomSensor = capResult?.chambering_room_sensor || "";
@@ -19141,6 +19212,22 @@ let WineCellarCard = class WineCellarCard extends i {
             this._showToast(this._t("toast.changeEnableCiderFailed"));
         }
     }
+    async _setShowVivinoAwards(value) {
+        if (value === this._showVivinoAwards)
+            return;
+        const previous = this._showVivinoAwards;
+        this._showVivinoAwards = value;
+        try {
+            await this.hass.callWS({
+                type: "wine_cellar/update_settings",
+                updates: { show_vivino_awards: value },
+            });
+        }
+        catch (err) {
+            this._showVivinoAwards = previous;
+            this._showToast(this._t("toast.changeShowVivinoAwardsFailed"));
+        }
+    }
     async _setDefaultWineType(value) {
         if (value === this._defaultWineType)
             return;
@@ -20098,6 +20185,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .open=${this._showDetail}
           .hasGemini=${this._hasGemini}
           .aiFallbackAlways=${this._aiFallbackAlways}
+          .showVivinoAwards=${this._showVivinoAwards}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
@@ -20178,6 +20266,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .wines=${this._wines}
           .cabinets=${this._cabinets}
           .hasGemini=${this._hasGemini}
+          .showVivinoAwards=${this._showVivinoAwards}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .currency=${this._metadataCurrency}
@@ -20225,6 +20314,7 @@ let WineCellarCard = class WineCellarCard extends i {
           .hass=${this.hass}
           .aiFallbackAlways=${this._aiFallbackAlways}
           .vivinoKeepPhoto=${this._vivinoKeepPhoto}
+          .showVivinoAwards=${this._showVivinoAwards}
           .enableWhisky=${this._enableWhisky}
           .enableCider=${this._enableCider}
           .defaultWineType=${this._defaultWineType}
@@ -20240,6 +20330,7 @@ let WineCellarCard = class WineCellarCard extends i {
           @set-vivino-keep-photo=${(e) => this._setVivinoKeepPhoto(e.detail.value)}
           @set-enable-whisky=${(e) => this._setEnableWhisky(e.detail.value)}
           @set-enable-cider=${(e) => this._setEnableCider(e.detail.value)}
+          @set-show-vivino-awards=${(e) => this._setShowVivinoAwards(e.detail.value)}
           @set-default-wine-type=${(e) => this._setDefaultWineType(e.detail.value)}
           @set-disposition-display=${(e) => this._setDispositionDisplay(e.detail.value)}
           @set-metadata-language=${(e) => this._setMetadataLanguage(e.detail.value)}
@@ -21351,6 +21442,9 @@ __decorate([
 __decorate([
     r()
 ], WineCellarCard.prototype, "_enableCider", void 0);
+__decorate([
+    r()
+], WineCellarCard.prototype, "_showVivinoAwards", void 0);
 __decorate([
     r()
 ], WineCellarCard.prototype, "_defaultWineType", void 0);

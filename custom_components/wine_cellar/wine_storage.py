@@ -22,7 +22,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .disposition import DISPOSITION_SOURCE_AUTO, compute_disposition
+from .disposition import DISPOSITION_SOURCE_AUTO, clamp_peak_window, compute_disposition
 from .vivino_reconcile import sync_id
 
 
@@ -169,6 +169,15 @@ class WineCellarStorage:
                     wine[updated_key] = None
                 if checked_key not in wine:
                     wine[checked_key] = wine[updated_key]
+        # Align stored peaks on "until the end of the window", once only so a
+        # peak typed by hand afterwards is left alone.
+        if not self._data.get("peak_windows_aligned"):
+            for item in [*self._data.get(CONF_WINES, []), *self._data.get(CONF_BUY_LIST, [])]:
+                if item.get("peak_window"):
+                    item["peak_window"] = clamp_peak_window(
+                        item["peak_window"], item.get("drink_window", "")
+                    )
+            self._data["peak_windows_aligned"] = True
         # Ensure every top-level collection exists
         if CONF_BARCODE_CACHE not in self._data:
             self._data[CONF_BARCODE_CACHE] = {}

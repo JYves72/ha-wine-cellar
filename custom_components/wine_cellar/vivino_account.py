@@ -712,7 +712,9 @@ def _parse_user_wine(record: dict[str, Any]) -> dict[str, Any] | None:
         if not year or year < 1800:
             year = None
 
-        stats = wine.get("statistics") or vintage.get("statistics") or {}
+        stats = vintage.get("statistics") or {}
+        if not (stats.get("ratings_average") or 0) > 0:
+            stats = wine.get("statistics") or {}
         rating = stats.get("ratings_average")
         if not (isinstance(rating, (int, float)) and rating > 0):
             rating = None

@@ -51,6 +51,7 @@ export class WineCellarSectionCard extends LitElement {
   @state() private _currency = "USD";
   @state() private _enableWhisky = false;
   @state() private _enableCider = false;
+  @state() private _showVivinoAwards = false;
   @state() private _defaultWineType = "red";
   @state() private _dispositionDisplay = "letter";
   @state() private _chamberingRoomSensor = "";
@@ -240,6 +241,7 @@ export class WineCellarSectionCard extends LitElement {
       // Same settings as the full card passes, so the dialogs behave alike.
       this._enableWhisky = !!caps?.enable_whisky;
       this._enableCider = !!caps?.enable_cider;
+      this._showVivinoAwards = !!caps?.show_vivino_awards;
       this._defaultWineType = caps?.default_wine_type || "red";
       this._dispositionDisplay = caps?.disposition_display || "letter";
       this._chamberingRoomSensor = caps?.chambering_room_sensor || "";
@@ -457,6 +459,7 @@ export class WineCellarSectionCard extends LitElement {
         .open=${this._showDetail}
         .hasGemini=${this._hasGemini}
         .aiFallbackAlways=${this._aiFallbackAlways}
+        .showVivinoAwards=${this._showVivinoAwards}
         .enableWhisky=${this._enableWhisky}
         .enableCider=${this._enableCider}
         .currency=${this._currency}

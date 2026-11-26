@@ -68,6 +68,22 @@ DISPOSITION_PAST_PEAK = "P"
 DISPOSITION_SOURCE_AUTO = "auto"
 
 
+def clamp_peak_window(peak: str, window: str) -> str:
+    """Peak window for a "YYYY-YYYY" drinking window: starts where the AI says
+    the wine peaks (kept inside the window) and runs to the window's last year.
+
+    The wine is at its best from that point until the end of the window, which
+    is how the app's users read it.
+    """
+    win = re.findall(r"\d{4}", window or "")
+    years = re.findall(r"\d{4}", peak or "")
+    if len(win) != 2 or not years:
+        return peak
+    lo, hi = int(win[0]), int(win[1])
+    start = min(max(int(years[0]), lo), hi)
+    return str(start) if start == hi else f"{start}-{hi}"
+
+
 def compute_disposition(wine: dict[str, Any], *, current_year: int | None = None) -> str:
     """Return 'D', 'H', or 'P' for a single wine, based on its drink window.
 
