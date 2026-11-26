@@ -58,6 +58,7 @@ export class InventoryDialog extends LitElement {
   @property({ type: Boolean }) hasGemini = false;
   @property({ type: Boolean }) enableWhisky = false;
   @property({ type: Boolean }) enableCider = false;
+  @property({ type: Boolean }) showVivinoAwards = false;
   @property({ type: Boolean }) aiFallbackAlways = false;
   @property({ type: String }) currency = "USD";
   @property({ type: String }) metadataLanguage = "en";
@@ -2562,6 +2563,7 @@ export class InventoryDialog extends LitElement {
         .currency=${this.currency}
         .enableWhisky=${this.enableWhisky}
         .enableCider=${this.enableCider}
+        .showVivinoAwards=${this.showVivinoAwards}
         .aiFallbackAlways=${this.aiFallbackAlways}
         .chamberingRoomSensor=${this.chamberingRoomSensor}
         .chamberingTimeConstantMinutes=${this.chamberingTimeConstantMinutes}

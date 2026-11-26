@@ -62,7 +62,7 @@ export interface Wine {
   vivino_taste?: VivinoTaste | null;
   vivino_flavors?: string[];
   vivino_style?: string;
-  vivino_awards?: { competition?: string; medal?: string; score?: string; year?: number | string }[];
+  vivino_awards?: { competition?: string; medal?: string; trophy?: string; score?: string; year?: number | string }[];
   vivino_critics?: { critic?: string; score?: string; score_max?: number }[];
   vivino_profile_at?: string;
   // Set once a synced bottle's Vivino page is changed: the id the Vivino

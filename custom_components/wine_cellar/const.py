@@ -113,6 +113,9 @@ CONF_ENABLE_WHISKY = "enable_whisky"
 # Same opt-in for "cider" (off by default, only gates what the UI offers).
 CONF_ENABLE_CIDER = "enable_cider"
 
+# Show competition medals in the Vivino profile (off by default).
+CONF_SHOW_VIVINO_AWARDS = "show_vivino_awards"
+
 # Which wine type the add-wine form starts on. Moved here (an in-card
 # setting) from Home Assistant's own config/options flow, which is a
 # better fit for account/connection-level settings (API keys, Vivino
@@ -193,4 +196,4 @@ DEFAULT_CHAMBERING_EQUILIBRATION_HOURS = 24
 ATTR_TOTAL_BOTTLES = "total_bottles"
 ATTR_TOTAL_CAPACITY = "total_capacity"
 
-FRONTEND_VERSION = "20261125j"
+FRONTEND_VERSION = "20261126a"

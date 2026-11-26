@@ -498,7 +498,8 @@
         "acidic": "Acidic",
         "gentle": "Gentle",
         "fizzy": "Fizzy",
-        "critic": "Critic"
+        "critic": "Critic",
+        "medals": {"gold": "Gold", "double_gold": "Double gold", "silver": "Silver", "bronze": "Bronze", "commended": "Commended", "excellent": "Excellent", "remarkable": "Remarkable", "exceptional": "Exceptional", "coup_de_coeur": "Coup de cœur"}
       },
       "backLabelSuffix": " (back label)",
       "backLabelBadge": "Back label",
@@ -696,6 +697,7 @@
       "keepMyPhoto": "Always keep my photo when Vivino offers a different one",
       "enableWhisky": "Track whisky bottles (offer \"Whisky\" as a type)",
       "enableCider": "Track cider bottles (offer \"Cider\" as a type)",
+      "showVivinoAwards": "Show competition medals in the Vivino profile",
       "defaultWineTypeLabel": "Default wine type",
       "dispositionDisplayLabel": "Drink Now / Hold / Past Peak display",
       "dispositionDisplayLetter": "Badge with letter",
@@ -815,6 +817,7 @@
     "changeAiFallbackFailed": "Failed to change AI fallback setting",
     "changeEnableWhiskyFailed": "Failed to change the whisky setting",
     "changeEnableCiderFailed": "Failed to change the cider setting",
+    "changeShowVivinoAwardsFailed": "Failed to change the medals setting",
     "changeDispositionDisplayFailed": "Failed to change the disposition badge setting",
     "changeDefaultWineTypeFailed": "Failed to change the default wine type",
     "vivinoRefreshing": "Refreshing all wines from Vivino...",

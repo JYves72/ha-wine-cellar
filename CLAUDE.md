@@ -114,6 +114,13 @@ Home Assistant custom integration + Lovelace card for managing a wine cellar: ra
   - **Known gap**: a synced bottle's "vivino.com/w/<id>" link uses the vintage id, so it can open the wrong page.
   - Stored profile values only change when the bottle is refreshed with Vivino.
 
+- **v2.26.2** (2026-11-26) — tested OK by the user on their real instance before release.
+  - Non-vintage wines get a Vivino profile (the entry with an empty year); a vintage Vivino does not list still gets none.
+  - Competition medals: opt-in `show_vivino_awards` (off by default). An award only carries `CompetitionID` (list from `api.vivino.com/competitions`, hardcoded in `vivino.py`) and capitalised keys. Critic reviews likewise carry only `wine_critic_id`, so critics still show unnamed (not fixed).
+  - Rating: the vintage's own statistics win over the wine-wide ones when Vivino rates that vintage.
+  - Peak window: `clamp_peak_window` (now in `disposition.py`) also applies to AI answers without a Vivino window; stored peaks were aligned once (`peak_windows_aligned`).
+  - French composed style names say "Mousseux", not "Effervescent" (user's choice).
+
 ## Key technical findings from recent work (don't re-discover these)
 
 - **Vivino's `www.vivino.com/api/explore/explore` search API silently ignores the `q` param** for unauthenticated requests — returns the same generic "trending wines" list regardless of query (verified live, repeatedly). `search_wine()` in `vivino.py` now checks the top result for basic relevance before trusting it, falling back to HTML scraping (which *does* do real text search) when it looks wrong.

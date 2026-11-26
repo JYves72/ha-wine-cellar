@@ -27,6 +27,7 @@ from .const import (
     CONF_METADATA_CURRENCY,
     CONF_METADATA_LANGUAGE,
     CONF_SERVER_BACKUP_KEEP,
+    CONF_SHOW_VIVINO_AWARDS,
     CONF_VIVINO_MODE,
     CONF_WINE_HISTORY,
     CONF_WINES,
@@ -43,7 +44,7 @@ from .const import (
     WINE_TYPES,
 )
 from . import photos
-from .disposition import compute_disposition
+from .disposition import clamp_peak_window, compute_disposition
 from .locales import CURRENCIES, LANGUAGE_NAMES, match_language
 from .vivino import _search_significant_words
 from .vivino_reconcile import sync_id
@@ -228,22 +229,6 @@ async def _find_vivino_match(hass: HomeAssistant, wine: dict[str, Any]) -> dict[
     return lookup
 
 
-def _clamp_peak_window(peak: str, window: str) -> str:
-    """Peak window for a "YYYY-YYYY" drinking window: starts where the AI says
-    the wine peaks (kept inside the window) and runs to the window's last year.
-
-    The wine is at its best from that point until the end of the window, which
-    is how the app's users read it.
-    """
-    win = re.findall(r"\d{4}", window or "")
-    years = re.findall(r"\d{4}", peak or "")
-    if len(win) != 2 or not years:
-        return peak
-    lo, hi = int(win[0]), int(win[1])
-    start = min(max(int(years[0]), lo), hi)
-    return str(start) if start == hi else f"{start}-{hi}"
-
-
 def _apply_vivino_window(
     updates: dict[str, Any], wine: dict[str, Any], window: dict[str, str] | None
 ) -> None:
@@ -254,7 +239,7 @@ def _apply_vivino_window(
     updates["drink_by"] = window["drink_by"]
     peak = updates.get("peak_window") or wine.get("peak_window") or ""
     if peak:
-        clamped = _clamp_peak_window(peak, window["drink_window"])
+        clamped = clamp_peak_window(peak, window["drink_window"])
         if clamped != wine.get("peak_window"):
             updates["peak_window"] = clamped
     recomputed = compute_disposition({**wine, **updates})
@@ -1459,6 +1444,9 @@ def ws_get_capabilities(
             ),
             "enable_cider": bool(
                 hass.data[DOMAIN]["storage"].settings.get(CONF_ENABLE_CIDER, False)
+            ),
+            "show_vivino_awards": bool(
+                hass.data[DOMAIN]["storage"].settings.get(CONF_SHOW_VIVINO_AWARDS, False)
             ),
             "default_wine_type": hass.data[DOMAIN]["storage"].settings.get(
                 CONF_DEFAULT_WINE_TYPE, DEFAULT_WINE_TYPE
